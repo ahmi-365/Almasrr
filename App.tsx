@@ -5,7 +5,7 @@ import AppNavigator from "./navigation/AppNavigator";
 
 export default function App() {
   const navigationRef = useNavigationContainerRef();
-  const [currentRouteName, setCurrentRouteName] = useState();
+  const [currentRouteName, setCurrentRouteName] = useState<string | undefined>();
   const [isAppReady, setIsAppReady] = useState(false);
 
   useEffect(() => {
