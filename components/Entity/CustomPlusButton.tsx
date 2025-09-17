@@ -1,47 +1,48 @@
+// components/Entity/CustomPlusButton.tsx
+
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Plus } from 'lucide-react-native';
 
-type CustomPlusButtonProps = {
-  onPress: () => void;
-};
-
-const CustomPlusButton: React.FC<CustomPlusButtonProps> = ({ onPress }) => {
+// No props needed now as the wrapper will handle onPress
+const CustomPlusButton: React.FC = () => {
   return (
     <View style={styles.container}>
-      <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
-        <View style={styles.outerCircle}>
-
-          <View style={styles.plusCircle}>
-            <Plus size={24} color="#FFF" />
-          </View>
+      <View style={styles.outerCircle}>
+        <View style={styles.plusCircle}>
+          <Plus size={28} color="#FFF" strokeWidth={3} />
         </View>
-      </TouchableOpacity>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    position: 'absolute',
-    alignSelf: 'center',
-    bottom: 60, 
-    zIndex: 10,
+    // REMOVED: position, alignSelf, bottom, zIndex
+    // ADDED shadow for depth
+    shadowColor: '#FF6347',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.4,
+    shadowRadius: 5,
+    elevation: 8,
   },
   outerCircle: {
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: '#e8e8e8ff', 
+    backgroundColor: '#FFFFFF', // Changed to white to stand out
     justifyContent: 'center',
     alignItems: 'center',
-    
   },
   plusCircle: {
-    backgroundColor: '#FF6347', 
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    backgroundColor: '#FF6347',
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     justifyContent: 'center',
     alignItems: 'center',
   },

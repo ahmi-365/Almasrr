@@ -1,47 +1,59 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Package } from 'lucide-react-native'; // replace with your icon
 
 interface StatCardProps {
   number: string | number;
   label: string;
   iconColor?: string;
   progressColor?: string;
-    icon: React.ComponentType<any>; // Pass the icon component
-
-  progress?: number; // 0 to 1
+  icon: React.ComponentType<any>;
+  maxValue?: number;
+  isBanner?: boolean;
 }
 
 const StatCard: React.FC<StatCardProps> = ({
   number,
   label,
-    icon: Icon, // <-- use the passed icon here
-
+  icon: Icon,
   iconColor = '#F39C12',
   progressColor = '#F39C12',
-  progress = 0.3,
+  isBanner = false,
+  maxValue = 100,
 }) => {
+  const cardStyle = isBanner ? styles.bannerCard : styles.card;
+  const topRowStyle = isBanner ? styles.bannerTopRow : styles.topRow;
+  const numberStyle = isBanner ? styles.bannerNumber : styles.number;
+  const labelStyle = isBanner ? styles.bannerLabel : styles.label;
+
+  const progressPercent = Math.min(100, (Number(number) / maxValue) * 100);
+
   return (
-    <View style={styles.card}>
-      <View style={styles.topRow}>
-        <Text style={styles.number}>{number}</Text>
-<Icon color={iconColor} size={20} />
+    <View style={cardStyle}>
+      <View style={topRowStyle}>
+        <Text style={numberStyle}>{number}</Text>
+        <Icon color={iconColor} size={isBanner ? 28 : 20} />
       </View>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={labelStyle}>{label}</Text>
       <View style={styles.progressBackground}>
-        <View style={[styles.progressBar, { width: `${progress * 100}%`, backgroundColor: progressColor }]} />
+        <View
+          style={[
+            styles.progressBar,
+            { width: `${progressPercent}%`, backgroundColor: progressColor },
+          ]}
+        />
       </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
- card: {
+  card: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 18,
-    minWidth: 140,    
-    minHeight: 140,   
+    flex: 1,
+    maxWidth: '48%',
+    minHeight: 140,
     justifyContent: 'space-between',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -65,11 +77,41 @@ const styles = StyleSheet.create({
     color: '#7F8C8D',
     textAlign: 'right',
   },
+  bannerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    width: '100%',
+    minHeight: 110,
+  },
+  bannerTopRow: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  bannerNumber: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#2C3E50',
+    textAlign: 'right',
+  },
+  bannerLabel: {
+    marginTop: 10,
+    fontSize: 14,
+    color: '#7F8C8D',
+    textAlign: 'right',
+  },
   progressBackground: {
     height: 4,
     backgroundColor: '#E0E0E0',
     borderRadius: 2,
-    marginTop: 6,
+    marginTop: 12,
     overflow: 'hidden',
   },
   progressBar: {

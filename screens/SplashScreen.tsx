@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import React from 'react';
 
 type SplashScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Splash'>;
 
@@ -20,32 +21,30 @@ export default function SplashScreen() {
       Animated.spring(scaleAnim, { toValue: 1, tension: 50, friction: 7, useNativeDriver: true }),
     ]).start();
 
-  const checkLogin = async () => {
-  try {
-    const userData = await AsyncStorage.getItem('user');
+    const checkLogin = async () => {
+      try {
+        const userData = await AsyncStorage.getItem('user');
 
-    if (!userData) {
-      return navigation.replace('Login');
-    }
+        if (!userData) {
+          return navigation.replace('Login');
+        }
 
-    const parsed = JSON.parse(userData);
+        const parsed = JSON.parse(userData);
 
-    if (parsed?.success === true && parsed?.roleName) {
-      if (parsed.roleName === 'Entity') {
-        navigation.replace('MainTabs');
-      } else if (parsed.roleName === 'Driver') {
-        navigation.replace('DriverTabs');
-      } else {
+        if (parsed?.success === true && parsed?.roleName) {
+          if (parsed?.success === true && parsed?.roleName) {
+            navigation.replace('MainTabs');
+          } else {
+            navigation.replace('Login');
+          }
+        } else {
+          navigation.replace('Login');
+        }
+      } catch (error) {
+        console.error('Error reading user data:', error);
         navigation.replace('Login');
       }
-    } else {
-      navigation.replace('Login');
-    }
-  } catch (error) {
-    console.error('Error reading user data:', error);
-    navigation.replace('Login');
-  }
-};
+    };
 
     const timer = setTimeout(() => {
       checkLogin();

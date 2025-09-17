@@ -1,48 +1,43 @@
 // components/Entity/TopBar.tsx
-import React, { useState, useCallback } from 'react';
+import React from 'react'; // Removed useState and useCallback
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Menu } from 'lucide-react-native';
-import Sidebar from './Sidebar';
+// REMOVED: import Sidebar from './Sidebar';
+import { useDashboard } from '../../Context/DashboardContext'; // Import the hook
 
 interface TopBarProps {
   title: string;
 }
 
 export default function TopBar({ title }: TopBarProps) {
-  const [sidebarVisible, setSidebarVisible] = useState(false);
+  // REMOVED: const [sidebarVisible, setSidebarVisible] = useState(false);
+  const { toggleSidebar } = useDashboard(); // Get the global toggle function
 
-  const handleSidebarToggle = useCallback(
-    () => setSidebarVisible((prev) => !prev),
-    []
-  );
-
-  const handleSidebarClose = useCallback(() => setSidebarVisible(false), []);
+  // REMOVED: handleSidebarToggle and handleSidebarClose callbacks
 
   return (
-    <>
-      <Sidebar visible={sidebarVisible} onClose={handleSidebarClose} />
+    // REMOVED: The fragment and the <Sidebar /> component
+    <View style={styles.header}>
+      <Image
+        source={require('../../assets/images/NavLogo2.png')}
+        style={styles.logo}
+        resizeMode="contain"
+      />
+      <Text style={styles.headerTitle}>{title}</Text>
 
-      <View style={styles.header}>
-        <Image
-          source={require('../../assets/images/NavLogo2.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text style={styles.headerTitle}>{title}</Text>
-
-        <TouchableOpacity
-          onPress={handleSidebarToggle}
-          style={styles.menuButton}
-          activeOpacity={0.7}
-        >
-          <Menu color="#2C3E50" size={24} />
-        </TouchableOpacity>
-      </View>
-    </>
+      <TouchableOpacity
+        onPress={toggleSidebar} // Use the function from context
+        style={styles.menuButton}
+        activeOpacity={0.7}
+      >
+        <Menu color="#2C3E50" size={24} />
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  // ...styles are unchanged
   header: {
     flexDirection: 'row',
     alignItems: 'center',

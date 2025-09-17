@@ -6,6 +6,12 @@ interface DashboardContextType {
   setDcBalance: (balance: string) => void;
   dashboardData: any;
   setDashboardData: (data: any) => void;
+  isSidebarVisible: boolean;
+  toggleSidebar: () => void;
+  // --- ADDED ---
+  currentRoute: string;
+  setCurrentRoute: (route: string) => void;
+  // -------------
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -13,9 +19,28 @@ const DashboardContext = createContext<DashboardContextType | undefined>(undefin
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [dcBalance, setDcBalance] = useState('0.00');
   const [dashboardData, setDashboardData] = useState<any>(null);
+  const [isSidebarVisible, setSidebarVisible] = useState(false);
+  // --- ADDED ---
+  const [currentRoute, setCurrentRoute] = useState('');
+  // -------------
+
+  const toggleSidebar = () => setSidebarVisible(prev => !prev);
 
   return (
-    <DashboardContext.Provider value={{ dcBalance, setDcBalance, dashboardData, setDashboardData }}>
+    <DashboardContext.Provider
+      value={{
+        dcBalance,
+        setDcBalance,
+        dashboardData,
+        setDashboardData,
+        isSidebarVisible,
+        toggleSidebar,
+        // --- ADDED ---
+        currentRoute,
+        setCurrentRoute
+        // -------------
+      }}
+    >
       {children}
     </DashboardContext.Provider>
   );
