@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,61 +7,287 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
-  KeyboardAvoidingView,
   ScrollView,
   Platform,
   StatusBar,
   Image,
+  Animated,
+  Easing,
+  Dimensions,
+  KeyboardAvoidingView,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation } from '@react-navigation/native';
-import { RootStackParamList } from '../../navigation/AppNavigator';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+type RootStackParamList = {
+  Login: undefined;
+  MainTabs: undefined;
+  Register: undefined;
+};
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   'Login'
 >;
 
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+// --- Color Palette ---
+const Colors = {
+  primaryOrange: '#FF7043',
+  darkOrange: '#E65100',
+  lightOrange: '#FFA726',
+  white: '#FFFFFF',
+  darkText: '#303030',
+  greyText: '#757575',
+  lightGreyBackground: '#FAFAFA',
+  borderGrey: '#E0E0E0',
+  errorRed: '#EF5350',
+  softOrange: '#FFD7C5',
+};
+
+// --- Reusable Input Field ---
+interface CustomInputProps {
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
+  secureTextEntry?: boolean;
+  isPassword?: boolean;
+  togglePasswordVisibility?: () => void;
+  error?: string | null;
+  onFocus?: () => void;
+  onBlur?: () => void;
+}
+
+const CustomInput: React.FC<CustomInputProps> = ({
+  label,
+  value,
+  onChangeText,
+  keyboardType = 'default',
+  secureTextEntry = false,
+  isPassword = false,
+  togglePasswordVisibility,
+  error,
+  onFocus,
+  onBlur,
+}) => {
+  const [isFocused, setIsFocused] = useState(false);
+  const borderColorAnim = useRef(new Animated.Value(0)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(borderColorAnim, {
+      toValue: isFocused ? 1 : 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [isFocused]);
+
+  useEffect(() => {
+    if (error) {
+      Animated.sequence([
+        Animated.timing(shakeAnim, { toValue: 10, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -10, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 10, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
+      ]).start(() => shakeAnim.setValue(0));
+    }
+  }, [error]);
+
+  const interpolatedBorderColor = borderColorAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [Colors.borderGrey, Colors.primaryOrange],
+  });
+
+  return (
+    <View style={inputStyles.container}>
+      <Text style={inputStyles.label}>{label}</Text>
+      <Animated.View
+        style={[
+          inputStyles.wrapper,
+          { borderColor: error ? Colors.errorRed : interpolatedBorderColor },
+          { transform: [{ translateX: shakeAnim }] }
+        ]}
+      >
+        <TextInput
+          style={inputStyles.textInput}
+          value={value}
+          onChangeText={onChangeText}
+          keyboardType={keyboardType}
+          secureTextEntry={secureTextEntry}
+          textAlign="right"
+          placeholderTextColor={Colors.greyText}
+          onFocus={() => {
+            setIsFocused(true);
+            if (onFocus) onFocus();
+          }}
+          onBlur={() => {
+            setIsFocused(false);
+            if (onBlur) onBlur();
+          }}
+        />
+        {isPassword && togglePasswordVisibility && (
+          <TouchableOpacity
+            onPress={togglePasswordVisibility}
+            style={inputStyles.passwordIconContainer}
+          >
+            <Icon
+              name={secureTextEntry ? 'visibility-off' : 'visibility'}
+              size={22}
+              color={Colors.greyText}
+            />
+          </TouchableOpacity>
+        )}
+      </Animated.View>
+      {error && <Text style={inputStyles.errorText}>{error}</Text>}
+    </View>
+  );
+};
+
+const inputStyles = StyleSheet.create({
+  container: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    color: Colors.darkText,
+    marginBottom: 8,
+    textAlign: 'right',
+    fontFamily: 'System',
+  },
+  wrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: 30,
+    paddingHorizontal: 15,
+    paddingVertical: 5,
+    borderWidth: 2,
+    borderColor: Colors.borderGrey,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 16,
+    color: Colors.darkText,
+    fontFamily: 'System',
+    writingDirection: 'rtl',
+    textAlign: 'right',
+    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
+  },
+  passwordIconContainer: {
+    marginLeft: 10,
+    padding: 5,
+  },
+  errorText: {
+    fontSize: 12,
+    color: Colors.errorRed,
+    marginTop: 5,
+    textAlign: 'right',
+    fontFamily: 'System',
+  },
+});
+
+// --- Main Login Screen Component ---
 const LoginScreen = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
-
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   type Errors = {
-    phoneNumber?: string | null;
-    password?: string | null;
+    phoneNumber?: string;
+    password?: string;
   };
   const [errors, setErrors] = useState<Errors>({});
 
-  const validateInputs = () => {
-    const newErrors: Errors = {};
-    if (!phoneNumber) {
-      newErrors.phoneNumber = 'رقم الجوال مطلوب';
-      // --- 1. THIS IS THE UPDATED VALIDATION LOGIC ---
-      // It now checks for a '09' prefix followed by 6 to 10 digits,
-      // for a total length of 8 to 12 characters.
-    } else if (!/^09[0-9]{6,10}$/.test(phoneNumber)) {
-      newErrors.phoneNumber = 'يرجى إدخال رقم جوال صحيح (8-12 أرقام)';
-    }
-    // ---------------------------------------------
-    if (!password) {
-      newErrors.password = 'كلمة المرور مطلوبة';
-    } else if (password.length < 3) {
-      newErrors.password = 'كلمة المرور يجب أن تكون 3 أحرف على الأقل';
-    }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  // Animation references
+  const headerAnim = useRef(new Animated.Value(0)).current;
+  const formOpacityAnim = useRef(new Animated.Value(0)).current;
+  const buttonScaleAnim = useRef(new Animated.Value(1)).current;
+  const waveOffset1 = useRef(new Animated.Value(0)).current;
+  const waveOffset2 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    // Initial animations
+    Animated.sequence([
+      Animated.timing(headerAnim, {
+        toValue: 1,
+        duration: 900,
+        easing: Easing.out(Easing.back(1.1)),
+        useNativeDriver: true,
+      }),
+      Animated.timing(formOpacityAnim, {
+        toValue: 1,
+        duration: 600,
+        delay: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Wave animations
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(waveOffset1, {
+          toValue: 1,
+          duration: 10000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+        Animated.timing(waveOffset1, {
+          toValue: 0,
+          duration: 10000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(waveOffset2, {
+          toValue: 1,
+          duration: 12000,
+          delay: 1500,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+        Animated.timing(waveOffset2, {
+          toValue: 0,
+          duration: 12000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+
+  }, []);
 
   const handleLogin = async () => {
-    // if (!validateInputs()) return;
     setIsLoading(true);
+    Animated.sequence([
+      Animated.spring(buttonScaleAnim, {
+        toValue: 0.95,
+        useNativeDriver: true,
+        speed: 20,
+        bounciness: 10,
+      }),
+      Animated.spring(buttonScaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 20,
+        bounciness: 10,
+      }),
+    ]).start();
 
     try {
       const response = await fetch('https://tanmia-group.com:84/courierApi/login', {
@@ -84,7 +310,6 @@ const LoginScreen = () => {
         console.log('User data saved successfully to AsyncStorage.');
 
         Alert.alert('تم تسجيل الدخول بنجاح', 'مرحباً بك مرة أخرى في التطبيق');
-
         navigation.replace('MainTabs');
       } else {
         Alert.alert('خطأ في تسجيل الدخول', responseData.message || 'يرجى التحقق من بياناتك');
@@ -101,151 +326,299 @@ const LoginScreen = () => {
     navigation.navigate('Register');
   };
 
+  const wavePath1 = waveOffset1.interpolate({
+    inputRange: [0, 1],
+    outputRange: [
+      `M0,${screenHeight * 0.15} C${screenWidth * 0.25},${screenHeight * 0.25} ${screenWidth * 0.75},${screenHeight * 0.05} ${screenWidth},${screenHeight * 0.15} V0 H0 Z`,
+      `M0,${screenHeight * 0.15} C${screenWidth * 0.25},${screenHeight * 0.05} ${screenWidth * 0.75},${screenHeight * 0.25} ${screenWidth},${screenHeight * 0.15} V0 H0 Z`
+    ],
+  });
+
+  const wavePath2 = waveOffset2.interpolate({
+    inputRange: [0, 1],
+    outputRange: [
+      `M0,${screenHeight * 0.2} C${screenWidth * 0.35},${screenHeight * 0.1} ${screenWidth * 0.65},${screenHeight * 0.3} ${screenWidth},${screenHeight * 0.2} V0 H0 Z`,
+      `M0,${screenHeight * 0.2} C${screenWidth * 0.35},${screenHeight * 0.3} ${screenWidth * 0.65},${screenHeight * 0.1} ${screenWidth},${screenHeight * 0.2} V0 H0 Z`
+    ],
+  });
+
+  const animatedHeaderStyle = {
+    opacity: headerAnim,
+    transform: [
+      {
+        translateY: headerAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [50, 0],
+        }),
+      },
+      {
+        scale: headerAnim.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.8, 1],
+        }),
+      },
+    ],
+  };
+
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1a1a1a" />
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoidingView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : -StatusBar.currentHeight}
+    >
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <ScrollView
-          contentContainerStyle={styles.scrollContainer}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.topSection}>
-            <View style={styles.iconContainer}>
-              <Image
-                source={require('../../assets/images/NavLogo.png')}
-                style={styles.iconImage}
-                resizeMode="contain"
-              />
-            </View>
-            <Text style={styles.welcomeTitle}>أهلاً بك مجدداً</Text>
-            <Text style={styles.welcomeSubtitle}>سجل دخولك للمتابعة</Text>
+        {/* Top SVG Waves */}
+        <View style={styles.topSvgContainer}>
+          <Svg height={screenHeight * 0.3} width={screenWidth}>
+            <Defs>
+              <LinearGradient id="gradTop" x1="0%" y1="0%" x2="100%" y2="0%">
+                <Stop offset="0%" stopColor={Colors.lightOrange} stopOpacity="0.8" />
+                <Stop offset="100%" stopColor={Colors.primaryOrange} stopOpacity="1" />
+              </LinearGradient>
+              <LinearGradient id="gradMid" x1="0%" y1="0%" x2="100%" y2="0%">
+                <Stop offset="0%" stopColor={Colors.lightOrange} stopOpacity="0.6" />
+                <Stop offset="100%" stopColor={Colors.primaryOrange} stopOpacity="0.7" />
+              </LinearGradient>
+            </Defs>
+            <AnimatedPath
+              d={wavePath1}
+              fill="url(#gradTop)"
+            />
+            <AnimatedPath
+              d={wavePath2}
+              fill="url(#gradMid)"
+            />
+          </Svg>
+        </View>
+
+        {/* Logo & Welcome Section */}
+        <Animated.View style={[styles.topSection]}>
+          <View style={styles.logoContainer}>
+            <Image
+              source={require('../../assets/images/NavLogo2.png')}
+              style={styles.iconImage}
+              resizeMode="contain"
+            />
           </View>
+          <Text style={styles.welcometitle}>المصر</Text>
+          <Text style={styles.welcomeSubtitle}>يارِيت تسجل دخولك لحسابك</Text>
+        </Animated.View>
 
-          <View style={styles.formSection}>
-            <View style={styles.inputContainer}>
-              <View style={[styles.inputWrapper, errors.phoneNumber && styles.inputError]}>
-                <Icon name="phone-iphone" size={20} color="#888888" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="رقم الجوال"
-                  placeholderTextColor="#888888"
-                  value={phoneNumber}
-                  onChangeText={(text) => {
-                    setPhoneNumber(text);
-                    if (errors.phoneNumber) setErrors((prev) => ({ ...prev, phoneNumber: null }));
-                  }}
-                  keyboardType="phone-pad"
-                  // --- 2. UPDATE THE MAXLENGTH ---
-                  maxLength={13}
-                  // ------------------------------
-                  textAlign="right"
-                />
-              </View>
-              {errors.phoneNumber && <Text style={styles.errorText}>{errors.phoneNumber}</Text>}
-            </View>
+        {/* Form Section */}
+        <Animated.View style={[styles.formSection, { opacity: formOpacityAnim }]}>
+          <CustomInput
+            label="*رقم الهاتف أو البريد الالكتروني"
+            value={phoneNumber}
+            onChangeText={(text) => {
+              setPhoneNumber(text);
+              setErrors((prev) => ({ ...prev, phoneNumber: undefined }));
+            }}
+            keyboardType="default"
+            error={errors.phoneNumber}
+          />
 
-            <View style={styles.inputContainer}>
-              <View style={[styles.inputWrapper, errors.password && styles.inputError]}>
-                <TouchableOpacity
-                  onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-                  style={styles.passwordIconContainer}
-                >
-                  <Icon
-                    name={isPasswordVisible ? 'lock-open' : 'lock'}
-                    size={20}
-                    color="#888888"
-                  />
-                </TouchableOpacity>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="كلمة المرور"
-                  placeholderTextColor="#888888"
-                  value={password}
-                  onChangeText={(text) => {
-                    setPassword(text);
-                    if (errors.password) setErrors((prev) => ({ ...prev, password: null }));
-                  }}
-                  secureTextEntry={!isPasswordVisible}
-                  textAlign="right"
-                />
-              </View>
-              {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
-            </View>
+          <CustomInput
+            label="*كلمة المرور"
+            value={password}
+            onChangeText={(text) => {
+              setPassword(text);
+              setErrors((prev) => ({ ...prev, password: undefined }));
+            }}
+            secureTextEntry={!isPasswordVisible}
+            isPassword
+            togglePasswordVisibility={() => setIsPasswordVisible(!isPasswordVisible)}
+            error={errors.password}
+          />
+        </Animated.View>
 
+        {/* Bottom Section */}
+        <View style={styles.bottomSection}>
+          {/* Orange decorative elements in top corners */}
+          <View style={styles.topLeftDecor} />
+          <View style={styles.topRightDecor} />
+
+          {/* Login Button */}
+          <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
             <TouchableOpacity
               style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
               onPress={handleLogin}
               disabled={isLoading}
             >
               {isLoading ? (
-                <ActivityIndicator color="#000000" size="small" />
+                <ActivityIndicator color={Colors.white} size="small" />
               ) : (
-                <View style={styles.loginButtonContent}>
-                  <Icon name="arrow-back" size={20} color="#000000" style={styles.loginArrow} />
-                  <Text style={styles.loginButtonText}>تسجيل الدخول</Text>
-                </View>
+                <Text style={styles.loginButtonText}>تسجيل الدخول</Text>
               )}
             </TouchableOpacity>
+          </Animated.View>
 
-            <View style={styles.signUpContainer}>
-              <TouchableOpacity onPress={handleCreateAccount}>
-                <Text style={styles.signUpLink}>إنشاء حساب</Text>
-              </TouchableOpacity>
-              <Text style={styles.signUpText}> ليس لديك حساب؟</Text>
-            </View>
+          {/* Sign Up Link */}
+          <View style={styles.signUpContainer}>
+            <Text style={styles.signUpText}>مزال ماعندكش حساب لمتجرك؟ </Text>
+            <TouchableOpacity onPress={handleCreateAccount}>
+              <Text style={styles.signUpLink}>إنشاء حساب متجر</Text>
+            </TouchableOpacity>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-      <View style={styles.bottomWave}>
-        <Svg viewBox="0 0 500 120" width="100%" height={120}>
-          <Path
-            d="M10 80 C150 20, 350 140, 490 80"
-            stroke="#FF8C2E"
-            strokeWidth={4}
-            fill="none"
-            strokeLinecap="round"
-          />
-          <Path
-            d="M0 90 C150 40, 350 140, 500 90 L500 120 L0 120 Z"
-            fill="#6A3A14"
-          />
-        </Svg>
-      </View>
-    </View>
+
+          {/* Bottom indicator */}
+          <View style={styles.bottomIndicator} />
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
+// Create Animated version of Path for SVG animations
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
 const styles = StyleSheet.create({
-  // ... (Your styles are unchanged)
-  container: { flex: 1, backgroundColor: '#1a1a1a' },
-  keyboardAvoidingView: { flex: 1 },
-  scrollContainer: { flexGrow: 1, paddingHorizontal: 30, paddingTop: 60, paddingBottom: 120 },
-  topSection: { alignItems: 'center', marginBottom: 60 },
-  iconContainer: { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 30 },
-  welcomeTitle: { fontSize: 28, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 8, textAlign: 'center', fontFamily: 'NotoSansArabic-Bold' },
-  welcomeSubtitle: { fontSize: 16, color: '#AAAAAA', textAlign: 'center', fontFamily: 'NotoSansArabic-Regular' },
-  formSection: { flex: 1 },
-  inputContainer: { marginBottom: 20 },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#2a2a2a', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 16, borderWidth: 1, borderColor: '#404040' },
-  inputError: { borderColor: '#FF4444' },
-  textInput: { flex: 1, fontSize: 16, color: '#FFFFFF', fontWeight: '400', fontFamily: 'NotoSansArabic-Regular', writingDirection: 'rtl' },
-  inputIcon: { marginRight: 12, marginLeft: 0 },
-  passwordIconContainer: { marginRight: 12, marginLeft: 0, padding: 4 },
-  errorText: { fontSize: 12, color: '#FF4444', marginTop: 6, marginRight: 4, marginLeft: 0, textAlign: 'right', fontFamily: 'NotoSansArabic-Regular' },
-  loginButton: { backgroundColor: '#F47525', borderRadius: 12, paddingVertical: 18, alignItems: 'center', marginTop: 20, marginBottom: 30 },
-  loginButtonDisabled: { opacity: 0.7 },
-  loginButtonContent: { flexDirection: 'row', alignItems: 'center' },
-  loginButtonText: { color: '#000000', fontSize: 18, fontWeight: '600', marginLeft: 8, marginRight: 0, fontFamily: 'NotoSansArabic-Bold' },
-  loginArrow: { marginRight: 4, marginLeft: 0 },
-  signUpContainer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  signUpText: { fontSize: 14, color: '#AAAAAA', fontFamily: 'NotoSansArabic-Regular' },
-  signUpLink: { fontSize: 14, color: '#F47525', fontWeight: '600', fontFamily: 'NotoSansArabic-Bold' },
-  bottomWave: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 100 },
-  iconImage: { width: 150, height: 150 },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.white,
+  },
+  scrollContent: {
+    flexGrow: 1, // Crucial for making content expandable
+    paddingTop: screenHeight * 0.15,
+  },
+  topSvgContainer: {
+    height: screenHeight * 0.3,
+    position: 'absolute',
+    top: -30,
+    left: 0,
+    right: 0,
+  },
+  topSection: {
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 30,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: 25,
+    shadowColor: Colors.primaryOrange,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  iconImage: {
+    width: 100,
+    height: 100,
+    marginLeft: 5,
+  },
+  welcomeSubtitle: {
+    fontSize: 18,
+    color: Colors.darkText,
+    textAlign: 'center',
+    fontFamily: 'System',
+    marginTop: 8,
+    fontWeight: '500',
+  },
+  welcometitle: {
+    fontSize: 28,
+    color: Colors.darkText,
+    textAlign: 'center',
+    fontFamily: 'System',
+    marginTop: 8,
+    fontWeight: '900',
+  },
+  formSection: {
+    marginTop: 15,
+    paddingHorizontal: 30,
+  },
+  bottomSection: {
+    backgroundColor: Colors.primaryOrange,
+    paddingTop: 30,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    paddingHorizontal: 30,
+    alignItems: 'center',
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.15,
+    shadowRadius: 15,
+    elevation: 10,
+    marginTop: 'auto', // Pushes to the bottom of the ScrollView
+  },
+  topLeftDecor: {
+    position: 'absolute',
+    top: 15,
+    left: 20,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.lightOrange,
+    opacity: 0.7,
+  },
+  topRightDecor: {
+    position: 'absolute',
+    top: 15,
+    right: 20,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.darkOrange,
+    opacity: 0.6,
+  },
+  loginButton: {
+    backgroundColor: Colors.white,
+    paddingVertical: 14,
+    paddingHorizontal: 40,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 50,
+    width: '100%',
+    marginBottom: 15,
+    shadowColor: Colors.darkOrange,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  loginButtonDisabled: {
+    opacity: 0.7,
+    backgroundColor: Colors.borderGrey,
+  },
+  loginButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.primaryOrange,
+    fontFamily: 'System',
+  },
+  signUpContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  signUpText: {
+    fontSize: 14,
+    color: Colors.white,
+    fontFamily: 'System',
+  },
+  signUpLink: {
+    fontSize: 14,
+    color: Colors.white,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+    fontFamily: 'System',
+  },
+  bottomIndicator: {
+    width: 40,
+    height: 4,
+    backgroundColor: Colors.white,
+    borderRadius: 2,
+    opacity: 0.7,
+  },
 });
 
 export default LoginScreen;

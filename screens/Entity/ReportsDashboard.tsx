@@ -21,8 +21,8 @@ import { ChevronDown, Check, Search, FileDown } from 'lucide-react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 // --- IMPORTS FOR PDF DOWNLOAD ---
-import RNFS from 'react-native-fs';
-import Share from 'react-native-share';
+// import RNFS from 'react-native-fs';
+// import Share from 'react-native-share';
 // --------------------------------
 
 interface User {
@@ -141,59 +141,59 @@ export default function ReportsDashboard() {
   }, [transactions]);
 
   // --- THIS IS THE DEFINITIVE DIRECT DOWNLOAD LOGIC ---
-  const handleDownloadPdf = useCallback(async () => {
-    if (!selectedEntity || transactions.length === 0) {
-      Alert.alert('خطأ', 'لا توجد بيانات لتصديرها.');
-      return;
-    }
-    setIsDownloading(true);
+  // const handleDownloadPdf = useCallback(async () => {
+  //   if (!selectedEntity || transactions.length === 0) {
+  //     Alert.alert('خطأ', 'لا توجد بيانات لتصديرها.');
+  //     return;
+  //   }
+  //   setIsDownloading(true);
 
-    try {
-      const formattedFromDate = formatDate(fromDate);
-      const formattedToDate = formatDate(toDate);
+  //   try {
+  //     const formattedFromDate = formatDate(fromDate);
+  //     const formattedToDate = formatDate(toDate);
 
-      const url = `https://tanmia-group.com:84/courierApi/Entity/GenerateTransactionReportPdf/${selectedEntity.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
-      const fileName = `Report-${selectedEntity.strEntityCode}-${formattedFromDate}-${Date.now()}.pdf`;
+  //     const url = `https://tanmia-group.com:84/courierApi/Entity/GenerateTransactionReportPdf/${selectedEntity.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
+  //     const fileName = `Report-${selectedEntity.strEntityCode}-${formattedFromDate}-${Date.now()}.pdf`;
 
-      // Define a temporary path in the app's cache directory
-      const tempDownloadPath = `${RNFS.TemporaryDirectoryPath}/${fileName}`;
+  //     // Define a temporary path in the app's cache directory
+  //     const tempDownloadPath = `${RNFS.TemporaryDirectoryPath}/${fileName}`;
 
-      // Download the file to the temporary path first
-      const downloadResult = await RNFS.downloadFile({
-        fromUrl: url,
-        toFile: tempDownloadPath,
-      }).promise;
+  //     // Download the file to the temporary path first
+  //     const downloadResult = await RNFS.downloadFile({
+  //       fromUrl: url,
+  //       toFile: tempDownloadPath,
+  //     }).promise;
 
-      if (downloadResult.statusCode !== 200) {
-        throw new Error(`Server responded with status code ${downloadResult.statusCode}`);
-      }
+  //     if (downloadResult.statusCode !== 200) {
+  //       throw new Error(`Server responded with status code ${downloadResult.statusCode}`);
+  //     }
 
-      console.log('File downloaded successfully to temporary path:', tempDownloadPath);
+  //     console.log('File downloaded successfully to temporary path:', tempDownloadPath);
 
-      if (Platform.OS === 'android') {
-        // For Android, define the final destination in the public Downloads folder
-        const downloadsPath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
-        // Move the file from the temporary path to the public Downloads folder
-        await RNFS.moveFile(tempDownloadPath, downloadsPath);
-        Alert.alert('نجاح', `تم حفظ الملف بنجاح في مجلد التنزيلات.`);
-        console.log('File moved to:', downloadsPath);
-      } else {
-        // For iOS, the Share dialog is the only way to let the user save the file.
-        // We share from the temporary path.
-        await Share.open({
-          url: `file://${tempDownloadPath}`,
-          type: 'application/pdf',
-          failOnCancel: false,
-          title: 'تنزيل التقرير',
-        });
-      }
-    } catch (error) {
-      console.error('Error downloading or saving PDF:', error);
-      Alert.alert('خطأ', 'حدث خطأ أثناء تحميل أو حفظ ملف PDF.');
-    } finally {
-      setIsDownloading(false);
-    }
-  }, [selectedEntity, fromDate, toDate, transactions]);
+  //     if (Platform.OS === 'android') {
+  //       // For Android, define the final destination in the public Downloads folder
+  //       const downloadsPath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
+  //       // Move the file from the temporary path to the public Downloads folder
+  //       await RNFS.moveFile(tempDownloadPath, downloadsPath);
+  //       Alert.alert('نجاح', `تم حفظ الملف بنجاح في مجلد التنزيلات.`);
+  //       console.log('File moved to:', downloadsPath);
+  //     } else {
+  //       // For iOS, the Share dialog is the only way to let the user save the file.
+  //       // We share from the temporary path.
+  //       await Share.open({
+  //         url: `file://${tempDownloadPath}`,
+  //         type: 'application/pdf',
+  //         failOnCancel: false,
+  //         title: 'تنزيل التقرير',
+  //       });
+  //     }
+  //   } catch (error) {
+  //     console.error('Error downloading or saving PDF:', error);
+  //     Alert.alert('خطأ', 'حدث خطأ أثناء تحميل أو حفظ ملف PDF.');
+  //   } finally {
+  //     setIsDownloading(false);
+  //   }
+  // }, [selectedEntity, fromDate, toDate, transactions]);
   // --------------------------------------------------------------------
 
   const renderTransactionItem = ({ item }: { item: Transaction }) => (
@@ -239,7 +239,7 @@ export default function ReportsDashboard() {
                   <Text style={styles.dateValue}>{formatDate(fromDate)}</Text>
                 </TouchableOpacity>
               </View>
-              {transactions.length > 0 && !loading && (
+              {/* {transactions.length > 0 && !loading && (
                 <TouchableOpacity style={styles.downloadButton} onPress={handleDownloadPdf} disabled={isDownloading}>
                   {isDownloading ? (<ActivityIndicator color="#1F2937" />) : (
                     <>
@@ -248,7 +248,7 @@ export default function ReportsDashboard() {
                     </>
                   )}
                 </TouchableOpacity>
-              )}
+              )} */}
             </View>
             <View style={styles.table}>
               <View style={styles.tableHeader}>
