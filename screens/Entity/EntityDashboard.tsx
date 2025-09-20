@@ -407,15 +407,16 @@ const styles = StyleSheet.create({
     height: 90,
     marginBottom: 25,
   },
-  promoSliderItem: {
-    width: SLIDER_WIDTH,
-    height: 90,
-    borderRadius: 12,
-    padding: 15,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
+promoSliderItem: {
+  width: SLIDER_WIDTH - 20, 
+  height: 90,
+  borderRadius: 12,
+  padding: 15,
+  flexDirection: 'row-reverse',
+  alignItems: 'center',
+  marginHorizontal: 10, 
+},
+
   promoSliderIcon: {
     marginLeft: 15,
   },

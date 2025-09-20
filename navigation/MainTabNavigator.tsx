@@ -73,9 +73,13 @@ const MainTabNavigator = () => {
     }, [navigation, initialRouteName])
   );
 
-  const handlePlusPress = () => {
-    navigation.navigate('AddParcel');
-  };
+const handleEntityPlusPress = () => {
+  navigation.navigate('AddParcel');
+};
+
+const handleDriverPlusPress = () => {
+  navigation.navigate('SomeDriverPage'); 
+};
 
   if (!userRole) {
     return (
@@ -105,7 +109,7 @@ const MainTabNavigator = () => {
             listeners={{
               tabPress: (e: EventArg<'tabPress', true>) => {
                 e.preventDefault();
-                handlePlusPress();
+                handleEntityPlusPress();
               },
             }}
           />
@@ -116,6 +120,17 @@ const MainTabNavigator = () => {
         <>
           <Tab.Screen name="AccountTab" component={AccountScreen} options={{ title: 'حسابي', tabBarIcon: ({ color, size }) => <User color={color} size={size} /> }} />
           <Tab.Screen name="ParcelsTab" component={ParcelsScreen} options={{ title: 'الطرود', tabBarIcon: ({ color, size }) => <Package color={color} size={size} /> }} />
+            <Tab.Screen
+            name="AddTab"
+            component={EmptyComponent}
+            options={{ title: '', tabBarIcon: () => null }}
+            listeners={{
+              tabPress: (e: EventArg<'tabPress', true>) => {
+                e.preventDefault();
+                handleDriverPlusPress();
+              },
+            }}
+          />
           <Tab.Screen name="ReportsTab" component={ReportsDashboard} options={{ title: 'التقارير', tabBarIcon: ({ color, size }) => <FileText color={color} size={size} /> }} />
           <Tab.Screen name="DriverDashboard" component={DriverDashboard} options={{ title: 'الرئيسية', tabBarIcon: ({ color, size }) => <Truck color={color} size={size} /> }} />
         </>
