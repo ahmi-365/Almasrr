@@ -1,110 +1,64 @@
-import React, { useCallback, useMemo, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   StatusBar,
+  Platform,
   Animated,
+  Dimensions,
   Image,
+  SafeAreaView,
+  Easing,
 } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import {
-  BarChart3,
   CircleCheck,
-  CirclePlus,
   ClipboardCheck,
-  ClipboardList,
-  Clock,
-  FileText,
+  CirclePlus,
   History,
-  Home,
   Hourglass,
   Landmark,
   LayoutDashboard,
-  Lock,
-  LogOut,
-  Package,
   Scale,
   Truck,
   Undo2,
-  User,
+  X,
 } from 'lucide-react-native';
 import { useDashboard } from '../../Context/DashboardContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-interface SidebarProps {
+const { width: screenWidth } = Dimensions.get('window');
+
+const TAB_SCREENS: (keyof RootStackParamList)[] = ['EntityDashboard', 'ReportsTab', 'StoresTab', 'AccountTab'];
+const DRIVER_TAB_SCREENS: (keyof RootStackParamList)[] = ['DriverDashboard', 'ParcelsTab', 'AccountTab', 'ReportsTab'];
+
+interface DialerSidebarProps {
   visible: boolean;
   onClose: () => void;
 }
 
-interface MenuItemProps {
+interface DialerMenuItem {
   icon: React.ComponentType<any>;
   title: string;
-  color: string;
   route?: keyof RootStackParamList;
+  action?: () => void;
 }
 
-const ENTITY_TAB_SCREENS: (keyof RootStackParamList)[] = ['EntityDashboard', 'ReportsTab', 'StoresTab', 'AccountTab'];
-const DRIVER_TAB_SCREENS: (keyof RootStackParamList)[] = ['DriverDashboard', 'ParcelsTab', 'AccountTab', 'ReportsTab'];
-
-const MenuItem = ({ item }: { item: MenuItemProps }) => {
+export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { currentRoute, toggleSidebar } = useDashboard();
-  const [userRole, setUserRole] = useState<'Entity' | 'Driver' | null>(null);
+  const { dcBalance: entityDcBalance, currentRoute } = useDashboard();
 
-  useEffect(() => {
-    AsyncStorage.getItem('user').then(userData => {
-      if (userData) setUserRole(JSON.parse(userData).roleName);
-    });
-  }, []);
-
-  let isActive = false;
-  if (item.route === 'EntityDashboard') {
-    isActive = ENTITY_TAB_SCREENS.includes(currentRoute as any);
-  } else if (item.route === 'DriverDashboard') {
-    isActive = DRIVER_TAB_SCREENS.includes(currentRoute as any);
-  } else {
-    isActive = item.route === currentRoute;
-  }
-
-  const handlePress = useCallback(() => {
-    if (item.route && !isActive) {
-      const targetTabs = userRole === 'Entity' ? ENTITY_TAB_SCREENS : DRIVER_TAB_SCREENS;
-      if (targetTabs.includes(item.route)) {
-        navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: item.route as any }] } }] });
-      } else {
-        navigation.reset({ index: 1, routes: [{ name: 'MainTabs' }, { name: item.route }] });
-      }
-    }
-    toggleSidebar();
-  }, [navigation, currentRoute, item.route, toggleSidebar, isActive, userRole]);
-
-  return (
-    <TouchableOpacity
-      style={[styles.menuItem, isActive && styles.activeMenuItem]}
-      onPress={handlePress}
-      activeOpacity={0.7}
-    >
-      <Text style={[styles.menuText, isActive && styles.activeMenuText]}>
-        {item.title}
-      </Text>
-      <item.icon color={isActive ? '#FF8C42' : item.color} size={18} />
-      {isActive && <View style={styles.activeIndicator} />}
-    </TouchableOpacity>
-  );
-};
-
-export default function Sidebar({ visible, onClose }: SidebarProps) {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const slideAnim = useRef(new Animated.Value(280)).current; // For sliding from right
-  const { dcBalance: entityDcBalance } = useDashboard();
   const [user, setUser] = useState<any>(null);
   const [driverBalance, setDriverBalance] = useState('0.00');
+  const [isRendered, setIsRendered] = useState(false);
+
+  const slideAnim = useState(new Animated.Value(screenWidth))[0];
+  const rotationAnim = useState(new Animated.Value(0))[0];
 
   useFocusEffect(
     useCallback(() => {
@@ -121,117 +75,197 @@ export default function Sidebar({ visible, onClose }: SidebarProps) {
               }
             }
           }
-        } catch (err) {
-          console.error('Failed to load user data in sidebar:', err);
-        }
+        } catch (err) { console.error('Failed to load user data:', err); }
       };
-      if (visible) {
-        loadData();
-      }
+      if (visible) { loadData(); }
     }, [visible])
   );
 
-  useEffect(() => {
-    if (visible) {
-      Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true }).start();
-    } else {
-      Animated.timing(slideAnim, { toValue: 280, duration: 250, useNativeDriver: true }).start();
-    }
-  }, [visible]);
-
-  const menuItems: MenuItemProps[] = useMemo(() => {
+  const { dashboardItem, orbitingItems } = useMemo(() => {
+    let allItems: DialerMenuItem[] = [];
     if (user?.roleName === 'Driver') {
-      return [
-        { icon: LayoutDashboard, title: 'لوحة القيادة', color: '#FFFFFF', route: 'DriverDashboard' },
-        { icon: CircleCheck, title: 'الطرود المسلمة', color: '#FFFFFF' }, // Add route later
-        { icon: Undo2, title: 'الطرود المرتجعة', color: '#FFFFFF' }, // Add route later
-      ];
+      allItems = [{ icon: CircleCheck, title: 'الطرود المسلمة' }, { icon: Undo2, title: 'الطرود المرتجعة' }];
+    } else {
+      allItems = [{ icon: Landmark, title: 'الأسعار', route: 'CityRates' }, { icon: Scale, title: 'الرصيد' }, { icon: Hourglass, title: 'قيد الانتظار' }, { icon: ClipboardCheck, title: 'في الفرع' }, { icon: Truck, title: 'في الطريق', route: 'DeliveryTracking' }, { icon: CirclePlus, title: 'المرتجعة' }, { icon: History, title: 'السجل' }];
     }
-    // Default to Entity menu
-    return [
-      { icon: LayoutDashboard, title: 'لوحة القيادة', color: '#FFFFFF', route: 'EntityDashboard' },
-      { icon: Landmark, title: 'الأسعار حسب المدينة', color: '#FFFFFF', route: 'CityRates' },
-      { icon: Scale, title: 'الرصيد المتاجر', color: '#FFFFFF' },
-      { icon: Hourglass, title: 'في انتظار التصديق', color: '#FFFFFF' },
-      { icon: ClipboardCheck, title: 'في الفرع', color: '#FFFFFF' },
-      { icon: Truck, title: 'في الطريق', color: '#FFFFFF' },
-      { icon: CircleCheck, title: 'التوصيل ناجح', color: '#FFFFFF', route: 'DeliveryTracking' },
-      { icon: CirclePlus, title: 'الطرود المرتجعة', color: '#FFFFFF' },
-      { icon: History, title: 'سجل الطرود', color: '#FFFFFF' },
-    ];
+    const dashboardRoute: keyof RootStackParamList = user?.roleName === 'Driver' ? 'DriverDashboard' : 'EntityDashboard';
+    return {
+      dashboardItem: { icon: LayoutDashboard, title: 'لوحة القيادة', route: dashboardRoute },
+      orbitingItems: allItems,
+    };
   }, [user]);
 
-  const handleChangePassword = useCallback(() => { console.log('Change password pressed'); onClose(); }, [onClose]);
-  const handleLogout = useCallback(async () => {
-    try {
-      await AsyncStorage.removeItem('user');
-      await AsyncStorage.clear();
-      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-    } catch (error) { console.error('Failed to clear user data on logout:', error); navigation.navigate('Login'); }
-    onClose();
-  }, [navigation, onClose]);
+  // --- REFINED ANIMATION LOGIC ---
+  // Create animation values dynamically based on the number of items
+  const itemAnims = useMemo(() =>
+    orbitingItems.map(() => new Animated.Value(0)),
+    [orbitingItems]);
+  // Give the main button its own animation value for stability
+  const mainButtonAnim = useState(new Animated.Value(0))[0];
 
-  if (!visible) return null;
+
+  useEffect(() => {
+    // Combine all item animations plus the main button animation
+    const allItemAnimations = [
+      ...itemAnims.map(anim => Animated.spring(anim, { toValue: visible ? 1 : 0, friction: 7, tension: 30, useNativeDriver: true })),
+      Animated.spring(mainButtonAnim, { toValue: visible ? 1 : 0, friction: 7, tension: 30, useNativeDriver: true }),
+    ];
+
+    if (visible) {
+      setIsRendered(true);
+      Animated.parallel([
+        // --- CHANGE: SLOWER, SYNCHRONIZED OPENING ANIMATION ---
+        Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
+        Animated.timing(rotationAnim, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.cubic),
+        }),
+        Animated.stagger(60, allItemAnimations),
+      ]).start();
+    } else {
+      Animated.parallel([
+        // --- CHANGE: SLOWER, SYNCHRONIZED CLOSING ANIMATION ---
+        Animated.timing(slideAnim, { toValue: screenWidth, duration: 600, useNativeDriver: true, easing: Easing.in(Easing.cubic) }),
+        Animated.timing(rotationAnim, {
+          toValue: 0,
+          duration: 800,
+          useNativeDriver: true,
+          easing: Easing.inOut(Easing.cubic),
+        }),
+        Animated.stagger(50, allItemAnimations.reverse()),
+      ]).start(() => {
+        setIsRendered(false);
+      });
+    }
+  }, [visible, itemAnims, mainButtonAnim]);
+
+  const handleItemPress = useCallback((item: DialerMenuItem) => {
+    let isActive = false;
+    const activeTabs = user?.roleName === 'Driver' ? DRIVER_TAB_SCREENS : TAB_SCREENS;
+    if (item.route === 'EntityDashboard' || item.route === 'DriverDashboard') {
+      isActive = activeTabs.includes(currentRoute as any);
+    } else {
+      isActive = item.route === currentRoute;
+    }
+    onClose();
+    if (item.route && !isActive) {
+      setTimeout(() => {
+        if (activeTabs.includes(item.route as any)) {
+          navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: item.route as any }] } }] });
+        } else {
+          navigation.reset({ index: 1, routes: [{ name: 'MainTabs' }, { name: item.route }] });
+        }
+      }, 250);
+    } else if (item.action) {
+      item.action();
+    }
+  }, [navigation, user, onClose, currentRoute]);
+
+  const handleProfilePress = () => {
+    onClose();
+    setTimeout(() => {
+      navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: 'AccountTab' }] } }] });
+    }, 250);
+  }
+
+  if (!isRendered) return null;
 
   const isDriver = user?.roleName === 'Driver';
+  const balance = isDriver ? driverBalance : entityDcBalance;
+  const activeTabs = isDriver ? DRIVER_TAB_SCREENS : TAB_SCREENS;
+  const isDashboardActive = activeTabs.includes(currentRoute as any);
+
+  const rotation = rotationAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['-120deg', '0deg'],
+  });
+
   return (
-    <View style={styles.overlay}>
-      <TouchableOpacity style={styles.backdrop} onPress={onClose} activeOpacity={1} />
-      <Animated.View style={[styles.sidebar, { transform: [{ translateX: slideAnim }] }]}>
-        <StatusBar backgroundColor="#2C2C2C" barStyle="light-content" />
-        <View style={styles.welcomeSection}>
-          <View style={styles.welcomeContent}>
-            <View>
-              <Text style={styles.welcomeTitle}>{user?.strEntityName || 'مرحباً بك'}</Text>
-              <Text style={styles.welcomeSubtitle}>Welcome Back</Text>
-            </View>
-            <TouchableOpacity style={styles.profileButton} activeOpacity={0.7}>
-              {user?.vbrPicture ? (<Image source={{ uri: user.vbrPicture }} style={styles.profileImage} />) : (<User color="#FFFFFF" size={28} />)}
-            </TouchableOpacity>
+    <Animated.View style={[styles.drawerContainer, { transform: [{ translateX: slideAnim }] }]}>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar backgroundColor="transparent" translucent barStyle="light-content" />
+        <View style={styles.topBar}>
+          <TouchableOpacity onPress={onClose} style={styles.closeButton}><X color="#FFFFFF" size={28} /></TouchableOpacity>
+        </View>
+        <View style={styles.headerContainer}>
+          <Image source={require('../../assets/images/Almasr.png')} style={styles.appLogo} />
+          <Text style={styles.userName}>{user?.strEntityName || 'Welcome'}</Text>
+          <View style={styles.balanceCard}>
+            <Text style={styles.balanceLabel}>المبلغ المستحق</Text>
+            <Text style={styles.balanceAmount}>{balance ?? '0.00'} <Text style={styles.currency}>د.ل</Text></Text>
           </View>
+          <TouchableOpacity style={styles.profileButton} onPress={handleProfilePress}><Text style={styles.profileButtonText}>الحساب الشخصي</Text></TouchableOpacity>
         </View>
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>المبلغ المستحق</Text>
-          <Text style={styles.balanceAmount}><Text style={styles.currency}> د.ل</Text>{isDriver ? driverBalance : entityDcBalance}</Text>
-        </View>
-        <ScrollView style={styles.menuContainer} showsVerticalScrollIndicator={false} contentContainerStyle={styles.menuContent}>
-          {menuItems.map((item, index) => (<MenuItem key={`${item.title}-${index}`} item={item} />))}
-          <View style={styles.separator} />
-          <TouchableOpacity style={styles.menuItem} onPress={handleChangePassword} activeOpacity={0.7}>
-            <Clock color="#FFFFFF" size={18} /><Text style={styles.menuText}>تغيير كلمة المرور</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.logoutItem} onPress={handleLogout} activeOpacity={0.7}>
-            <LogOut color="#E74C3C" size={18} /><Text style={styles.logoutText}>تسجيل الخروج</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </Animated.View>
-    </View>
+
+        <Animated.View style={[styles.dialerContainer, { transform: [{ rotate: rotation }] }]}>
+          {orbitingItems.map((item, index) => {
+            const totalItems = orbitingItems.length;
+            const anglePerItem = 360 / totalItems;
+            const angle = -90 + (index * anglePerItem);
+            const radius = screenWidth * 0.3;
+            const isActive = item.route === currentRoute;
+            const itemAnimation = itemAnims[index];
+
+            // If itemAnimation is undefined (shouldn't happen now), we can fallback
+            if (!itemAnimation) return null;
+
+            const transformX = itemAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, radius * Math.cos((angle * Math.PI) / 180)] });
+            const transformY = itemAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, radius * Math.sin((angle * Math.PI) / 180)] });
+            const scale = itemAnimation;
+            const opacity = itemAnimation;
+
+            return (
+              <Animated.View key={`${item.title}-${index}`} style={[styles.menuItemContainer, { opacity, transform: [{ translateX: transformX }, { translateY: transformY }, { scale }] }]}>
+                <TouchableOpacity style={[styles.menuItem, isActive && styles.menuItemActive]} onPress={() => handleItemPress(item)}>
+                  <item.icon color={isActive ? '#FFFFFF' : '#FF8C42'} size={28} />
+                </TouchableOpacity>
+                <Text style={styles.menuItemText}>{item.title}</Text>
+              </Animated.View>
+            );
+          })}
+
+          <Animated.View style={{ transform: [{ scale: mainButtonAnim }] }}>
+            <TouchableOpacity style={[styles.mainButton, isDashboardActive && styles.mainButtonActive]} onPress={() => handleItemPress(dashboardItem)}>
+              <dashboardItem.icon color={isDashboardActive ? '#FFFFFF' : '#FF8C42'} size={32} />
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
+      </SafeAreaView>
+    </Animated.View>
   );
 }
 
-// --- STYLES RESTORED TO ORIGINAL RTL LAYOUT ---
 const styles = StyleSheet.create({
-  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, flexDirection: 'row', zIndex: 1000 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(2, 2, 2, 0.5)' },
-  sidebar: { position: 'absolute', right: 0, width: 280, backgroundColor: '#2C2C2C', height: '100%', shadowColor: '#000', shadowOffset: { width: -5, height: 0 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 15 },
-  welcomeSection: { alignItems: 'flex-end', marginTop: 40 },
-  welcomeContent: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 15, paddingTop: 10, width: '100%' },
-  welcomeTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', textAlign: 'right', marginBottom: 2 },
-  welcomeSubtitle: { color: '#BBBBBB', fontSize: 12, textAlign: 'right' },
-  profileButton: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#444', justifyContent: 'center', alignItems: 'center', marginLeft: 15 },
-  profileImage: { width: 36, height: 36, borderRadius: 18 },
-  balanceCard: { backgroundColor: '#FF8C42', marginHorizontal: 15, marginVertical: 15, padding: 15, borderRadius: 8, alignItems: 'center' },
-  balanceLabel: { color: '#FFFFFF', fontSize: 12, textAlign: 'center', marginBottom: 5 },
-  balanceAmount: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
-  currency: { fontSize: 14, color: '#FFFFFF', fontWeight: 'bold', marginLeft: 4 },
-  menuContainer: { flex: 1 },
-  menuContent: { paddingHorizontal: 0, paddingBottom: 30 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 15, paddingHorizontal: 20, borderBottomWidth: 0.5, borderBottomColor: '#404040', position: 'relative' },
-  menuText: { color: '#FFFFFF', fontSize: 14, flex: 1, textAlign: 'right', marginRight: 12, fontWeight: '400' },
-  activeMenuText: { color: '#FF8C42', fontWeight: '600' },
-  activeIndicator: { position: 'absolute', right: 0, top: 5, bottom: 5, width: 6, backgroundColor: '#FF8C42', borderTopLeftRadius: 6, borderBottomLeftRadius: 6 },
-  activeMenuItem: { backgroundColor: '#232323' },
-  separator: { height: 0.5, backgroundColor: '#404040', marginVertical: 10 },
-  logoutItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, paddingHorizontal: 20, marginTop: 5 },
-  logoutText: { color: '#E74C3C', fontSize: 14, flex: 1, textAlign: 'right', marginRight: 12, fontWeight: '400' },
+  drawerContainer: { ...StyleSheet.absoluteFillObject, backgroundColor: '#E67E22', zIndex: 1000 },
+  safeArea: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+  topBar: { width: '100%', flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 5 },
+  closeButton: { padding: 15 },
+  headerContainer: { alignItems: 'center', width: '100%', paddingTop: 0 },
+  appLogo: {
+    width: 110,
+    height: 110,
+    resizeMode: 'contain',
+    marginBottom: 20,
+    backgroundColor: '#FFFFFF', // This adds the white background
+    borderRadius: 8,          // This adds the border radius
+  },
+  userName: { color: '#FFFFFF', fontSize: 26, fontWeight: 'bold', marginBottom: 20 },
+  balanceCard: { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: 15, paddingVertical: 10, paddingHorizontal: 30, alignItems: 'center', marginBottom: 20 },
+  balanceLabel: { color: 'rgba(255, 255, 255, 0.8)', fontSize: 14 },
+  balanceAmount: { color: '#FFFFFF', fontSize: 22, fontWeight: 'bold' },
+  currency: { fontSize: 16, fontWeight: 'normal' },
+  profileButton: { backgroundColor: '#FFFFFF', borderRadius: 25, paddingVertical: 12, paddingHorizontal: 40, elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5 },
+  profileButtonText: { color: '#FF8C42', fontSize: 16, fontWeight: 'bold' },
+  dialerContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  mainButton: { width: 68, height: 68, borderRadius: 34, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', elevation: 10 },
+  mainButtonActive: { backgroundColor: '#FF8C42' },
+  menuItemContainer: { position: 'absolute', alignItems: 'center' },
+  menuItem: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center' },
+  menuItemActive: { backgroundColor: '#FF8C42' },
+  menuItemText: { color: '#FFFFFF', marginTop: 8, fontSize: 13, fontWeight: 'bold', textAlign: 'center', width: 80, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
 });
