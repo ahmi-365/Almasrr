@@ -22,6 +22,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Import the context hook to manage global state
+import { useDashboard } from '../../Context/DashboardContext';
+
 type RootStackParamList = {
   Login: undefined;
   MainTabs: undefined;
@@ -210,6 +213,9 @@ const LoginScreen = () => {
   };
   const [errors, setErrors] = useState<Errors>({});
 
+  // Get the state setters from the global context
+  const { setUser, setDashboardData, setDcBalance } = useDashboard();
+
   // Animation references
   const headerAnim = useRef(new Animated.Value(0)).current;
   const formOpacityAnim = useRef(new Animated.Value(0)).current;
@@ -303,11 +309,21 @@ const LoginScreen = () => {
       });
 
       const responseData = await response.json();
-      console.log('Login response received:', responseData);
 
       if (response.ok && responseData.success) {
+        // --- THE FIX: RESET GLOBAL STATE BEFORE NAVIGATING ---
+
+        // 1. Clear any old dashboard data to prevent flashing old info.
+        setDashboardData(null);
+
+        // 2. Set the NEW user and their balance in the global context.
+        setUser(responseData);
+        setDcBalance(String(responseData?.DCBalance?.toFixed(2) ?? '0.00'));
+
+        // 3. Save the new user's data for the next app launch.
         await AsyncStorage.setItem('user', JSON.stringify(responseData));
-        console.log('User data saved successfully to AsyncStorage.');
+
+        // --- END OF FIX ---
 
         Alert.alert('تم تسجيل الدخول بنجاح', 'مرحباً بك مرة أخرى في التطبيق');
         navigation.replace('MainTabs');
@@ -372,7 +388,6 @@ const LoginScreen = () => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Top SVG Waves */}
         <View style={styles.topSvgContainer}>
           <Svg height={screenHeight * 0.3} width={screenWidth}>
             <Defs>
@@ -396,7 +411,6 @@ const LoginScreen = () => {
           </Svg>
         </View>
 
-        {/* Logo & Welcome Section */}
         <Animated.View style={[styles.topSection]}>
           <View style={styles.logoContainer}>
             <Image
@@ -409,7 +423,6 @@ const LoginScreen = () => {
           <Text style={styles.welcomeSubtitle}>يارِيت تسجل دخولك لحسابك</Text>
         </Animated.View>
 
-        {/* Form Section */}
         <Animated.View style={[styles.formSection, { opacity: formOpacityAnim }]}>
           <CustomInput
             label="*رقم الهاتف أو البريد الالكتروني"
@@ -436,13 +449,10 @@ const LoginScreen = () => {
           />
         </Animated.View>
 
-        {/* Bottom Section */}
         <View style={styles.bottomSection}>
-          {/* Orange decorative elements in top corners */}
           <View style={styles.topLeftDecor} />
           <View style={styles.topRightDecor} />
 
-          {/* Login Button */}
           <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
             <TouchableOpacity
               style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
@@ -457,7 +467,6 @@ const LoginScreen = () => {
             </TouchableOpacity>
           </Animated.View>
 
-          {/* Sign Up Link */}
           <View style={styles.signUpContainer}>
             <Text style={styles.signUpText}>مزال ماعندكش حساب لمتجرك؟ </Text>
             <TouchableOpacity onPress={handleCreateAccount}>
@@ -465,7 +474,6 @@ const LoginScreen = () => {
             </TouchableOpacity>
           </View>
 
-          {/* Bottom indicator */}
           <View style={styles.bottomIndicator} />
         </View>
       </ScrollView>
@@ -473,7 +481,6 @@ const LoginScreen = () => {
   );
 };
 
-// Create Animated version of Path for SVG animations
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 const styles = StyleSheet.create({
@@ -482,7 +489,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
   },
   scrollContent: {
-    flexGrow: 1, // Crucial for making content expandable
+    flexGrow: 1,
     paddingTop: screenHeight * 0.15,
   },
   topSvgContainer: {
@@ -545,7 +552,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 15,
     elevation: 10,
-    marginTop: 'auto', // Pushes to the bottom of the ScrollView
+    marginTop: 'auto',
   },
   topLeftDecor: {
     position: 'absolute',

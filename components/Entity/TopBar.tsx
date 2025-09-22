@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
-import { Bell, Menu } from 'lucide-react-native'; // Re-added Bell icon
+import { Bell, Menu } from 'lucide-react-native';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import { useDashboard } from '../../Context/DashboardContext';
 
 // Get screen width for SVG path calculations
@@ -12,20 +10,15 @@ const { width } = Dimensions.get('window');
 const HEADER_HEIGHT = 160; // The total height of the header area
 
 const ModernTopBar: React.FC = () => {
-  const insets = useSafeAreaInsets(); // For safe area padding
-  const { dcBalance, toggleSidebar } = useDashboard();
-  const [userName, setUserName] = useState('أهلاً بك');
+  const insets = useSafeAreaInsets();
+  const { toggleSidebar, user } = useDashboard();
 
-  // Fetch user's name from AsyncStorage when the component mounts
-  useEffect(() => {
-    const loadUserData = async () => {
-      const userData = await AsyncStorage.getItem('user');
-      if (userData) {
-        setUserName(JSON.parse(userData).strEntityName || 'أهلاً بك');
-      }
-    };
-    loadUserData();
-  }, []);
+  // --- NEW: Helper function to translate the user role to Arabic ---
+  const getRoleInArabic = (role: string | undefined): string => {
+    if (role === 'Entity') return 'تاجر';
+    if (role === 'Driver') return 'سائق';
+    return role || 'مستخدم'; // Provides a fallback if role is null, undefined, or a different value
+  };
 
   // The SVG path for the curved background
   const backgroundPath = `
@@ -55,29 +48,32 @@ const ModernTopBar: React.FC = () => {
       <View style={[styles.contentContainer, { paddingTop: insets.top }]}>
         {/* Top row: Icons */}
         <View style={styles.topRow}>
-          {/* Notification icon on the left */}
           <TouchableOpacity style={styles.iconButton}>
             <Bell color="#4A5568" size={24} />
           </TouchableOpacity>
-          {/* Menu (drawer) icon on the right */}
           <TouchableOpacity style={styles.iconButton} onPress={toggleSidebar}>
             <Menu color="#4A5568" size={28} />
           </TouchableOpacity>
         </View>
 
-        {/* Main info row: Greeting, Balance, Avatar */}
+        {/* Main info row: Greeting, Role Badge, Avatar */}
         <View style={styles.mainInfoRow}>
           <View style={styles.avatarContainer}>
             <Image
-              source={require('../../assets/images/NavLogo2.png')} // Using your logo as an avatar
+              source={require('../../assets/images/NavLogo2.png')}
               style={styles.avatar}
             />
           </View>
           <View style={styles.greetingContainer}>
-            <Text style={styles.greetingText}>{userName}</Text>
-            <Text style={styles.balanceText}>
-              المبلغ المستحق<Text style={styles.balanceAmount}>{dcBalance ?? '0.00'} د.ل</Text>
-            </Text>
+            <Text style={styles.greetingText}>{user?.strEntityName || 'أهلاً بك'}</Text>
+
+            {/* Role Badge - renders only if the user object exists */}
+            {user && (
+              <View style={styles.roleBadge}>
+                {/* --- UPDATED: Use the getRoleInArabic function --- */}
+                <Text style={styles.roleBadgeText}>{getRoleInArabic(user.roleName)}</Text>
+              </View>
+            )}
           </View>
         </View>
       </View>
@@ -95,8 +91,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   topRow: {
-    flexDirection: 'row', // Changed to arrange items horizontally
-    justifyContent: 'space-between', // Pushes icons to opposite ends
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 10,
   },
@@ -110,7 +106,7 @@ const styles = StyleSheet.create({
   },
   greetingContainer: {
     flex: 1,
-    alignItems: 'flex-end', // Align text to the right
+    alignItems: 'flex-end',
   },
   greetingText: {
     fontSize: 22,
@@ -118,17 +114,19 @@ const styles = StyleSheet.create({
     color: '#2D3748',
     textAlign: 'right',
   },
-  balanceText: {
-    fontSize: 14,
-    color: '#718096',
-    marginTop: 4,
-    textAlign: 'right',
+  roleBadge: {
+    backgroundColor: '#FFF4E6',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 15,
+    marginTop: 6,
+    alignSelf: 'flex-end',
   },
-  balanceAmount: {
+  roleBadgeText: {
+    color: '#E67E22',
+    fontSize: 13,
     fontWeight: 'bold',
-    color: '#4A5568',
   },
-
   avatarContainer: {
     marginLeft: 15,
     shadowColor: '#000',

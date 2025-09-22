@@ -1,29 +1,23 @@
 import React, { useEffect, useRef } from 'react';
-// --- CHANGE 1: Import Animated ---
 import { View, TouchableOpacity, StyleSheet, Dimensions, Text, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import CustomPlusButton from '../components/Entity/CustomPlusButton';
 
 const { width } = Dimensions.get('window');
-const TAB_BAR_HEIGHT = 65;
+const TAB_BAR_HEIGHT = 70;
 
-// --- CHANGE 3: CREATE A NEW ANIMATED COMPONENT FOR EACH TAB ITEM ---
 const AnimatedTabItem = ({ isFocused, label, icon, onPress }) => {
-    // Use useRef to keep the animated value persistent across re-renders
     const scaleAnim = useRef(new Animated.Value(1)).current;
 
     useEffect(() => {
-        // Animate when the tab's focus state changes
         if (isFocused) {
-            // Bouncy spring animation
             Animated.spring(scaleAnim, {
                 toValue: 1.1,
                 friction: 3,
                 tension: 80,
                 useNativeDriver: true,
             }).start(() => {
-                // Settle back to normal size
                 Animated.spring(scaleAnim, {
                     toValue: 1,
                     friction: 3,
@@ -93,10 +87,11 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                         );
                     }
 
-                    const icon = options.tabBarIcon ? options.tabBarIcon({ focused: isFocused, color: isFocused ? '#E67E22' : '#95A5A6', size: 24 }) : null;
+                    // --- FIX: The `size` prop is no longer needed here ---
+                    // The tabBarIcon function in the navigator now defines its own size.
+                    const icon = options.tabBarIcon ? options.tabBarIcon({ focused: isFocused, color: isFocused ? '#E67E22' : '#95A5A6' }) : null;
                     const label = options.title !== undefined ? options.title : route.name;
 
-                    // --- CHANGE 3: RENDER THE NEW ANIMATED COMPONENT ---
                     return (
                         <AnimatedTabItem
                             key={route.key}
@@ -127,7 +122,7 @@ const styles = StyleSheet.create({
         height: '100%',
         width: '100%',
         alignItems: 'center',
-        justifyContent: 'space-around',
+
     },
     tabItem: {
         flex: 1,
@@ -135,15 +130,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         height: '100%',
     },
-    // --- CHANGE 2: STYLE THE WRAPPER TO CREATE THE "CUTOUT" ILLUSION ---
     addButton: {
-        top: -45, // Move button further up
+        top: -50,
         justifyContent: 'center',
         alignItems: 'center',
-        width: 70, // Create a larger circle
+        width: 70,
         height: 70,
         borderRadius: 35,
-        backgroundColor: '#FFFFFF', // This white background fakes the gap
+        backgroundColor: '#FFFFFF',
     },
     tabLabel: {
         fontSize: 11,

@@ -1,24 +1,63 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   ActivityIndicator,
   TouchableOpacity,
-  Alert,
   Modal,
+  SafeAreaView,
   TextInput,
-  ScrollView,
-  KeyboardAvoidingView,
   Platform,
+  FlatList,
+  RefreshControl,
+  Image,
+  KeyboardAvoidingView,
+  ScrollView,
+  // REMOVED: LayoutAnimation, Animated, Easing
+  Dimensions,
+  Alert,
+  TouchableWithoutFeedback,
 } from 'react-native';
-import TopBar from '../components/Entity/TopBar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Edit, Trash2, X, Search, Plus } from 'lucide-react-native';
 import axios from 'axios';
+import { Edit, Trash2, X, Search, Plus, Store as StoreIcon, Phone, MapPin, FileText, User as UserIcon } from 'lucide-react-native';
+import CustomAlert from '../components/CustomAlert';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+// REMOVED: Svg, Path
 
-// Interface for the store/entity object
+import { useDashboard } from '../Context/DashboardContext';
+
+import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
+import LinearGradient from 'react-native-linear-gradient';
+
+const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
+const { width } = Dimensions.get('window');
+
+const MaterialTopBar = ({ title }) => {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[styles.topBar, { paddingTop: insets.top + 30 }]}>
+      <Text style={styles.topBarTitle}>{title}</Text>
+    </View>
+  );
+};
+
+// --- REMOVED: AnimatedMultiWaveBackground component ---
+
+const StoresSkeleton = () => {
+  const shimmerColors = ['#FDF1EC', '#FEF8F5', '#FDF1EC'];
+
+  return (
+    <View style={{ paddingHorizontal: 15, paddingTop: 10 }}>
+      <ShimmerPlaceHolder style={styles.searchSkeleton} shimmerColors={shimmerColors} />
+      <ShimmerPlaceHolder style={styles.cardSkeleton} shimmerColors={shimmerColors} />
+      <ShimmerPlaceHolder style={styles.cardSkeleton} shimmerColors={shimmerColors} />
+      <ShimmerPlaceHolder style={styles.cardSkeleton} shimmerColors={shimmerColors} />
+    </View>
+  );
+};
+
 interface Entity {
   intEntityCode: number;
   strEntityName: string;
@@ -31,10 +70,7 @@ interface Entity {
   intParentEntityCode: number | null;
 }
 
-// Reusable Modal for both Adding and Editing
 const StoreModal = ({ mode, store, visible, onClose, onSave, user }) => {
-  // if (!visible) return null;
-
   const [storeName, setStoreName] = useState('');
   const [description, setDescription] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -44,10 +80,10 @@ const StoreModal = ({ mode, store, visible, onClose, onSave, user }) => {
 
   useEffect(() => {
     if (visible) {
-      setStoreName(mode === 'edit' ? store.strEntityName : '');
-      setDescription(mode === 'edit' ? store.strEntityDescription : '');
-      setPhoneNumber(mode === 'edit' ? store.strPhone : '');
-      setAddress(mode === 'edit' ? store.strAddress : '');
+      setStoreName(mode === 'edit' && store ? store.strEntityName : '');
+      setDescription(mode === 'edit' && store ? store.strEntityDescription : '');
+      setPhoneNumber(mode === 'edit' && store ? store.strPhone : '');
+      setAddress(mode === 'edit' && store ? store.strAddress : '');
       setErrors({});
     }
   }, [visible, store, mode]);
@@ -55,7 +91,6 @@ const StoreModal = ({ mode, store, visible, onClose, onSave, user }) => {
   const validate = () => {
     const newErrors: any = {};
     if (!storeName) newErrors.storeName = 'اسم المتجر مطلوب';
-    if (!description) newErrors.description = 'الوصف مطلوب';
     if (!phoneNumber) newErrors.phoneNumber = 'رقم الهاتف مطلوب';
     if (!address) newErrors.address = 'العنوان مطلوب';
     setErrors(newErrors);
@@ -63,13 +98,12 @@ const StoreModal = ({ mode, store, visible, onClose, onSave, user }) => {
   };
 
   const handleSave = async () => {
-    if (!validate()) return;
+    if (!validate() || !user) return;
     setIsLoading(true);
     try {
-      let response;
       const payload = {
         EntityName: storeName,
-        EntityDescription: description,
+        EntityDescription: description || storeName,
         MobileNumber: phoneNumber,
         Address: address,
         intParentEntityCode: user.userId,
@@ -77,22 +111,14 @@ const StoreModal = ({ mode, store, visible, onClose, onSave, user }) => {
         intCityCode: user.intCityCode,
       };
 
-      if (mode === 'edit') {
-        response = await axios.post('https://tanmia-group.com:84/courierApi/Entity/UpdateEntity', {
-          ...payload,
-          intEntityCode: store.intEntityCode,
-        });
-      } else {
-        response = await axios.post('https://tanmia-group.com:84/courierApi/Entity/AddEntity', payload);
-      }
+      const response = mode === 'edit' && store
+        ? await axios.post('https://tanmia-group.com:84/courierApi/Entity/UpdateEntity', { ...payload, intEntityCode: store.intEntityCode })
+        : await axios.post('https://tanmia-group.com:84/courierApi/Entity/AddEntity', payload);
 
-      // The API response for AddEntity has a lowercase `success`
-      // The API response for UpdateEntity seems to have an uppercase `Success`, let's check for both
       if (response.data && (response.data.success || response.data.Success)) {
-        Alert.alert('نجاح', mode === 'edit' ? 'تم تحديث المتجر بنجاح.' : 'تمت إضافة المتجر بنجاح.');
-        onSave(); // This will trigger the modal close and data refresh
+        onSave();
       } else {
-        Alert.alert('خطأ', response.data.message || response.data.Message || (mode === 'edit' ? 'فشل تحديث المتجر.' : 'فشلت إضافة المتجر.'));
+        Alert.alert('خطأ', response.data.message || response.data.Message || 'فشلت العملية.');
       }
     } catch (error) {
       console.error('Save store error:', error);
@@ -105,36 +131,18 @@ const StoreModal = ({ mode, store, visible, onClose, onSave, user }) => {
   return (
     <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
+        <TouchableWithoutFeedback onPress={onClose}><View style={StyleSheet.absoluteFillObject} /></TouchableWithoutFeedback>
         <View style={styles.modalContent}>
           <ScrollView keyboardShouldPersistTaps="handled">
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{mode === 'edit' ? 'تحديث المتجر' : 'إضافة متجر جديد'}</Text>
               <TouchableOpacity onPress={onClose}><X color="#9CA3AF" size={24} /></TouchableOpacity>
             </View>
-            <Text style={styles.modalSubTitle}>أدخل تفاصيل المتجر المطلوبة.</Text>
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>اسم المتجر</Text>
-              <TextInput style={styles.input} value={storeName} onChangeText={setStoreName} />
-              {errors.storeName && <Text style={styles.errorText}>{errors.storeName}</Text>}
-            </View>
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>الوصف</Text>
-              <TextInput style={[styles.input, styles.textArea]} value={description} onChangeText={setDescription} multiline />
-              {errors.description && <Text style={styles.errorText}>{errors.description}</Text>}
-            </View>
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>رقم الهاتف</Text>
-              <TextInput style={styles.input} value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" />
-              {errors.phoneNumber && <Text style={styles.errorText}>{errors.phoneNumber}</Text>}
-            </View>
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>العنوان</Text>
-              <TextInput style={[styles.input, styles.textArea]} value={address} onChangeText={setAddress} multiline />
-              {errors.address && <Text style={styles.errorText}>{errors.address}</Text>}
-            </View>
-            <TouchableOpacity style={styles.button} onPress={handleSave} disabled={isLoading}>
-              {isLoading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.buttonText}>{mode === 'edit' ? 'تحديث' : 'إضافة'}</Text>}
-            </TouchableOpacity>
+            <View style={styles.inputContainer}><Text style={styles.label}>اسم المتجر</Text><TextInput style={[styles.input, errors.storeName && styles.errorInput]} value={storeName} onChangeText={setStoreName} />{errors.storeName && <Text style={styles.errorText}>{errors.storeName}</Text>}</View>
+            <View style={styles.inputContainer}><Text style={styles.label}>الوصف (اختياري)</Text><TextInput style={[styles.input, styles.textArea]} value={description} onChangeText={setDescription} multiline /></View>
+            <View style={styles.inputContainer}><Text style={styles.label}>رقم الهاتف</Text><TextInput style={[styles.input, errors.phoneNumber && styles.errorInput]} value={phoneNumber} onChangeText={setPhoneNumber} keyboardType="phone-pad" />{errors.phoneNumber && <Text style={styles.errorText}>{errors.phoneNumber}</Text>}</View>
+            <View style={styles.inputContainer}><Text style={styles.label}>العنوان</Text><TextInput style={[styles.input, styles.textArea, errors.address && styles.errorInput]} value={address} onChangeText={setAddress} multiline />{errors.address && <Text style={styles.errorText}>{errors.address}</Text>}</View>
+            <TouchableOpacity style={styles.button} onPress={handleSave} disabled={isLoading}>{isLoading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.buttonText}>{mode === 'edit' ? 'تحديث' : 'إضافة'}</Text>}</TouchableOpacity>
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -142,90 +150,73 @@ const StoreModal = ({ mode, store, visible, onClose, onSave, user }) => {
   );
 };
 
-const StoreCard = ({ item, onDelete, onEdit }: { item: Entity, onDelete: (id: number, name: string) => void, onEdit: (store: Entity) => void }) => {
-  const handleDeletePress = () => {
-    Alert.alert("تأكيد الحذف", `هل أنت متأكد من أنك تريد حذف "${item.strEntityName}"؟`, [
-      { text: "إلغاء", style: "cancel" },
-      { text: "حذف", style: "destructive", onPress: () => onDelete(item.intEntityCode, item.strEntityName) }
-    ]);
-  };
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}><Text style={styles.storeName}>{item.strEntityName}</Text><View style={styles.codeBadge}><Text style={styles.codeText}>{item.strEntityCode}</Text></View></View>
-      <View style={styles.cardBody}><Text style={styles.detailRow}><Text style={styles.detailLabel}>اسم المالك: </Text>{item.strOwnerName}</Text><Text style={styles.detailRow}><Text style={styles.detailLabel}>رقم هاتف: </Text>{item.strPhone}</Text><Text style={styles.detailRow}><Text style={styles.detailLabel}>العنوان: </Text>{item.strAddress}</Text><Text style={styles.detailRow}><Text style={styles.detailLabel}>الوصف: </Text>{item.strEntityDescription}</Text></View>
-      <View style={styles.cardActions}><TouchableOpacity style={styles.actionButton} onPress={handleDeletePress}><Trash2 color="#E74C3C" size={20} /></TouchableOpacity><TouchableOpacity style={styles.actionButton} onPress={() => onEdit(item)}><Edit color="#3498DB" size={20} /></TouchableOpacity></View>
+// --- SIMPLIFIED: No background animation needed ---
+const StoreCard = ({ item, onDelete, onEdit }) => (
+  <View style={styles.card}>
+    <TouchableOpacity activeOpacity={0.8} onPress={() => onEdit(item)}>
+      <View style={styles.cardHeader}>
+        <View style={styles.cardTitleContainer}><View style={styles.cardIconContainer}><StoreIcon color="#FF6B35" size={22} /></View><Text style={styles.storeName} numberOfLines={1}>{item.strEntityName}</Text></View>
+        <View style={styles.codeBadge}><Text style={styles.codeText}>{item.strEntityCode}</Text></View>
+      </View>
+      <View style={styles.cardBody}>
+        <View style={styles.detailRow}><UserIcon size={14} color="#718096" /><Text style={styles.detailText}>{item.strOwnerName}</Text></View>
+        <View style={styles.detailRow}><Phone size={14} color="#718096" /><Text style={styles.detailText}>{item.strPhone}</Text></View>
+        <View style={styles.detailRow}><MapPin size={14} color="#718096" /><Text style={styles.detailText} numberOfLines={1}>{item.strAddress}</Text></View>
+        {item.strEntityDescription && item.strEntityDescription !== item.strEntityName && (<View style={styles.detailRow}><FileText size={14} color="#718096" /><Text style={styles.detailText} numberOfLines={1}>{item.strEntityDescription}</Text></View>)}
+      </View>
+    </TouchableOpacity>
+    <View style={styles.cardActions}>
+      <TouchableOpacity style={styles.actionButtonEdit} onPress={() => onEdit(item)}><Edit color="#3498DB" size={16} /><Text style={[styles.actionButtonText, { color: '#3498DB' }]}>تعديل</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.actionButtonDelete} onPress={() => onDelete(item.intEntityCode, item.strEntityName)}><Trash2 color="#E74C3C" size={16} /><Text style={[styles.actionButtonText, { color: '#E74C3C' }]}>حذف</Text></TouchableOpacity>
     </View>
-  );
-};
+  </View>
+);
 
 export default function StoresScreen() {
-  const [initialLoading, setInitialLoading] = useState(true);
+  const insets = useSafeAreaInsets();
+  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [user, setUser] = useState<any>(null); // State to hold the main user object
   const [allStores, setAllStores] = useState<Entity[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [selectedStore, setSelectedStore] = useState<Entity | null>(null);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [storeToDelete, setStoreToDelete] = useState<{ id: number, name: string } | null>(null);
 
-  // The useCallback dependency array was empty, which means loadData was created only once
-  // with the initial state values. It needs to be updated when dependencies change.
-  // However, for this function, we don't have external dependencies that change,
-  // so an empty array is fine, but it's good practice to be mindful of this.
-  const loadData = useCallback(async (isSilent = false) => {
-    if (!isSilent) {
-      setIsRefreshing(true); // Show refresh indicator only on explicit refresh
-    }
+  // --- REMOVED: fabAnim ref is no longer needed ---
+
+  const { user, setUser } = useDashboard();
+
+  const loadData = useCallback(async () => {
     try {
-      // Ensure user is loaded first.
       let parsedUser = user;
       if (!parsedUser) {
         const userDataString = await AsyncStorage.getItem('user');
-        if (!userDataString) { throw new Error("User not found"); }
+        if (!userDataString) throw new Error("User not found");
         parsedUser = JSON.parse(userDataString);
         setUser(parsedUser);
       }
-
       const response = await axios.get(`https://tanmia-group.com:84/courierApi/Entity/GetEntities/${parsedUser.userId}`);
-      const entities = response.data || [];
-      setAllStores(entities);
-      await AsyncStorage.setItem('user_entities', JSON.stringify(entities));
+      setAllStores(response.data || []);
+      await AsyncStorage.setItem('user_entities', JSON.stringify(response.data || []));
     } catch (error) {
       console.error("Failed to load stores:", error);
-      Alert.alert('خطأ', 'فشل في تحديث قائمة المتاجر.');
     } finally {
-      if (!isSilent) {
-        setInitialLoading(false);
-        setIsRefreshing(false);
-      }
+      setIsLoading(false);
+      setIsRefreshing(false);
     }
-  }, [user]); // Add user as a dependency
+  }, [user, setUser]);
 
   useEffect(() => {
-    // We load the user and initial data once when the component mounts.
-    const bootstrap = async () => {
-      try {
-        const userDataString = await AsyncStorage.getItem('user');
-        if (!userDataString) { throw new Error("User not found"); }
-        const parsedUser = JSON.parse(userDataString);
-        setUser(parsedUser); // Save the main user object to state
+    setIsLoading(true);
+    loadData();
+  }, [loadData]);
 
-        const response = await axios.get(`https://tanmia-group.com:84/courierApi/Entity/GetEntities/${parsedUser.userId}`);
-        const entities = response.data || [];
-        setAllStores(entities);
-        await AsyncStorage.setItem('user_entities', JSON.stringify(entities));
-      } catch (error) {
-        console.error("Failed to load initial data:", error);
-        // Handle error appropriately, maybe show a retry screen
-      } finally {
-        setInitialLoading(false);
-      }
-    };
-
-    bootstrap();
-  }, []); // Empty dependency array means this runs only once on mount
-
-  const onRefresh = useCallback(() => { loadData(); }, [loadData]);
+  const onRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    loadData();
+  }, [loadData]);
 
   const filteredStores = useMemo(() => {
     if (!searchQuery) return allStores;
@@ -235,23 +226,31 @@ export default function StoresScreen() {
     );
   }, [allStores, searchQuery]);
 
-  const handleDeleteStore = useCallback(async (entityCode: number, name: string) => {
+  const confirmDelete = async () => {
+    if (!storeToDelete) return;
+    setAlertVisible(false);
     try {
-      const response = await axios.post(`https://tanmia-group.com:84/courierApi/Entity/DeleteEntity/${entityCode}`);
-      // The API response for delete has a capital 'S' in Success and 'M' in Message
+      const response = await axios.post(`https://tanmia-group.com:84/courierApi/Entity/DeleteEntity/${storeToDelete.id}`);
       if (response.data && response.data.Success) {
-        Alert.alert('نجاح', `تم حذف "${name}" بنجاح.`);
-        // To update the list in real-time, we can filter out the deleted item from the current state
-        // This provides a faster UI update than re-fetching everything.
-        setAllStores(prevStores => prevStores.filter(store => store.intEntityCode !== entityCode));
+        setAllStores(prev => prev.filter(store => store.intEntityCode !== storeToDelete.id));
       } else {
         Alert.alert('خطأ', response.data.Message || 'فشل حذف المتجر.');
       }
     } catch (error) {
-      console.error("Delete store error:", error);
       Alert.alert('خطأ في الاتصال', 'يرجى التحقق من اتصالك بالإنترنت.');
     }
-  }, []); // No need to depend on loadData here
+    setStoreToDelete(null);
+  };
+
+  const handleCancelDelete = () => {
+    setAlertVisible(false);
+    setStoreToDelete(null);
+  };
+
+  const handleDeletePress = (id: number, name: string) => {
+    setStoreToDelete({ id, name });
+    setAlertVisible(true);
+  };
 
   const handleEditPress = (store: Entity) => {
     setModalMode('edit');
@@ -265,63 +264,62 @@ export default function StoresScreen() {
     setModalVisible(true);
   };
 
-  // This is the key function that was missing the logic.
-  // It should close the modal and then trigger a data refresh.
   const handleSaveSuccess = () => {
-    setModalVisible(false); // <-- This will close the modal
-    loadData(true); // <-- This will re-fetch the data silently in the background
+    setModalVisible(false);
+    setIsLoading(true);
+    loadData();
   };
-
-
-  if (initialLoading) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center' }]}>
-        <TopBar title="المتاجر" />
-        <ActivityIndicator size="large" color="#F97316" style={{ flex: 1 }} />
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
-      <TopBar title="المتاجر" />
-      <View style={styles.headerContainer}>
-        <View style={styles.searchContainer}>
-          <TextInput style={styles.searchInput} placeholder="ابحث بالاسم أو بالكود..." placeholderTextColor="#9CA3AF" value={searchQuery} onChangeText={setSearchQuery} />
-          <Search color="#9CA3AF" size={20} style={styles.searchIcon} />
+      <MaterialTopBar title="المتاجر" />
+
+      {isLoading && !isRefreshing ? (
+        <StoresSkeleton />
+      ) : (
+        <FlatList
+          data={filteredStores}
+          renderItem={({ item }) => <StoreCard item={item} onDelete={handleDeletePress} onEdit={handleEditPress} />}
+          keyExtractor={item => item.intEntityCode.toString()}
+          contentContainerStyle={styles.listContent}
+          onRefresh={onRefresh}
+          refreshing={isRefreshing}
+          ListHeaderComponent={
+            <View style={styles.searchContainer}>
+              <TextInput style={styles.searchInput} placeholder="ابحث بالاسم أو بالكود..." placeholderTextColor="#9CA3AF" value={searchQuery} onChangeText={setSearchQuery} />
+              <Search color="#9CA3AF" size={20} style={styles.searchIcon} />
+            </View>
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Image source={require('../assets/images/empty-reports.png')} style={styles.emptyImage} />
+              <Text style={styles.emptyText}>{allStores.length === 0 ? "لم تقم بإضافة متاجر بعد" : "لم يتم العثور على نتائج"}</Text>
+              {allStores.length === 0 && <Text style={styles.emptySubText}>انقر على زر + لإضافة متجرك الأول</Text>}
+            </View>
+          }
+        />
+      )}
+
+      {/* --- SIMPLIFIED: FAB is no longer animated --- */}
+      {!isLoading && (
+        <View style={[styles.fabContainer, { bottom: insets.bottom > 20 ? insets.bottom + 10 : 80 }]}>
+          <TouchableOpacity style={styles.fab} onPress={handleAddPress}>
+            <Plus color="#FFF" size={28} />
+          </TouchableOpacity>
         </View>
-      </View>
+      )}
 
-      <TouchableOpacity style={styles.addButton} onPress={handleAddPress}>
-        <Plus color="#FFF" size={20} />
-        <Text style={styles.addButtonText}>إضافة متجر جديد</Text>
-      </TouchableOpacity>
+      <StoreModal visible={modalVisible} mode={modalMode} onClose={() => setModalVisible(false)} store={selectedStore} onSave={handleSaveSuccess} user={user} />
 
-      {/* The FlatList was being hidden when the modal was visible, which is not necessary and can cause flashes */}
-      <FlatList
-        data={filteredStores}
-        renderItem={({ item }) => <StoreCard item={item} onDelete={handleDeleteStore} onEdit={handleEditPress} />}
-        keyExtractor={item => item.intEntityCode.toString()}
-        contentContainerStyle={styles.listContent}
-        onRefresh={onRefresh}
-        refreshing={isRefreshing}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
-              {allStores.length === 0 ? "لا توجد متاجر لعرضها." : "لم يتم العثور على نتائج."}
-            </Text>
-          </View>
-        }
-      />
-
-      {/* The modal is rendered on top of the list, so we don't need to conditionally render the list */}
-      <StoreModal
-        visible={modalVisible}
-        mode={modalMode}
-        onClose={() => setModalVisible(false)}
-        store={selectedStore}
-        onSave={handleSaveSuccess} // This is the prop that will be called on successful save
-        user={user}
+      <CustomAlert
+        isVisible={alertVisible}
+        title="تأكيد الحذف"
+        message={`هل أنت متأكد أنك تريد حذف متجر "${storeToDelete?.name}"؟`}
+        confirmText="حذف"
+        cancelText="إلغاء"
+        onConfirm={confirmDelete}
+        onCancel={handleCancelDelete}
+        confirmButtonColor="#E74C3C"
       />
     </View>
   );
@@ -329,35 +327,44 @@ export default function StoresScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8F9FA' },
-  headerContainer: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
-  searchContainer: { position: 'relative' },
-  searchInput: { backgroundColor: '#F8F9FA', color: '#000', borderRadius: 12, paddingHorizontal: 15, paddingRight: 45, paddingVertical: 12, fontSize: 16, borderWidth: 1, borderColor: '#4B5563', textAlign: 'right' },
-  searchIcon: { position: 'absolute', left: 15, top: 15 },
-  addButton: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F97316', paddingVertical: 14, borderRadius: 12, gap: 8, marginHorizontal: 16, marginTop: 12, marginBottom: 12 },
-  addButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-  listContent: { padding: 16, paddingTop: 10, paddingBottom: 100 },
-  card: { backgroundColor: '#374151', borderRadius: 12, marginBottom: 12, marginTop: 12, overflow: 'hidden' },
-  cardHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#4B5563', padding: 12 },
-  storeName: { color: '#F3F4F6', fontSize: 18, fontWeight: 'bold' },
-  codeBadge: { backgroundColor: '#F97316', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
-  codeText: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
-  cardBody: { padding: 16 },
-  detailRow: { color: '#D1D5DB', fontSize: 15, textAlign: 'right', marginBottom: 10 },
-  detailLabel: { color: '#9CA3AF' },
-  cardActions: { flexDirection: 'row-reverse', borderTopWidth: 1, borderTopColor: '#4B5563' },
-  actionButton: { flex: 1, padding: 12, alignItems: 'center', justifyContent: 'center' },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: '30%' },
-  emptyText: { color: '#9CA3AF', fontSize: 18 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.7)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { width: '90%', maxHeight: '80%', backgroundColor: '#1F2937', borderRadius: 12, padding: 20 },
+  topBar: { paddingHorizontal: 20, paddingBottom: 12, backgroundColor: '#F8F9FA' },
+  topBarTitle: { fontSize: 24, fontWeight: 'bold', color: '#1F2937', textAlign: 'center' },
+  searchContainer: { paddingHorizontal: 15, paddingVertical: 10 },
+  searchInput: { backgroundColor: '#FFFFFF', color: '#1F2937', borderRadius: 8, paddingHorizontal: 15, paddingRight: 45, paddingVertical: Platform.OS === 'ios' ? 14 : 10, fontSize: 16, borderWidth: 1, borderColor: '#E5E7EB', textAlign: 'right' },
+  searchIcon: { position: 'absolute', left: 30, top: 24 },
+  listContent: { paddingBottom: 100, paddingTop: 5 },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 8, overflow: 'hidden', shadowColor: '#D3B4A3', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3, marginHorizontal: 15, marginBottom: 16, borderWidth: 1, borderColor: '#F0F0F0' },
+  cardHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#FDEFE7' },
+  cardTitleContainer: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12, flexShrink: 1 },
+  cardIconContainer: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#FF6B351A', justifyContent: 'center', alignItems: 'center' },
+  storeName: { color: '#1F2937', fontSize: 18, fontWeight: 'bold', flexShrink: 1, textAlign: 'right' },
+  codeBadge: { backgroundColor: '#F3F4F6', borderRadius: 4, paddingHorizontal: 8, paddingVertical: 4, marginLeft: 8 },
+  codeText: { color: '#4B5563', fontSize: 12, fontWeight: '600' },
+  cardBody: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, gap: 12 },
+  detailRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
+  detailText: { color: '#4B5563', fontSize: 14, flex: 1, textAlign: 'right' },
+  cardActions: { flexDirection: 'row-reverse', marginTop: 12, borderTopWidth: 1, borderTopColor: '#FDEFE7' },
+  actionButtonEdit: { flex: 1, padding: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row-reverse', gap: 8, borderRightWidth: 1, borderRightColor: '#FDEFE7' },
+  actionButtonDelete: { flex: 1, padding: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row-reverse', gap: 8 },
+  actionButtonText: { fontWeight: '600', fontSize: 14 },
+  fabContainer: { position: 'absolute', right: 20, zIndex: 10 },
+  fab: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#FF6B35', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 8 },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, marginTop: '20%' },
+  emptyImage: { width: 120, height: 120, marginBottom: 16, opacity: 0.7 },
+  emptyText: { color: '#374151', fontSize: 18, fontWeight: '600', textAlign: 'center' },
+  emptySubText: { color: '#6B7280', fontSize: 14, marginTop: 8, textAlign: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.6)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { width: '90%', maxHeight: '80%', backgroundColor: '#FFFFFF', borderRadius: 8, padding: 20 },
   modalHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  modalTitle: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
-  modalSubTitle: { color: '#E5E7EB', fontSize: 16, textAlign: 'right', marginBottom: 25 },
+  modalTitle: { color: '#1F2937', fontSize: 20, fontWeight: 'bold' },
   inputContainer: { marginBottom: 15 },
-  label: { color: '#9CA3AF', fontSize: 14, textAlign: 'right', marginBottom: 8 },
-  input: { backgroundColor: '#374151', color: '#FFF', textAlign: 'right', borderRadius: 8, paddingHorizontal: 15, paddingVertical: 12, fontSize: 16, borderWidth: 1, borderColor: '#4B5563' },
+  label: { color: '#6B7280', fontSize: 14, textAlign: 'right', marginBottom: 8 },
+  input: { backgroundColor: '#F9FAFB', color: '#1F2937', textAlign: 'right', borderRadius: 8, paddingHorizontal: 15, paddingVertical: 12, fontSize: 16, borderWidth: 1, borderColor: '#E5E7EB' },
   textArea: { height: 100, textAlignVertical: 'top' },
-  button: { backgroundColor: '#F97316', paddingVertical: 16, borderRadius: 8, alignItems: 'center', marginTop: 10 },
+  errorInput: { borderColor: '#EF4444' },
+  button: { backgroundColor: '#FF6B35', paddingVertical: 16, borderRadius: 8, alignItems: 'center', marginTop: 10 },
   buttonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
   errorText: { color: '#EF4444', fontSize: 12, textAlign: 'right', marginTop: 4 },
+  searchSkeleton: { height: 50, borderRadius: 8, marginVertical: 10, marginHorizontal: 15 },
+  cardSkeleton: { height: 250, width: 'auto', borderRadius: 8, marginBottom: 16, marginHorizontal: 15 },
 });

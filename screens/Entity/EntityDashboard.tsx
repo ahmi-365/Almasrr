@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
   RefreshControl,
   Alert,
   Animated,
@@ -14,71 +13,60 @@ import {
   Easing,
 } from 'react-native';
 import {
-  Package,
-  CircleCheck as CheckCircle,
-  Truck,
   Wallet,
-  Clipboard,
-  Undo2,
   HelpCircle,
   BarChart,
+  Truck as TruckIconLucide,
 } from 'lucide-react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDashboard } from '../../Context/DashboardContext';
 import { useFocusEffect } from '@react-navigation/native';
-
 import TopBar from '../../components/Entity/TopBar';
 import Svg, { Path } from 'react-native-svg';
 
-// Define the constant based on the TopBar component's HEADER_HEIGHT
+import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
+import LinearGradient from 'react-native-linear-gradient';
+
+const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const HEADER_EXPANDED_HEIGHT = 1;
 
-// Helper function to convert hex color to rgba with opacity
-const hexToRgba = (hex: string, opacity: number) => {
+const hexToRgba = (hex, opacity) => {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
-// --- StatCounterCard (Modern + Clean) ---
 const StatCounterCard = ({ item }) => (
-  <View style={[styles.statCounterCard, { backgroundColor: hexToRgba(item.iconColor, 0.08) }]}>
-    {/* Icon Circle */}
-    <View style={[styles.statIconBackground, { backgroundColor: item.iconColor }]}>
-      <item.icon color="#fff" size={22} />
+  <View style={[styles.statCounterCard, { backgroundColor: hexToRgba(item.color, 0.08) }]}>
+    <View style={styles.statImageContainer}>
+      <Image source={item.icon} style={styles.statImage} />
+      <View style={[styles.badgeContainer, { borderColor: hexToRgba(item.color, 0.1) }]}>
+        <Text style={[styles.badgeText, { color: item.color }]}>{item.number}</Text>
+      </View>
     </View>
-
-    {/* Number */}
-    <Text style={styles.statCounterNumber}>{item.number}</Text>
-
-    {/* Label */}
     <Text style={styles.statCounterLabel} numberOfLines={2}>
       {item.label}
     </Text>
-
-    {/* Progress Bar */}
-    <View style={[styles.progressBarContainer, { backgroundColor: hexToRgba(item.iconColor, 0.15) }]}>
+    <View style={[styles.progressBarContainer, { backgroundColor: hexToRgba(item.color, 0.15) }]}>
       <View
         style={[
           styles.progressBarFill,
-          { width: `${item.progress * 100}%`, backgroundColor: item.iconColor },
+          { width: `${item.progress * 100}%`, backgroundColor: item.color },
         ]}
       />
     </View>
   </View>
 );
 
-// --- COMPONENT 1: Auto-scrolling Image Banner ---
 const { width: screenWidth } = Dimensions.get('window');
 const SLIDER_WIDTH = screenWidth - 30;
-const SLIDER_HEIGHT = 150; // Add this constant for the height
 
 const IMAGE_BANNER_DATA = [
   { id: '1', uri: 'https://images.unsplash.com/photo-1548695607-9c73430ba065?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTh8fGRlbGl2ZXJ5fGVufDB8fDB8fHww' },
-  { id: '2', uri: 'https://plus.unsplash.com/premium_photo-1682146662576-900a71864a11?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8ZGVsaXZlcnl8ZW58MHx8MHx8fDA%3D' },
-  { id: '3', uri: 'https://plus.unsplash.com/premium_photo-1682090260563-191f8160ca48?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8ZGVsaXZlcnl8ZW58MHx8MHx8fDA%3D' },
+  { id: '2', uri: 'https://plus.unsplash.com/premium_photo-1682146662576-900a71864a11?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8ZGVsaXZlcnl8ZW58MHx8MHx8fDA%33' },
+  { id: '3', uri: 'https://plus.unsplash.com/premium_photo-1682090260563-191f8160ca48?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8ZGVsaXZlcnl8ZW58MHx8MHx8fDA%33' },
 ];
 
 const ImageBanner = ({ item }) => (
@@ -87,12 +75,11 @@ const ImageBanner = ({ item }) => (
   </View>
 );
 
-// --- COMPONENT 2: Manual Promotional Text Slider ---
 const PROMO_SLIDER_DATA = [
   {
     title: "تتبع شحناتك بسهولة",
     description: "احصل على تحديثات فورية ومباشرة.",
-    icon: Truck,
+    icon: TruckIconLucide,
     color: "#3498DB",
   },
   {
@@ -119,22 +106,52 @@ const PromoSliderItem = ({ item }) => (
   </View>
 );
 
-// --- Main Dashboard Component ---
+const DashboardSkeleton = () => {
+  const shimmerColors = ['#FDF1EC', '#FEF8F5', '#FDF1EC'];
+
+  const StatCardSkeleton = () => (
+    <View style={[styles.statCounterCard, { backgroundColor: '#FFF' }]}>
+      <ShimmerPlaceHolder style={{ width: 50, height: 50, borderRadius: 8, marginBottom: 12 }} shimmerColors={shimmerColors} />
+      <ShimmerPlaceHolder style={{ width: '80%', height: 15, borderRadius: 4, marginBottom: 10 }} shimmerColors={shimmerColors} />
+      <ShimmerPlaceHolder style={{ width: '100%', height: 6, borderRadius: 4 }} shimmerColors={shimmerColors} />
+    </View>
+  );
+
+  return (
+    <View style={{ paddingHorizontal: 15, paddingTop: 1, paddingBottom: 80 }}>
+      <ShimmerPlaceHolder style={[styles.balanceCard, { height: 100, width: "100%", backgroundColor: '#FDF1EC' }]} shimmerColors={shimmerColors} />
+      <ShimmerPlaceHolder style={{ width: SLIDER_WIDTH, height: 150, borderRadius: 8, marginBottom: 20 }} shimmerColors={shimmerColors} />
+      <View style={styles.statsSection}>
+        <ShimmerPlaceHolder style={{ width: 120, height: 22, marginBottom: 15, alignSelf: 'flex-end' }} shimmerColors={shimmerColors} />
+        <View style={{ flexDirection: 'row' }}>
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <View style={{ display: screenWidth > 400 ? 'flex' : 'none' }}>
+            <StatCardSkeleton />
+          </View>
+        </View>
+      </View>
+      <ShimmerPlaceHolder style={{ width: SLIDER_WIDTH, height: 90, borderRadius: 8 }} shimmerColors={shimmerColors} />
+    </View>
+  );
+};
+
 interface StatCardData {
   number: string;
   label: string;
-  icon: React.ComponentType<any>;
-  iconColor: string;
-  progressColor: string;
+  icon: any;
+  color: string;
   progress: number;
 }
 
 const CARD_DEFINITIONS = [
-  { label: 'في انتظار التصديق', icon: Package, iconColor: '#E67E22', progressColor: '#D35400' },
-  { label: 'في الفرع', icon: Clipboard, iconColor: '#3498DB', progressColor: '#2980B9' },
-  { label: 'في الطريق', icon: Truck, iconColor: '#F39C12', progressColor: '#F39C12' },
-  { label: 'التوصيل ناجح', icon: CheckCircle, iconColor: '#27AE60', progressColor: '#2ECC71' },
-  { label: 'الطرود المرتجعة', icon: Undo2, iconColor: '#E74C3C', progressColor: '#C0392B' },
+  { label: 'في انتظار التصديق', icon: require('../../assets/pending.png'), color: '#E67E22' },
+  { label: 'في الفرع', icon: require('../../assets/branch.png'), color: '#3498DB' },
+  { label: 'في الطريق', icon: require('../../assets/truck.png'), color: '#F39C12' },
+  { label: 'التوصيل ناجح', icon: require('../../assets/delivered.png'), color: '#27AE60' },
+  { label: 'الطرود المرتجعة', icon: require('../../assets/returned.png'), color: '#E74C3C' },
 ];
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -145,18 +162,8 @@ const AnimatedBalanceBackground = () => {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(waveOffset1, {
-          toValue: 1,
-          duration: 9000,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: false,
-        }),
-        Animated.timing(waveOffset1, {
-          toValue: 0,
-          duration: 9000,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: false,
-        }),
+        Animated.timing(waveOffset1, { toValue: 1, duration: 9000, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(waveOffset1, { toValue: 0, duration: 9000, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
       ])
     ).start();
   }, []);
@@ -164,29 +171,15 @@ const AnimatedBalanceBackground = () => {
   const wavePath1 = waveOffset1.interpolate({
     inputRange: [0, 0.5, 1],
     outputRange: [
-      'M0,60 Q100,20 200,80 T400,40 L400,200 L0,200 Z', 
-      'M0,40 Q100,100 200,30 T400,80 L400,200 L0,200 Z', 
-      'M0,60 Q100,20 200,80 T400,40 L400,200 L0,200 Z'  
+      'M0,60 Q100,20 200,80 T400,40 L400,200 L0,200 Z',
+      'M0,40 Q100,100 200,30 T400,80 L400,200 L0,200 Z',
+      'M0,60 Q100,20 200,80 T400,40 L400,200 L0,200 Z'
     ],
-  });        
+  });
 
   return (
-    <View
-      style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0, 
-      }}
-      pointerEvents="none"
-    >
-      <Svg
-        width="100%"
-        height="100%"
-        viewBox="0 0 400 200" 
-        preserveAspectRatio="none"
-      >
+    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
+      <Svg width="100%" height="100%" viewBox="0 0 400 200" preserveAspectRatio="none">
         <AnimatedPath d={wavePath1} fill="#FFFFFF" opacity={0.2} />
       </Svg>
     </View>
@@ -194,32 +187,56 @@ const AnimatedBalanceBackground = () => {
 };
 
 export default function EntityDashboard() {
-  const [loading, setLoading] = useState(true);
+  // --- UPDATED: Destructure 'setUser' from the context ---
+  const { dashboardData, setDashboardData, dcBalance, setDcBalance, user, setUser } = useDashboard();
+
+  // Show skeleton if dashboard data from context is initially missing.
+  const [loading, setLoading] = useState(!dashboardData);
   const [refreshing, setRefreshing] = useState(false);
-  const { dashboardData, setDashboardData, dcBalance, setDcBalance } = useDashboard();
   const scrollY = useRef(new Animated.Value(0)).current;
   const imageSliderRef = useRef(null);
+
+  // --- ADDED: Effect to load user into context from AsyncStorage ---
+  useEffect(() => {
+    const loadUser = async () => {
+      if (!user) { // Only run if the user is not already in the context.
+        try {
+          const userDataString = await AsyncStorage.getItem('user');
+          if (userDataString) {
+            setUser(JSON.parse(userDataString));
+          } else {
+            // No user in storage, can't fetch data. Stop the loading indicator.
+            setLoading(false);
+          }
+        } catch (error) {
+          console.error("Failed to load user from AsyncStorage", error);
+          setLoading(false); // Stop loading if there's an error.
+        }
+      }
+    };
+    loadUser();
+  }, [user, setUser]); // Dependencies ensure this runs only when necessary.
+
 
   useEffect(() => {
     const interval = setInterval(() => {
       if (imageSliderRef.current) {
-        imageSliderRef.current.scrollToIndex({
-          index: Math.floor(Math.random() * IMAGE_BANNER_DATA.length),
-          animated: true,
-        });
+        const nextIndex = Math.floor(Math.random() * IMAGE_BANNER_DATA.length);
+        imageSliderRef.current.scrollToIndex({ index: nextIndex, animated: true });
       }
     }, 3000);
     return () => clearInterval(interval);
   }, []);
 
   const fetchDashboardData = useCallback(async () => {
-    setLoading(true);
+    // This guard now works because the useEffect above populates the 'user'.
+    if (!user?.userId) {
+      setRefreshing(false);
+      return;
+    }
+    const userId = user.userId;
+
     try {
-      const userData = await AsyncStorage.getItem('user');
-      if (!userData) { return; }
-      const parsedUser = JSON.parse(userData);
-      const userId = parsedUser?.userId;
-      if (!userId) { return; }
       const [dashboardResponse, entitiesResponse] = await Promise.all([
         axios.get(`https://tanmia-group.com:84/courierApi/entityparcels/DashboardData/${userId}`),
         axios.get(`https://tanmia-group.com:84/courierApi/Entity/GetEntities/${userId}`),
@@ -235,14 +252,19 @@ export default function EntityDashboard() {
       console.error('Error fetching data:', err);
       Alert.alert('خطأ', 'فشل في جلب بيانات لوحة القيادة.');
     } finally {
+      // --- This block is now reachable ---
       setLoading(false);
       setRefreshing(false);
     }
-  }, [setDashboardData, setDcBalance]);
+  }, [user, setDashboardData, setDcBalance]);
 
+  // --- UPDATED: useFocusEffect now depends on 'user' ---
   useFocusEffect(useCallback(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]));
+    // Fetch data if it's missing AND we have a user to fetch it for.
+    if (!dashboardData && user) {
+      fetchDashboardData();
+    }
+  }, [dashboardData, user, fetchDashboardData])); // Added 'user' dependency
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -254,113 +276,97 @@ export default function EntityDashboard() {
     const countKeys = Object.keys(dashboardData)
       .filter(key => key.startsWith('Count'))
       .sort((a, b) => parseInt(a.substring(5), 10) - parseInt(b.substring(5), 10));
+
     const totalCount = countKeys.reduce((sum, key) => sum + (Number(dashboardData[key]) || 0), 0);
+
     return countKeys.map((key, index) => {
       const count = Number(dashboardData[key]) || 0;
       const definition = CARD_DEFINITIONS[index] || {
-        label: `Unknown State ${index + 1}`, icon: HelpCircle, iconColor: '#95A5A6', progressColor: '#7F8C8D',
+        label: `Unknown State ${index + 1}`, icon: require('../../assets/pending.png'), color: '#95A5A6',
       };
       return {
         number: String(count),
         label: definition.label,
         icon: definition.icon,
-        iconColor: definition.iconColor,
-        progressColor: definition.progressColor,
+        color: definition.color,
         progress: totalCount > 0 ? count / totalCount : 0,
       };
     });
   }, [dashboardData]);
 
-  if (loading && !refreshing) {
+  if (loading) {
     return (
       <View style={styles.container}>
-        {/* Remove animatedValue prop - TopBar doesn't accept it */}
         <TopBar />
-        <View style={styles.center}><ActivityIndicator size="large" color="#E67E22" /></View>
+        <DashboardSkeleton />
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Remove animatedValue prop - TopBar doesn't accept it */}
       <TopBar />
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: false }
-        )}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
         scrollEventThrottle={16}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#E67E22']} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#E67E22']} tintColor={'#E67E22'} />}
       >
-        <TouchableOpacity 
-          style={styles.balanceCard}
-          activeOpacity={0.95}
-          onPress={() => {
-            Alert.alert('المبلغ المستحق', `الرصيد الحالي: ${dcBalance} د.ل`);
-          }}
-        >
-          <AnimatedBalanceBackground />
-          <View style={styles.balanceContent}>
-            <View style={styles.balanceHeader}>
-              <View style={styles.iconWrapper}>
-                <Wallet color="#FFFFFF" size={24} strokeWidth={2} />
+        <>
+          <TouchableOpacity style={styles.balanceCard} activeOpacity={0.95} onPress={() => Alert.alert('المبلغ المستحق', `الرصيد الحالي: ${dcBalance} د.ل`)}>
+            <AnimatedBalanceBackground />
+            <View style={styles.balanceContent}>
+              <View style={styles.balanceHeader}>
+                <View style={styles.iconWrapper}><Wallet color="#FFFFFF" size={24} strokeWidth={2} /></View>
+                <View style={styles.balanceInfo}>
+                  <Text style={styles.balanceTitle}>المبلغ المستحق</Text>
+                  <Text style={styles.balanceValue}>{dcBalance ?? '0.00'} <Text style={styles.currencyText}>د.ل</Text></Text>
+                </View>
               </View>
-              <View style={styles.balanceInfo}>
-                <Text style={styles.balanceTitle}>المبلغ المستحق</Text>
-                <Text style={styles.balanceValue}>
-                  {dcBalance ?? '0.00'} <Text style={styles.currencyText}>د.ل</Text>
-                </Text>
-              </View>
+              <View style={styles.balanceFooter}><Text style={styles.tapHint}>اضغط للمزيد من التفاصيل</Text></View>
             </View>
-            <View style={styles.balanceFooter}>
-              <Text style={styles.tapHint}>اضغط للمزيد من التفاصيل</Text>
-            </View>
+          </TouchableOpacity>
+          <View style={styles.imageSliderContainer}>
+            <FlatList
+              ref={imageSliderRef}
+              data={IMAGE_BANNER_DATA}
+              renderItem={({ item }) => <ImageBanner item={item} />}
+              keyExtractor={(item) => item.id}
+              horizontal
+              decelerationRate="fast"
+              snapToInterval={SLIDER_WIDTH + 15}
+              snapToAlignment="start"
+              showsHorizontalScrollIndicator={false}
+              ItemSeparatorComponent={() => <View style={{ width: 15 }} />}
+              getItemLayout={(data, index) => ({ length: SLIDER_WIDTH + 15, offset: (SLIDER_WIDTH + 15) * index, index })}
+            />
           </View>
-        </TouchableOpacity>
-
-        <View style={styles.imageSliderContainer}>
-          <FlatList
-            ref={imageSliderRef}
-            data={IMAGE_BANNER_DATA}
-            renderItem={({ item }) => <ImageBanner item={item} />}
-            keyExtractor={(item) => item.id}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            ItemSeparatorComponent={() => <View style={{ width: 15 }} />}
-            getItemLayout={(data, index) => (
-              { length: SLIDER_WIDTH + 15, offset: (SLIDER_WIDTH + 15) * index, index }
-            )}
-          />
-        </View>
-
-        <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>ملخص الطرود</Text>
-          <FlatList
-            data={statsData}
-            renderItem={({ item }) => <StatCounterCard item={item} />}
-            keyExtractor={(item) => item.label}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-          />
-        </View>
-
-        <View style={styles.promoSliderContainer}>
-          <FlatList
-            data={PROMO_SLIDER_DATA}
-            renderItem={({ item }) => <PromoSliderItem item={item} />}
-            keyExtractor={(item) => item.title}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-          />
-        </View>
-
+          <View style={styles.statsSection}>
+            <Text style={styles.sectionTitle}>ملخص الطرود</Text>
+            <FlatList
+              data={statsData}
+              renderItem={({ item }) => <StatCounterCard item={item} />}
+              keyExtractor={(item) => item.label}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+            />
+          </View>
+          <View style={styles.promoSliderContainer}>
+            <FlatList
+              data={PROMO_SLIDER_DATA}
+              renderItem={({ item }) => <PromoSliderItem item={item} />}
+              keyExtractor={(item) => item.title}
+              horizontal
+              decelerationRate="fast"
+              snapToInterval={SLIDER_WIDTH + 15}
+              snapToAlignment="start"
+              showsHorizontalScrollIndicator={false}
+              ItemSeparatorComponent={() => <View style={{ width: 15 }} />}
+              getItemLayout={(data, index) => ({ length: SLIDER_WIDTH + 15, offset: (SLIDER_WIDTH + 15) * index, index })}
+            />
+          </View>
+        </>
       </Animated.ScrollView>
     </View>
   );
@@ -368,26 +374,11 @@ export default function EntityDashboard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8F9FA' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scrollContent: {
     paddingHorizontal: 15,
     paddingTop: HEADER_EXPANDED_HEIGHT,
     paddingBottom: 80,
   },
-
-  iconBackground: {
-    width: 50,
-    height: 50,
-    backgroundColor: '#E67E22',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 15,
-  },
-  balanceLabel: { color: '#B28A5C', fontSize: 14, marginBottom: 4 },
-  balanceAmount: { color: '#D35400', fontSize: 24, fontWeight: 'bold' },
-  currency: { fontSize: 20, fontWeight: 'normal', color: '#B28A5C' },
-
   imageSliderContainer: {
     height: 150,
     marginBottom: 20,
@@ -395,28 +386,25 @@ const styles = StyleSheet.create({
   imageBannerContainer: {
     width: SLIDER_WIDTH,
     height: 150,
-    borderRadius: 12,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   bannerImage: {
     width: '100%',
     height: '100%',
   },
-
   promoSliderContainer: {
     height: 90,
-    marginBottom: 25,
+    marginBottom: 30,
   },
-promoSliderItem: {
-  width: SLIDER_WIDTH - 20, 
-  height: 90,
-  borderRadius: 12,
-  padding: 15,
-  flexDirection: 'row-reverse',
-  alignItems: 'center',
-  marginHorizontal: 10, 
-},
-
+  promoSliderItem: {
+    width: SLIDER_WIDTH,
+    height: '100%',
+    borderRadius: 8,
+    padding: 15,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+  },
   promoSliderIcon: {
     marginLeft: 15,
   },
@@ -434,7 +422,6 @@ promoSliderItem: {
     lineHeight: 16,
     textAlign: 'right',
   },
-
   statsSection: { marginBottom: 25 },
   sectionTitle: {
     fontSize: 18,
@@ -444,61 +431,69 @@ promoSliderItem: {
     textAlign: 'right',
   },
   statCounterCard: {
-    width: 140,
-    padding: 16,
-    borderRadius: 16,
-    // backgroundColor removed - now set dynamically based on icon color
-    // shadowColor: "#000",
-    // shadowOffset: { width: 0, height: 2 },
-    // shadowOpacity: 0.08,
-    // shadowRadius: 4,
-    // elevation: 2,
-    alignItems: "center",
-    marginRight: 12,
-    marginBottom: 14, 
+    width: 110,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginRight: 10,
   },
-  statIconBackground: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 10,
+  statImageContainer: {
+    width: 60,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  statCounterNumber: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#111",
-    marginBottom: 4,
+  statImage: {
+    width: 65,
+    height: 65,
+    resizeMode: 'contain',
+  },
+  badgeContainer: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+    borderWidth: 2,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   statCounterLabel: {
     fontSize: 13,
-    color: "#666",
-    textAlign: "center",
+    color: '#495057',
+    textAlign: 'center',
+    fontWeight: '500',
     marginBottom: 10,
   },
   progressBarContainer: {
     width: "100%",
     height: 6,
-    borderRadius: 3,
-    // backgroundColor removed - now set dynamically based on icon color
+    borderRadius: 8,
     overflow: "hidden",
   },
   progressBarFill: {
     height: "100%",
-    borderRadius: 3,
+    borderRadius: 8,
   },
-  
-  // Clean Minimalist Balance Card
   balanceCard: {
     backgroundColor: '#FF6B35',
     borderRadius: 8,
     marginBottom: 28,
-    // shadowColor: '#FF6B35',
-    // shadowOffset: { width: 0, height: 6 },
-    // shadowOpacity: 0.2,
-    // shadowRadius: 10,
-    // elevation: 6,
+    marginTop: 10,
     overflow: 'hidden',
   },
   balanceContent: {
@@ -513,7 +508,7 @@ promoSliderItem: {
     width: 48,
     height: 48,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 12,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 16,

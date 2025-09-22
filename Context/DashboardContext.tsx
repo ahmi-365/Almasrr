@@ -1,5 +1,13 @@
-// src/context/DashboardContext.tsx
 import React, { createContext, useContext, useState } from 'react';
+
+// --- ADDED USER TYPE ---
+interface User {
+  strEntityName: string;
+  roleName: string;
+  userId: number;
+  DCBalance?: number; // Make DCBalance optional as it might not exist on all user objects
+  // Add any other user properties you need globally
+}
 
 interface DashboardContextType {
   dcBalance: string;
@@ -8,9 +16,11 @@ interface DashboardContextType {
   setDashboardData: (data: any) => void;
   isSidebarVisible: boolean;
   toggleSidebar: () => void;
-  // --- ADDED ---
   currentRoute: string;
   setCurrentRoute: (route: string) => void;
+  // --- ADDED ---
+  user: User | null;
+  setUser: (user: User | null) => void;
   // -------------
 }
 
@@ -20,8 +30,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [dcBalance, setDcBalance] = useState('0.00');
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [isSidebarVisible, setSidebarVisible] = useState(false);
-  // --- ADDED ---
   const [currentRoute, setCurrentRoute] = useState('');
+  // --- ADDED ---
+  const [user, setUser] = useState<User | null>(null);
   // -------------
 
   const toggleSidebar = () => setSidebarVisible(prev => !prev);
@@ -35,9 +46,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         setDashboardData,
         isSidebarVisible,
         toggleSidebar,
-        // --- ADDED ---
         currentRoute,
-        setCurrentRoute
+        setCurrentRoute,
+        // --- ADDED ---
+        user,
+        setUser,
         // -------------
       }}
     >

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useEffect, useState } from 'react';
+import React, { useCallback, useMemo, useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,28 +11,28 @@ import {
   Image,
   SafeAreaView,
   Easing,
+  ImageSourcePropType,
 } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
-import {
-  CircleCheck,
-  ClipboardCheck,
-  CirclePlus,
-  History,
-  Hourglass,
-  Landmark,
-  LayoutDashboard,
-  Scale,
-  Truck,
-  Undo2,
-  X,
-} from 'lucide-react-native';
 import { useDashboard } from '../../Context/DashboardContext';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
+import { X } from 'lucide-react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
+
+const images = {
+  dashboard: require('../../assets/icons/dashboard-icon.png'),
+  cityRates: require('../../assets/icons/rates-icon.png'),
+  balance: require('../../assets/icons/balance-icon.png'),
+  pending: require('../../assets/icons/pending-icon.png'),
+  inBranch: require('../../assets/icons/branch-icon.png'),
+  onTheWay: require('../../assets/icons/on-the-way-icon.png'),
+  returned: require('../../assets/icons/returned-parcels-icon.png'),
+  history: require('../../assets/icons/history-icon.png'),
+  deliveredParcels: require('../../assets/icons/delivered-parcels-icon.png'),
+  returnedParcels: require('../../assets/icons/returned-parcels-icon.png'),
+};
 
 const TAB_SCREENS: (keyof RootStackParamList)[] = ['EntityDashboard', 'ReportsTab', 'StoresTab', 'AccountTab'];
 const DRIVER_TAB_SCREENS: (keyof RootStackParamList)[] = ['DriverDashboard', 'ParcelsTab', 'AccountTab', 'ReportsTab'];
@@ -43,7 +43,7 @@ interface DialerSidebarProps {
 }
 
 interface DialerMenuItem {
-  icon: React.ComponentType<any>;
+  image: ImageSourcePropType;
   title: string;
   route?: keyof RootStackParamList;
   action?: () => void;
@@ -51,116 +51,80 @@ interface DialerMenuItem {
 
 export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { dcBalance: entityDcBalance, currentRoute } = useDashboard();
-
-  const [user, setUser] = useState<any>(null);
-  const [driverBalance, setDriverBalance] = useState('0.00');
+  // --- UPDATED: Destructure dcBalance directly. It's the single source of truth. ---
+  const { dcBalance, currentRoute, user } = useDashboard();
   const [isRendered, setIsRendered] = useState(false);
 
-  const slideAnim = useState(new Animated.Value(screenWidth))[0];
-  const rotationAnim = useState(new Animated.Value(0))[0];
-
-  useFocusEffect(
-    useCallback(() => {
-      const loadData = async () => {
-        try {
-          const userData = await AsyncStorage.getItem('user');
-          if (userData) {
-            const parsedUser = JSON.parse(userData);
-            setUser(parsedUser);
-            if (parsedUser.roleName === 'Driver') {
-              const response = await axios.get(`https://tanmia-group.com:84/courierApi/driverparcels/DashboardData/${parsedUser.userId}`);
-              if (response.data) {
-                setDriverBalance(String(response.data?.DCBalance?.toFixed(2) ?? '0.00'));
-              }
-            }
-          }
-        } catch (err) { console.error('Failed to load user data:', err); }
-      };
-      if (visible) { loadData(); }
-    }, [visible])
-  );
+  const slideAnim = useRef(new Animated.Value(screenWidth)).current;
+  const rotationAnim = useRef(new Animated.Value(0)).current;
+  const animationController = useRef<Animated.CompositeAnimation | null>(null);
 
   const { dashboardItem, orbitingItems } = useMemo(() => {
-    let allItems: DialerMenuItem[] = [];
-    if (user?.roleName === 'Driver') {
-      allItems = [{ icon: CircleCheck, title: 'الطرود المسلمة' }, { icon: Undo2, title: 'الطرود المرتجعة' }];
-    } else {
-      allItems = [{ icon: Landmark, title: 'الأسعار', route: 'CityRates' }, { icon: Scale, title: 'الرصيد' }, { icon: Hourglass, title: 'قيد الانتظار' }, { icon: ClipboardCheck, title: 'في الفرع' }, { icon: Truck, title: 'في الطريق', route: 'DeliveryTracking' }, { icon: CirclePlus, title: 'المرتجعة' }, { icon: History, title: 'السجل' }];
+    if (!user) {
+      return { dashboardItem: null, orbitingItems: [] };
     }
-    const dashboardRoute: keyof RootStackParamList = user?.roleName === 'Driver' ? 'DriverDashboard' : 'EntityDashboard';
+    const isDriver = user.roleName === 'Driver';
+    const allItems: DialerMenuItem[] = isDriver
+      ? [
+        { image: images.deliveredParcels, title: 'الطرود المسلمة' },
+        { image: images.returnedParcels, title: 'الطرود المرتجعة' }
+      ]
+      : [
+        { image: images.cityRates, title: 'الأسعار', route: 'CityRates' },
+        { image: images.balance, title: 'الرصيد' },
+        { image: images.pending, title: 'قيد الانتظار' },
+        { image: images.inBranch, title: 'في الفرع' },
+        { image: images.onTheWay, title: 'في الطريق', route: 'DeliveryTracking' },
+        { image: images.returned, title: 'المرتجعة' },
+        { image: images.history, title: 'السجل' }
+      ];
+    const dashboardRoute: keyof RootStackParamList = isDriver ? 'DriverDashboard' : 'EntityDashboard';
     return {
-      dashboardItem: { icon: LayoutDashboard, title: 'لوحة القيادة', route: dashboardRoute },
+      dashboardItem: { image: images.dashboard, title: 'لوحة القيادة', route: dashboardRoute },
       orbitingItems: allItems,
     };
   }, [user]);
 
-  // --- REFINED ANIMATION LOGIC ---
-  // Create animation values dynamically based on the number of items
-  const itemAnims = useMemo(() =>
-    orbitingItems.map(() => new Animated.Value(0)),
-    [orbitingItems]);
-  // Give the main button its own animation value for stability
-  const mainButtonAnim = useState(new Animated.Value(0))[0];
-
+  const itemAnims = useMemo(() => orbitingItems.map(() => new Animated.Value(0)), [orbitingItems]);
+  const mainButtonAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Combine all item animations plus the main button animation
+    animationController.current?.stop();
     const allItemAnimations = [
       ...itemAnims.map(anim => Animated.spring(anim, { toValue: visible ? 1 : 0, friction: 7, tension: 30, useNativeDriver: true })),
       Animated.spring(mainButtonAnim, { toValue: visible ? 1 : 0, friction: 7, tension: 30, useNativeDriver: true }),
     ];
-
     if (visible) {
       setIsRendered(true);
-      Animated.parallel([
-        // --- CHANGE: SLOWER, SYNCHRONIZED OPENING ANIMATION ---
+      animationController.current = Animated.parallel([
         Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
-        Animated.timing(rotationAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-          easing: Easing.inOut(Easing.cubic),
-        }),
+        Animated.timing(rotationAnim, { toValue: 1, duration: 800, useNativeDriver: true, easing: Easing.inOut(Easing.cubic) }),
         Animated.stagger(60, allItemAnimations),
-      ]).start();
-    } else {
-      Animated.parallel([
-        // --- CHANGE: SLOWER, SYNCHRONIZED CLOSING ANIMATION ---
+      ]);
+      animationController.current.start();
+    } else if (isRendered) {
+      animationController.current = Animated.parallel([
         Animated.timing(slideAnim, { toValue: screenWidth, duration: 600, useNativeDriver: true, easing: Easing.in(Easing.cubic) }),
-        Animated.timing(rotationAnim, {
-          toValue: 0,
-          duration: 800,
-          useNativeDriver: true,
-          easing: Easing.inOut(Easing.cubic),
-        }),
+        Animated.timing(rotationAnim, { toValue: 0, duration: 800, useNativeDriver: true, easing: Easing.inOut(Easing.cubic) }),
         Animated.stagger(50, allItemAnimations.reverse()),
-      ]).start(() => {
-        setIsRendered(false);
+      ]);
+      animationController.current.start(() => {
+        if (!visible) setIsRendered(false);
       });
     }
-  }, [visible, itemAnims, mainButtonAnim]);
+  }, [visible, isRendered, itemAnims, mainButtonAnim, slideAnim, rotationAnim]);
 
   const handleItemPress = useCallback((item: DialerMenuItem) => {
-    let isActive = false;
-    const activeTabs = user?.roleName === 'Driver' ? DRIVER_TAB_SCREENS : TAB_SCREENS;
-    if (item.route === 'EntityDashboard' || item.route === 'DriverDashboard') {
-      isActive = activeTabs.includes(currentRoute as any);
-    } else {
-      isActive = item.route === currentRoute;
-    }
     onClose();
-    if (item.route && !isActive) {
-      setTimeout(() => {
-        if (activeTabs.includes(item.route as any)) {
-          navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: item.route as any }] } }] });
-        } else {
-          navigation.reset({ index: 1, routes: [{ name: 'MainTabs' }, { name: item.route }] });
-        }
-      }, 250);
-    } else if (item.action) {
-      item.action();
-    }
+    setTimeout(() => {
+      if (!user || !item.route || item.route === currentRoute) return;
+      const activeTabs = user.roleName === 'Driver' ? DRIVER_TAB_SCREENS : TAB_SCREENS;
+      if (activeTabs.includes(item.route as any)) {
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: item.route as any }] } }] });
+      } else {
+        navigation.reset({ index: 1, routes: [{ name: 'MainTabs' }, { name: item.route }] });
+      }
+    }, 250);
   }, [navigation, user, onClose, currentRoute]);
 
   const handleProfilePress = () => {
@@ -168,12 +132,14 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
     setTimeout(() => {
       navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: 'AccountTab' }] } }] });
     }, 250);
-  }
+  };
 
-  if (!isRendered) return null;
+  if (!isRendered || !user || !dashboardItem) return null;
 
-  const isDriver = user?.roleName === 'Driver';
-  const balance = isDriver ? driverBalance : entityDcBalance;
+  // --- UPDATED: Create a dynamic label for the balance card ---
+  const balanceLabel = user.roleName === 'Driver' ? 'الرصيد في المحفظة' : 'المبلغ المستحق';
+
+  const isDriver = user.roleName === 'Driver';
   const activeTabs = isDriver ? DRIVER_TAB_SCREENS : TAB_SCREENS;
   const isDashboardActive = activeTabs.includes(currentRoute as any);
 
@@ -191,10 +157,12 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
         </View>
         <View style={styles.headerContainer}>
           <Image source={require('../../assets/images/Almasr.png')} style={styles.appLogo} />
-          <Text style={styles.userName}>{user?.strEntityName || 'Welcome'}</Text>
+          <Text style={styles.userName}>{user.strEntityName || 'Welcome'}</Text>
           <View style={styles.balanceCard}>
-            <Text style={styles.balanceLabel}>المبلغ المستحق</Text>
-            <Text style={styles.balanceAmount}>{balance ?? '0.00'} <Text style={styles.currency}>د.ل</Text></Text>
+            {/* Use the dynamic balanceLabel */}
+            <Text style={styles.balanceLabel}>{balanceLabel}</Text>
+            {/* Directly use the up-to-date dcBalance from the context */}
+            <Text style={styles.balanceAmount}>{dcBalance ?? '0.00'} <Text style={styles.currency}>د.ل</Text></Text>
           </View>
           <TouchableOpacity style={styles.profileButton} onPress={handleProfilePress}><Text style={styles.profileButtonText}>الحساب الشخصي</Text></TouchableOpacity>
         </View>
@@ -208,18 +176,15 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
             const isActive = item.route === currentRoute;
             const itemAnimation = itemAnims[index];
 
-            // If itemAnimation is undefined (shouldn't happen now), we can fallback
             if (!itemAnimation) return null;
 
             const transformX = itemAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, radius * Math.cos((angle * Math.PI) / 180)] });
             const transformY = itemAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, radius * Math.sin((angle * Math.PI) / 180)] });
-            const scale = itemAnimation;
-            const opacity = itemAnimation;
 
             return (
-              <Animated.View key={`${item.title}-${index}`} style={[styles.menuItemContainer, { opacity, transform: [{ translateX: transformX }, { translateY: transformY }, { scale }] }]}>
+              <Animated.View key={`${item.title}-${index}`} style={[styles.menuItemContainer, { opacity: itemAnimation, transform: [{ translateX: transformX }, { translateY: transformY }, { scale: itemAnimation }] }]}>
                 <TouchableOpacity style={[styles.menuItem, isActive && styles.menuItemActive]} onPress={() => handleItemPress(item)}>
-                  <item.icon color={isActive ? '#FFFFFF' : '#FF8C42'} size={28} />
+                  <Image source={item.image} style={[styles.menuItemImage, isActive && styles.menuItemImageActive]} />
                 </TouchableOpacity>
                 <Text style={styles.menuItemText}>{item.title}</Text>
               </Animated.View>
@@ -228,7 +193,7 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
 
           <Animated.View style={{ transform: [{ scale: mainButtonAnim }] }}>
             <TouchableOpacity style={[styles.mainButton, isDashboardActive && styles.mainButtonActive]} onPress={() => handleItemPress(dashboardItem)}>
-              <dashboardItem.icon color={isDashboardActive ? '#FFFFFF' : '#FF8C42'} size={32} />
+              <Image source={dashboardItem.image} style={[styles.mainButtonImage, isDashboardActive && styles.mainButtonImageActive]} />
             </TouchableOpacity>
           </Animated.View>
         </Animated.View>
@@ -251,8 +216,8 @@ const styles = StyleSheet.create({
     height: 110,
     resizeMode: 'contain',
     marginBottom: 20,
-    backgroundColor: '#FFFFFF', // This adds the white background
-    borderRadius: 8,          // This adds the border radius
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
   },
   userName: { color: '#FFFFFF', fontSize: 26, fontWeight: 'bold', marginBottom: 20 },
   balanceCard: { backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: 15, paddingVertical: 10, paddingHorizontal: 30, alignItems: 'center', marginBottom: 20 },
@@ -268,4 +233,20 @@ const styles = StyleSheet.create({
   menuItem: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center' },
   menuItemActive: { backgroundColor: '#FF8C42' },
   menuItemText: { color: '#FFFFFF', marginTop: 8, fontSize: 13, fontWeight: 'bold', textAlign: 'center', width: 80, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+  mainButtonImage: {
+    width: 65,
+    height: 65,
+    resizeMode: 'contain',
+  },
+  mainButtonImageActive: {
+    tintColor: '#FFFFFF',
+  },
+  menuItemImage: {
+    width: 65,
+    height: 65,
+    resizeMode: 'contain',
+  },
+  menuItemImageActive: {
+    tintColor: '#FFFFFF',
+  },
 });

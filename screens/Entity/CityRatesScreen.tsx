@@ -105,7 +105,7 @@ export default function CityRatesScreen() {
 
     return (
         <View style={styles.container}>
-            <TopBar title="الأسعار حسب المدينة" />
+            <TopBar />
             <View style={styles.filterContainer}>
                 <TouchableOpacity style={styles.dropdown} onPress={() => { setSearchQuery(''); setModalVisible(true); }}>
                     <Text style={styles.dropdownLabel}>مدينة</Text>
