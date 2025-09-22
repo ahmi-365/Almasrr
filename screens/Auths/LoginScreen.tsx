@@ -21,8 +21,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Import the context hook to manage global state
+import CustomAlert from '../../components/CustomAlert';
 import { useDashboard } from '../../Context/DashboardContext';
 
 type RootStackParamList = {
@@ -206,7 +205,10 @@ const LoginScreen = () => {
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
+const [isAlertVisible, setAlertVisible] = useState(false);
+const [alertTitle, setAlertTitle] = useState('');
+const [alertMessage, setAlertMessage] = useState('');
+const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange);
   type Errors = {
     phoneNumber?: string;
     password?: string;
@@ -278,65 +280,70 @@ const LoginScreen = () => {
 
   }, []);
 
-  const handleLogin = async () => {
-    setIsLoading(true);
-    Animated.sequence([
-      Animated.spring(buttonScaleAnim, {
-        toValue: 0.95,
-        useNativeDriver: true,
-        speed: 20,
-        bounciness: 10,
+const handleLogin = async () => {
+  setIsLoading(true);
+  Animated.sequence([
+    Animated.spring(buttonScaleAnim, {
+      toValue: 0.95,
+      useNativeDriver: true,
+      speed: 20,
+      bounciness: 10,
+    }),
+    Animated.spring(buttonScaleAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 20,
+      bounciness: 10,
+    }),
+  ]).start();
+
+  try {
+    const response = await fetch('https://tanmia-group.com:84/courierApi/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        UserName: phoneNumber,
+        Password: password,
       }),
-      Animated.spring(buttonScaleAnim, {
-        toValue: 1,
-        useNativeDriver: true,
-        speed: 20,
-        bounciness: 10,
-      }),
-    ]).start();
+    });
 
-    try {
-      const response = await fetch('https://tanmia-group.com:84/courierApi/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({
-          UserName: phoneNumber,
-          Password: password,
-        }),
-      });
+    const responseData = await response.json();
 
-      const responseData = await response.json();
+    if (response.ok && responseData.success) {
+      // --- THE FIX: RESET GLOBAL STATE BEFORE NAVIGATING ---
+      setDashboardData(null);
+      setUser(responseData);
+      setDcBalance(String(responseData?.DCBalance?.toFixed(2) ?? '0.00'));
+      await AsyncStorage.setItem('user', JSON.stringify(responseData));
+      // --- END OF FIX ---
 
-      if (response.ok && responseData.success) {
-        // --- THE FIX: RESET GLOBAL STATE BEFORE NAVIGATING ---
-
-        // 1. Clear any old dashboard data to prevent flashing old info.
-        setDashboardData(null);
-
-        // 2. Set the NEW user and their balance in the global context.
-        setUser(responseData);
-        setDcBalance(String(responseData?.DCBalance?.toFixed(2) ?? '0.00'));
-
-        // 3. Save the new user's data for the next app launch.
-        await AsyncStorage.setItem('user', JSON.stringify(responseData));
-
-        // --- END OF FIX ---
-
-        Alert.alert('تم تسجيل الدخول بنجاح', 'مرحباً بك مرة أخرى في التطبيق');
-        navigation.replace('MainTabs');
-      } else {
-        Alert.alert('خطأ في تسجيل الدخول', responseData.message || 'يرجى التحقق من بياناتك');
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      Alert.alert('خطأ في الاتصال', 'يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى');
-    } finally {
-      setIsLoading(false);
+      // Set state to show the custom alert for success
+      setAlertTitle('تم تسجيل الدخول بنجاح');
+      setAlertMessage('مرحباً بك مرة أخرى في التطبيق');
+      setAlertConfirmColor('#4CAF50'); // A success color
+      setAlertVisible(true);
+      
+    } else {
+      // Set state to show the custom alert for an error
+      setAlertTitle('خطأ في تسجيل الدخول');
+      setAlertMessage(responseData.message || 'يرجى التحقق من بياناتك');
+      setAlertConfirmColor(Colors.errorRed);
+      setAlertVisible(true);
     }
-  };
+  } catch (error) {
+    console.error('Login error:', error);
+    // Set state to show the custom alert for a network error
+    setAlertTitle('خطأ في الاتصال');
+    setAlertMessage('يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى');
+    setAlertConfirmColor(Colors.errorRed);
+    setAlertVisible(true);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const handleCreateAccount = () => {
     navigation.navigate('Register');
@@ -477,6 +484,18 @@ const LoginScreen = () => {
           <View style={styles.bottomIndicator} />
         </View>
       </ScrollView>
+      <CustomAlert
+  isVisible={isAlertVisible}
+  title={alertTitle}
+  message={alertMessage}
+  confirmText="حسنًا"
+  onConfirm={() => {
+    setAlertVisible(false);
+    if (alertTitle === 'تم تسجيل الدخول بنجاح') {
+      navigation.navigate('MainTabs');
+    }
+  }}
+/>
     </KeyboardAvoidingView>
   );
 };
