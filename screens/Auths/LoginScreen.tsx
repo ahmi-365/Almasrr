@@ -313,21 +313,12 @@ const handleLogin = async () => {
     const responseData = await response.json();
 
     if (response.ok && responseData.success) {
-      // --- THE FIX: RESET GLOBAL STATE BEFORE NAVIGATING ---
       setDashboardData(null);
       setUser(responseData);
       setDcBalance(String(responseData?.DCBalance?.toFixed(2) ?? '0.00'));
       await AsyncStorage.setItem('user', JSON.stringify(responseData));
-      // --- END OF FIX ---
-
-      // Set state to show the custom alert for success
-      setAlertTitle('تم تسجيل الدخول بنجاح');
-      setAlertMessage('مرحباً بك مرة أخرى في التطبيق');
-      setAlertConfirmColor('#4CAF50'); // A success color
-      setAlertVisible(true);
-      
+      navigation.navigate('MainTabs');
     } else {
-      // Set state to show the custom alert for an error
       setAlertTitle('خطأ في تسجيل الدخول');
       setAlertMessage(responseData.message || 'يرجى التحقق من بياناتك');
       setAlertConfirmColor(Colors.errorRed);
@@ -335,7 +326,6 @@ const handleLogin = async () => {
     }
   } catch (error) {
     console.error('Login error:', error);
-    // Set state to show the custom alert for a network error
     setAlertTitle('خطأ في الاتصال');
     setAlertMessage('يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى');
     setAlertConfirmColor(Colors.errorRed);
@@ -344,6 +334,7 @@ const handleLogin = async () => {
     setIsLoading(false);
   }
 };
+
 
   const handleCreateAccount = () => {
     navigation.navigate('Register');
@@ -484,18 +475,21 @@ const handleLogin = async () => {
           <View style={styles.bottomIndicator} />
         </View>
       </ScrollView>
-      <CustomAlert
+     <CustomAlert
   isVisible={isAlertVisible}
   title={alertTitle}
   message={alertMessage}
   confirmText="حسنًا"
+  cancelText="" 
   onConfirm={() => {
     setAlertVisible(false);
     if (alertTitle === 'تم تسجيل الدخول بنجاح') {
       navigation.navigate('MainTabs');
     }
   }}
+  onCancel={() => setAlertVisible(false)} 
 />
+
     </KeyboardAvoidingView>
   );
 };

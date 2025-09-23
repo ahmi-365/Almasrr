@@ -71,7 +71,7 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
       ]
       : [
         { image: images.cityRates, title: 'الأسعار', route: 'CityRates' },
-        { image: images.balance, title: 'الرصيد' },
+        { image: images.balance, title: 'الرصيد',route: 'EntitiesBalanceScreen' },
         { image: images.pending, title: 'قيد الانتظار' },
         { image: images.inBranch, title: 'في الفرع' },
         { image: images.onTheWay, title: 'في الطريق', route: 'DeliveryTracking' },

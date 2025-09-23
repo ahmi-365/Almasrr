@@ -1,4 +1,10 @@
-import React, { useMemo, useEffect, useState, useCallback, useRef } from 'react';
+import React, {
+  useMemo,
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import {
   View,
   Text,
@@ -11,22 +17,23 @@ import {
   Image,
   TouchableOpacity,
   Easing,
-} from 'react-native';
+} from "react-native";
 import {
   Wallet,
   HelpCircle,
   BarChart,
   Truck as TruckIconLucide,
-} from 'lucide-react-native';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useDashboard } from '../../Context/DashboardContext';
-import { useFocusEffect } from '@react-navigation/native';
-import TopBar from '../../components/Entity/TopBar';
-import Svg, { Path } from 'react-native-svg';
+} from "lucide-react-native";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useDashboard } from "../../Context/DashboardContext";
+import { useFocusEffect } from "@react-navigation/native";
+import TopBar from "../../components/Entity/TopBar";
+import Svg, { Path } from "react-native-svg";
 
-import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
-import LinearGradient from 'react-native-linear-gradient';
+import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
+import { LinearGradient } from "expo-linear-gradient";
+import CustomAlert from '../../components/CustomAlert';
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const HEADER_EXPANDED_HEIGHT = 1;
@@ -39,17 +46,34 @@ const hexToRgba = (hex, opacity) => {
 };
 
 const StatCounterCard = ({ item }) => (
-  <View style={[styles.statCounterCard, { backgroundColor: hexToRgba(item.color, 0.08) }]}>
+  <View
+    style={[
+      styles.statCounterCard,
+      { backgroundColor: hexToRgba(item.color, 0.08) },
+    ]}
+  >
     <View style={styles.statImageContainer}>
       <Image source={item.icon} style={styles.statImage} />
-      <View style={[styles.badgeContainer, { borderColor: hexToRgba(item.color, 0.1) }]}>
-        <Text style={[styles.badgeText, { color: item.color }]}>{item.number}</Text>
+      <View
+        style={[
+          styles.badgeContainer,
+          { borderColor: hexToRgba(item.color, 0.1) },
+        ]}
+      >
+        <Text style={[styles.badgeText, { color: item.color }]}>
+          {item.number}
+        </Text>
       </View>
     </View>
     <Text style={styles.statCounterLabel} numberOfLines={2}>
       {item.label}
     </Text>
-    <View style={[styles.progressBarContainer, { backgroundColor: hexToRgba(item.color, 0.15) }]}>
+    <View
+      style={[
+        styles.progressBarContainer,
+        { backgroundColor: hexToRgba(item.color, 0.15) },
+      ]}
+    >
       <View
         style={[
           styles.progressBarFill,
@@ -60,18 +84,31 @@ const StatCounterCard = ({ item }) => (
   </View>
 );
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get("window");
 const SLIDER_WIDTH = screenWidth - 30;
 
 const IMAGE_BANNER_DATA = [
-  { id: '1', uri: 'https://images.unsplash.com/photo-1548695607-9c73430ba065?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTh8fGRlbGl2ZXJ5fGVufDB8fDB8fHww' },
-  { id: '2', uri: 'https://plus.unsplash.com/premium_photo-1682146662576-900a71864a11?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8ZGVsaXZlcnl8ZW58MHx8MHx8fDA%33' },
-  { id: '3', uri: 'https://plus.unsplash.com/premium_photo-1682090260563-191f8160ca48?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8ZGVsaXZlcnl8ZW58MHx8MHx8fDA%33' },
+  {
+    id: "1",
+    uri: "https://images.unsplash.com/photo-1548695607-9c73430ba065?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTh8fGRlbGl2ZXJ5fGVufDB8fDB8fHww",
+  },
+  {
+    id: "2",
+    uri: "https://plus.unsplash.com/premium_photo-1682146662576-900a71864a11?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8ZGVsaXZlcnl8ZW58MHx8MHx8fDA%33",
+  },
+  {
+    id: "3",
+    uri: "https://plus.unsplash.com/premium_photo-1682090260563-191f8160ca48?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8ZGVsaXZlcnl8ZW58MHx8MHx8fDA%33",
+  },
 ];
 
 const ImageBanner = ({ item }) => (
   <View style={styles.imageBannerContainer}>
-    <Image source={{ uri: item.uri }} style={styles.bannerImage} resizeMode="cover" />
+    <Image
+      source={{ uri: item.uri }}
+      style={styles.bannerImage}
+      resizeMode="cover"
+    />
   </View>
 );
 
@@ -107,33 +144,67 @@ const PromoSliderItem = ({ item }) => (
 );
 
 const DashboardSkeleton = () => {
-  const shimmerColors = ['#FDF1EC', '#FEF8F5', '#FDF1EC'];
+  const shimmerColors = ["#FDF1EC", "#FEF8F5", "#FDF1EC"];
 
   const StatCardSkeleton = () => (
-    <View style={[styles.statCounterCard, { backgroundColor: '#FFF' }]}>
-      <ShimmerPlaceHolder style={{ width: 50, height: 50, borderRadius: 8, marginBottom: 12 }} shimmerColors={shimmerColors} />
-      <ShimmerPlaceHolder style={{ width: '80%', height: 15, borderRadius: 4, marginBottom: 10 }} shimmerColors={shimmerColors} />
-      <ShimmerPlaceHolder style={{ width: '100%', height: 6, borderRadius: 4 }} shimmerColors={shimmerColors} />
+    <View style={[styles.statCounterCard, { backgroundColor: "#FFF" }]}>
+      <ShimmerPlaceHolder
+        style={{ width: 50, height: 50, borderRadius: 8, marginBottom: 12 }}
+        shimmerColors={shimmerColors}
+      />
+      <ShimmerPlaceHolder
+        style={{ width: "80%", height: 15, borderRadius: 4, marginBottom: 10 }}
+        shimmerColors={shimmerColors}
+      />
+      <ShimmerPlaceHolder
+        style={{ width: "100%", height: 6, borderRadius: 4 }}
+        shimmerColors={shimmerColors}
+      />
     </View>
   );
 
   return (
     <View style={{ paddingHorizontal: 15, paddingTop: 1, paddingBottom: 80 }}>
-      <ShimmerPlaceHolder style={[styles.balanceCard, { height: 100, width: "100%", backgroundColor: '#FDF1EC' }]} shimmerColors={shimmerColors} />
-      <ShimmerPlaceHolder style={{ width: SLIDER_WIDTH, height: 150, borderRadius: 8, marginBottom: 20 }} shimmerColors={shimmerColors} />
+      <ShimmerPlaceHolder
+        style={[
+          styles.balanceCard,
+          { height: 100, width: "100%", backgroundColor: "#FDF1EC" },
+        ]}
+        shimmerColors={shimmerColors}
+      />
+      <ShimmerPlaceHolder
+        style={{
+          width: SLIDER_WIDTH,
+          height: 150,
+          borderRadius: 8,
+          marginBottom: 20,
+        }}
+        shimmerColors={shimmerColors}
+      />
       <View style={styles.statsSection}>
-        <ShimmerPlaceHolder style={{ width: 120, height: 22, marginBottom: 15, alignSelf: 'flex-end' }} shimmerColors={shimmerColors} />
-        <View style={{ flexDirection: 'row' }}>
+        <ShimmerPlaceHolder
+          style={{
+            width: 120,
+            height: 22,
+            marginBottom: 15,
+            alignSelf: "flex-end",
+          }}
+          shimmerColors={shimmerColors}
+        />
+        <View style={{ flexDirection: "row" }}>
           <StatCardSkeleton />
           <StatCardSkeleton />
           <StatCardSkeleton />
           <StatCardSkeleton />
-          <View style={{ display: screenWidth > 400 ? 'flex' : 'none' }}>
+          <View style={{ display: screenWidth > 400 ? "flex" : "none" }}>
             <StatCardSkeleton />
           </View>
         </View>
       </View>
-      <ShimmerPlaceHolder style={{ width: SLIDER_WIDTH, height: 90, borderRadius: 8 }} shimmerColors={shimmerColors} />
+      <ShimmerPlaceHolder
+        style={{ width: SLIDER_WIDTH, height: 90, borderRadius: 8 }}
+        shimmerColors={shimmerColors}
+      />
     </View>
   );
 };
@@ -147,11 +218,31 @@ interface StatCardData {
 }
 
 const CARD_DEFINITIONS = [
-  { label: 'في انتظار التصديق', icon: require('../../assets/pending.png'), color: '#E67E22' },
-  { label: 'في الفرع', icon: require('../../assets/branch.png'), color: '#3498DB' },
-  { label: 'في الطريق', icon: require('../../assets/truck.png'), color: '#F39C12' },
-  { label: 'التوصيل ناجح', icon: require('../../assets/delivered.png'), color: '#27AE60' },
-  { label: 'الطرود المرتجعة', icon: require('../../assets/returned.png'), color: '#E74C3C' },
+  {
+    label: "في انتظار التصديق",
+    icon: require("../../assets/pending.png"),
+    color: "#E67E22",
+  },
+  {
+    label: "في الفرع",
+    icon: require("../../assets/branch.png"),
+    color: "#3498DB",
+  },
+  {
+    label: "في الطريق",
+    icon: require("../../assets/truck.png"),
+    color: "#F39C12",
+  },
+  {
+    label: "التوصيل ناجح",
+    icon: require("../../assets/delivered.png"),
+    color: "#27AE60",
+  },
+  {
+    label: "الطرود المرتجعة",
+    icon: require("../../assets/returned.png"),
+    color: "#E74C3C",
+  },
 ];
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -162,8 +253,18 @@ const AnimatedBalanceBackground = () => {
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(waveOffset1, { toValue: 1, duration: 9000, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-        Animated.timing(waveOffset1, { toValue: 0, duration: 9000, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(waveOffset1, {
+          toValue: 1,
+          duration: 9000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+        Animated.timing(waveOffset1, {
+          toValue: 0,
+          duration: 9000,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
       ])
     ).start();
   }, []);
@@ -171,15 +272,23 @@ const AnimatedBalanceBackground = () => {
   const wavePath1 = waveOffset1.interpolate({
     inputRange: [0, 0.5, 1],
     outputRange: [
-      'M0,60 Q100,20 200,80 T400,40 L400,200 L0,200 Z',
-      'M0,40 Q100,100 200,30 T400,80 L400,200 L0,200 Z',
-      'M0,60 Q100,20 200,80 T400,40 L400,200 L0,200 Z'
+      "M0,60 Q100,20 200,80 T400,40 L400,200 L0,200 Z",
+      "M0,40 Q100,100 200,30 T400,80 L400,200 L0,200 Z",
+      "M0,60 Q100,20 200,80 T400,40 L400,200 L0,200 Z",
     ],
   });
 
   return (
-    <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} pointerEvents="none">
-      <Svg width="100%" height="100%" viewBox="0 0 400 200" preserveAspectRatio="none">
+    <View
+      style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+      pointerEvents="none"
+    >
+      <Svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 400 200"
+        preserveAspectRatio="none"
+      >
         <AnimatedPath d={wavePath1} fill="#FFFFFF" opacity={0.2} />
       </Svg>
     </View>
@@ -188,20 +297,31 @@ const AnimatedBalanceBackground = () => {
 
 export default function EntityDashboard() {
   // --- UPDATED: Destructure 'setUser' from the context ---
-  const { dashboardData, setDashboardData, dcBalance, setDcBalance, user, setUser } = useDashboard();
+  const {
+    dashboardData,
+    setDashboardData,
+    dcBalance,
+    setDcBalance,
+    user,
+    setUser,
+  } = useDashboard();
 
   // Show skeleton if dashboard data from context is initially missing.
   const [loading, setLoading] = useState(!dashboardData);
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const imageSliderRef = useRef(null);
-
+const [isAlertVisible, setAlertVisible] = useState(false);
+const [alertTitle, setAlertTitle] = useState('');
+const [alertMessage, setAlertMessage] = useState('');
+const [alertConfirmColor, setAlertConfirmColor] = useState('#E74C3C');
   // --- ADDED: Effect to load user into context from AsyncStorage ---
   useEffect(() => {
     const loadUser = async () => {
-      if (!user) { // Only run if the user is not already in the context.
+      if (!user) {
+        // Only run if the user is not already in the context.
         try {
-          const userDataString = await AsyncStorage.getItem('user');
+          const userDataString = await AsyncStorage.getItem("user");
           if (userDataString) {
             setUser(JSON.parse(userDataString));
           } else {
@@ -217,12 +337,14 @@ export default function EntityDashboard() {
     loadUser();
   }, [user, setUser]); // Dependencies ensure this runs only when necessary.
 
-
   useEffect(() => {
     const interval = setInterval(() => {
       if (imageSliderRef.current) {
         const nextIndex = Math.floor(Math.random() * IMAGE_BANNER_DATA.length);
-        imageSliderRef.current.scrollToIndex({ index: nextIndex, animated: true });
+        imageSliderRef.current.scrollToIndex({
+          index: nextIndex,
+          animated: true,
+        });
       }
     }, 3000);
     return () => clearInterval(interval);
@@ -238,20 +360,31 @@ export default function EntityDashboard() {
 
     try {
       const [dashboardResponse, entitiesResponse] = await Promise.all([
-        axios.get(`https://tanmia-group.com:84/courierApi/entityparcels/DashboardData/${userId}`),
-        axios.get(`https://tanmia-group.com:84/courierApi/Entity/GetEntities/${userId}`),
+        axios.get(
+          `https://tanmia-group.com:84/courierApi/entityparcels/DashboardData/${userId}`
+        ),
+        axios.get(
+          `https://tanmia-group.com:84/courierApi/Entity/GetEntities/${userId}`
+        ),
       ]);
       if (dashboardResponse.data) {
         setDashboardData(dashboardResponse.data);
-        setDcBalance(String(dashboardResponse.data?.DCBalance?.toFixed(2) ?? '0.00'));
+        setDcBalance(
+          String(dashboardResponse.data?.DCBalance?.toFixed(2) ?? "0.00")
+        );
       }
       if (entitiesResponse.data) {
-        await AsyncStorage.setItem('user_entities', JSON.stringify(entitiesResponse.data));
+        await AsyncStorage.setItem(
+          "user_entities",
+          JSON.stringify(entitiesResponse.data)
+        );
       }
     } catch (err) {
-      console.error('Error fetching data:', err);
-      Alert.alert('خطأ', 'فشل في جلب بيانات لوحة القيادة.');
-    } finally {
+      console.error("Error fetching data:", err);
+setAlertTitle('خطأ');
+setAlertMessage('فشل في جلب بيانات لوحة القيادة.');
+setAlertConfirmColor('#E74C3C');
+setAlertVisible(true);    } finally {
       // --- This block is now reachable ---
       setLoading(false);
       setRefreshing(false);
@@ -259,12 +392,14 @@ export default function EntityDashboard() {
   }, [user, setDashboardData, setDcBalance]);
 
   // --- UPDATED: useFocusEffect now depends on 'user' ---
-  useFocusEffect(useCallback(() => {
-    // Fetch data if it's missing AND we have a user to fetch it for.
-    if (!dashboardData && user) {
-      fetchDashboardData();
-    }
-  }, [dashboardData, user, fetchDashboardData])); // Added 'user' dependency
+  useFocusEffect(
+    useCallback(() => {
+      // Fetch data if it's missing AND we have a user to fetch it for.
+      if (!dashboardData && user) {
+        fetchDashboardData();
+      }
+    }, [dashboardData, user, fetchDashboardData])
+  ); // Added 'user' dependency
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -274,15 +409,22 @@ export default function EntityDashboard() {
   const statsData: StatCardData[] = useMemo(() => {
     if (!dashboardData) return [];
     const countKeys = Object.keys(dashboardData)
-      .filter(key => key.startsWith('Count'))
-      .sort((a, b) => parseInt(a.substring(5), 10) - parseInt(b.substring(5), 10));
+      .filter((key) => key.startsWith("Count"))
+      .sort(
+        (a, b) => parseInt(a.substring(5), 10) - parseInt(b.substring(5), 10)
+      );
 
-    const totalCount = countKeys.reduce((sum, key) => sum + (Number(dashboardData[key]) || 0), 0);
+    const totalCount = countKeys.reduce(
+      (sum, key) => sum + (Number(dashboardData[key]) || 0),
+      0
+    );
 
     return countKeys.map((key, index) => {
       const count = Number(dashboardData[key]) || 0;
       const definition = CARD_DEFINITIONS[index] || {
-        label: `Unknown State ${index + 1}`, icon: require('../../assets/pending.png'), color: '#95A5A6',
+        label: `Unknown State ${index + 1}`,
+        icon: require("../../assets/pending.png"),
+        color: "#95A5A6",
       };
       return {
         number: String(count),
@@ -309,22 +451,42 @@ export default function EntityDashboard() {
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: false }
+        )}
         scrollEventThrottle={16}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#E67E22']} tintColor={'#E67E22'} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#E67E22"]}
+            tintColor={"#E67E22"}
+          />
+        }
       >
         <>
-          <TouchableOpacity style={styles.balanceCard} activeOpacity={0.95} onPress={() => Alert.alert('المبلغ المستحق', `الرصيد الحالي: ${dcBalance} د.ل`)}>
+          <TouchableOpacity
+            style={styles.balanceCard}
+            activeOpacity={0.95}
+          >
             <AnimatedBalanceBackground />
             <View style={styles.balanceContent}>
               <View style={styles.balanceHeader}>
-                <View style={styles.iconWrapper}><Wallet color="#FFFFFF" size={24} strokeWidth={2} /></View>
+                <View style={styles.iconWrapper}>
+                  <Wallet color="#FFFFFF" size={24} strokeWidth={2} />
+                </View>
                 <View style={styles.balanceInfo}>
                   <Text style={styles.balanceTitle}>المبلغ المستحق</Text>
-                  <Text style={styles.balanceValue}>{dcBalance ?? '0.00'} <Text style={styles.currencyText}>د.ل</Text></Text>
+                  <Text style={styles.balanceValue}>
+                    {dcBalance ?? "0.00"}{" "}
+                    <Text style={styles.currencyText}>د.ل</Text>
+                  </Text>
                 </View>
               </View>
-              <View style={styles.balanceFooter}><Text style={styles.tapHint}>اضغط للمزيد من التفاصيل</Text></View>
+              <View style={styles.balanceFooter}>
+                <Text style={styles.tapHint}>اضغط للمزيد من التفاصيل</Text>
+              </View>
             </View>
           </TouchableOpacity>
           <View style={styles.imageSliderContainer}>
@@ -339,7 +501,11 @@ export default function EntityDashboard() {
               snapToAlignment="start"
               showsHorizontalScrollIndicator={false}
               ItemSeparatorComponent={() => <View style={{ width: 15 }} />}
-              getItemLayout={(data, index) => ({ length: SLIDER_WIDTH + 15, offset: (SLIDER_WIDTH + 15) * index, index })}
+              getItemLayout={(data, index) => ({
+                length: SLIDER_WIDTH + 15,
+                offset: (SLIDER_WIDTH + 15) * index,
+                index,
+              })}
             />
           </View>
           <View style={styles.statsSection}>
@@ -363,17 +529,31 @@ export default function EntityDashboard() {
               snapToAlignment="start"
               showsHorizontalScrollIndicator={false}
               ItemSeparatorComponent={() => <View style={{ width: 15 }} />}
-              getItemLayout={(data, index) => ({ length: SLIDER_WIDTH + 15, offset: (SLIDER_WIDTH + 15) * index, index })}
+              getItemLayout={(data, index) => ({
+                length: SLIDER_WIDTH + 15,
+                offset: (SLIDER_WIDTH + 15) * index,
+                index,
+              })}
             />
           </View>
         </>
       </Animated.ScrollView>
+      {/* Custom Alert */}
+<CustomAlert
+  isVisible={isAlertVisible}
+  title={alertTitle}
+  message={alertMessage}
+  confirmText="حسنًا"
+  cancelText=""
+  onConfirm={() => setAlertVisible(false)}
+  onCancel={() => setAlertVisible(false)}
+/>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8F9FA' },
+  container: { flex: 1, backgroundColor: "#F8F9FA" },
   scrollContent: {
     paddingHorizontal: 15,
     paddingTop: HEADER_EXPANDED_HEIGHT,
@@ -387,11 +567,11 @@ const styles = StyleSheet.create({
     width: SLIDER_WIDTH,
     height: 150,
     borderRadius: 8,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   bannerImage: {
-    width: '100%',
-    height: '100%',
+    width: "100%",
+    height: "100%",
   },
   promoSliderContainer: {
     height: 90,
@@ -399,84 +579,84 @@ const styles = StyleSheet.create({
   },
   promoSliderItem: {
     width: SLIDER_WIDTH,
-    height: '100%',
+    height: "100%",
     borderRadius: 8,
     padding: 15,
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
+    flexDirection: "row-reverse",
+    alignItems: "center",
   },
   promoSliderIcon: {
     marginLeft: 15,
   },
   promoSliderInfo: { flex: 1 },
   promoSliderTitle: {
-    color: '#FFF',
+    color: "#FFF",
     fontSize: 15,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 2,
-    textAlign: 'right',
+    textAlign: "right",
   },
   promoSliderDescription: {
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: "rgba(255, 255, 255, 0.9)",
     fontSize: 12,
     lineHeight: 16,
-    textAlign: 'right',
+    textAlign: "right",
   },
   statsSection: { marginBottom: 25 },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#343A40',
+    fontWeight: "bold",
+    color: "#343A40",
     marginBottom: 15,
-    textAlign: 'right',
+    textAlign: "right",
   },
   statCounterCard: {
     width: 110,
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderRadius: 8,
-    alignItems: 'center',
+    alignItems: "center",
     marginRight: 10,
   },
   statImageContainer: {
     width: 60,
     height: 60,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 8,
   },
   statImage: {
     width: 65,
     height: 65,
-    resizeMode: 'contain',
+    resizeMode: "contain",
   },
   badgeContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: -4,
     right: -4,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     borderRadius: 12,
     minWidth: 24,
     height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 5,
     borderWidth: 2,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.1,
     shadowRadius: 2,
     shadowOffset: { width: 0, height: 1 },
   },
   badgeText: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   statCounterLabel: {
     fontSize: 13,
-    color: '#495057',
-    textAlign: 'center',
-    fontWeight: '500',
+    color: "#495057",
+    textAlign: "center",
+    fontWeight: "500",
     marginBottom: 10,
   },
   progressBarContainer: {
@@ -490,27 +670,27 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   balanceCard: {
-    backgroundColor: '#FF6B35',
+    backgroundColor: "#FF6B35",
     borderRadius: 8,
     marginBottom: 28,
     marginTop: 10,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   balanceContent: {
     padding: 7,
     zIndex: 2,
   },
   balanceHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   iconWrapper: {
     width: 48,
     height: 48,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginLeft: 16,
     marginTop: 15,
   },
@@ -518,30 +698,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   balanceTitle: {
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: "rgba(255, 255, 255, 0.9)",
     fontSize: 15,
-    fontWeight: '500',
-    textAlign: 'right',
+    fontWeight: "500",
+    textAlign: "right",
     marginBottom: 6,
   },
   balanceValue: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 26,
-    fontWeight: 'bold',
-    textAlign: 'right',
+    fontWeight: "bold",
+    textAlign: "right",
     letterSpacing: 0.5,
   },
   currencyText: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   balanceFooter: {
     marginTop: 8,
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   tapHint: {
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: "rgba(255, 255, 255, 0.7)",
     fontSize: 12,
-    fontStyle: 'italic',
+    fontStyle: "italic",
   },
 });

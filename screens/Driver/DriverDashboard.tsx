@@ -24,9 +24,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import TopBar from '../../components/Entity/TopBar'; // Re-using the same TopBar
 import Svg, { Path } from 'react-native-svg';
 import { useDashboard } from '../../Context/DashboardContext'; // --- IMPORT THE CONTEXT ---
-
+import CustomAlert from '../../components/CustomAlert';
 import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
-import LinearGradient from 'react-native-linear-gradient';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const HEADER_EXPANDED_HEIGHT = 1;
@@ -158,15 +158,16 @@ const AnimatedBalanceBackground = () => {
 };
 
 export default function DriverDashboard() {
-  // --- MODIFIED: Use the context for state management ---
   const { dashboardData, setDashboardData, dcBalance, setDcBalance, user, setUser } = useDashboard();
-
-  const [loading, setLoading] = useState(!dashboardData); // Show skeleton if no initial data
+  const [loading, setLoading] = useState(!dashboardData);
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const imageSliderRef = useRef(null);
-
-  // --- ADDED: Effect to load user into context from AsyncStorage ---
+// Custom Alert states
+const [isAlertVisible, setAlertVisible] = useState(false);
+const [alertTitle, setAlertTitle] = useState('');
+const [alertMessage, setAlertMessage] = useState('');
+const [alertConfirmColor, setAlertConfirmColor] = useState('#E67E22');
   useEffect(() => {
     const loadUser = async () => {
       if (!user) { // Only run if the user is not already in the context.
@@ -214,8 +215,10 @@ export default function DriverDashboard() {
       }
     } catch (err) {
       console.error('Error fetching driver data:', err);
-      Alert.alert('خطأ', 'فشل في جلب بيانات لوحة القيادة.');
-    } finally {
+setAlertTitle('خطأ');
+setAlertMessage('فشل في جلب بيانات لوحة القيادة.');
+setAlertConfirmColor('#E74C3C');
+setAlertVisible(true);    } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -274,7 +277,7 @@ export default function DriverDashboard() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#E67E22']} tintColor={'#E6E67E22'} />}
       >
         <>
-          <TouchableOpacity style={styles.balanceCard} activeOpacity={0.95} onPress={() => Alert.alert('الرصيد في المحفظة', `الرصيد الحالي: ${dcBalance} د.ل`)}>
+<TouchableOpacity style={styles.balanceCard} activeOpacity={0.95}>
             <AnimatedBalanceBackground />
             <View style={styles.balanceContent}>
               <View style={styles.balanceHeader}>
@@ -329,6 +332,16 @@ export default function DriverDashboard() {
           </View>
         </>
       </Animated.ScrollView>
+      {/* Custom Alert */}
+<CustomAlert
+  isVisible={isAlertVisible}
+  title={alertTitle}
+  message={alertMessage}
+  confirmText="حسنًا"
+  cancelText=""
+  onConfirm={() => setAlertVisible(false)}
+  onCancel={() => setAlertVisible(false)}
+/>
     </View>
   );
 }

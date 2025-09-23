@@ -19,7 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { ChevronDown, Check, Search } from 'lucide-react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-
+import CustomAlert from '../components/CustomAlert';
 interface Entity {
   intEntityCode: number;
   strEntityName: string;
@@ -48,7 +48,11 @@ export default function ReportsDashboard() {
   const [entityModalVisible, setEntityModalVisible] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState<'from' | 'to' | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-
+// Custom Alert states
+const [isAlertVisible, setAlertVisible] = useState(false);
+const [alertTitle, setAlertTitle] = useState('');
+const [alertMessage, setAlertMessage] = useState('');
+const [alertConfirmColor, setAlertConfirmColor] = useState('#E67E22');
   useFocusEffect(
     useCallback(() => {
       const loadEntities = async () => {
@@ -66,10 +70,13 @@ export default function ReportsDashboard() {
   );
 
   const handleSearch = useCallback(async () => {
-    if (!selectedEntity) {
-      Alert.alert('خطأ', 'يرجى اختيار متجر أولاً.');
-      return;
-    }
+ if (!selectedEntity) {
+  setAlertTitle('خطأ');
+  setAlertMessage('يرجى اختيار متجر أولاً.');
+  setAlertConfirmColor('#E74C3C');
+  setAlertVisible(true);
+  return;
+}
     setLoading(true);
     setTransactions([]);
     try {
@@ -81,8 +88,10 @@ export default function ReportsDashboard() {
       setTransactions(response.data || []);
     } catch (error) {
       console.error("Failed to fetch transactions:", error);
-      Alert.alert('خطأ', 'فشل في جلب بيانات المعاملات.');
-    } finally {
+setAlertTitle('خطأ');
+setAlertMessage('فشل في جلب بيانات المعاملات.');
+setAlertConfirmColor('#E74C3C');
+setAlertVisible(true);    } finally {
       setLoading(false);
     }
   }, [selectedEntity, fromDate, toDate]);
@@ -245,6 +254,16 @@ export default function ReportsDashboard() {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+      {/* Custom Alert */}
+<CustomAlert
+  isVisible={isAlertVisible}
+  title={alertTitle}
+  message={alertMessage}
+  confirmText="حسنًا"
+  cancelText=""
+  onConfirm={() => setAlertVisible(false)}
+  onCancel={() => setAlertVisible(false)}
+/>
     </View>
   );
 }

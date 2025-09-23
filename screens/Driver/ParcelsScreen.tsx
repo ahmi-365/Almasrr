@@ -12,6 +12,7 @@ import {
   Animated,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -22,12 +23,23 @@ import {
   Clock,
   AlertCircle,
   RotateCcw,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  ChevronDown,
 } from 'lucide-react-native';
 import ModernTopBar from '../../components/Entity/TopBar';
 import ParcelDetailsModal from '../../components/Entity/ParcelDetailsModal';
 const { width, height } = Dimensions.get('window');
+import CustomAlert from '../../components/CustomAlert';
+import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
+import { LinearGradient } from 'expo-linear-gradient';
 
-const hexToRgba = (hex, opacity) => {
+// Create shimmer placeholder with LinearGradient
+const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
+
+// Helper function from Reports Dashboard
+const hexToRgba = (hex: string, opacity: number) => {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
@@ -35,18 +47,17 @@ const hexToRgba = (hex, opacity) => {
 };
 
 const StatCounterCard = ({ item }) => {
-  const mainColor = "#FF6B35"; // fixed color
   return (
     <View
       style={[
         styles.statCounterCard,
-        { backgroundColor: hexToRgba(mainColor, 0.08) },
+        { backgroundColor: hexToRgba(item.color, 0.08) },
       ]}
     >
       <View
-        style={[styles.statIconBackground, { backgroundColor: mainColor }]}
+        style={[styles.statIconBackground, { backgroundColor: item.color }]}
       >
-        <item.icon color="#fff" size={16} />
+        <item.icon color="#fff" size={20} />
       </View>
       <Text style={styles.statCounterNumber}>{item.number}</Text>
       <Text style={styles.statCounterLabel} numberOfLines={2}>
@@ -56,116 +67,169 @@ const StatCounterCard = ({ item }) => {
   );
 };
 
+// Dashboard-aligned shimmer colors from Reports Dashboard
+const SHIMMER_COLORS = ['#FDF1EC', '#FEF8F5', '#FDF1EC'];
 
-// Skeleton Loading Component for Stats
-const SkeletonPulse = ({ children, style }) => {
-  const opacity = useRef(new Animated.Value(0.3)).current;
-
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, {
-          toValue: 0.8,
-          duration: 1000,
-          useNativeDriver: false,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0.3,
-          duration: 1000,
-          useNativeDriver: false,
-        }),
-      ])
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [opacity]);
-
+// Enhanced Skeleton Loading Component for Stats
+const SkeletonPulse = ({ children, style, shimmerColors = SHIMMER_COLORS }) => {
   return (
-    <Animated.View style={[style, { opacity }]}>
+    <ShimmerPlaceHolder 
+      style={style} 
+      shimmerColors={shimmerColors}
+      autoRun={true}
+      visible={false}
+    >
       {children}
-    </Animated.View>
+    </ShimmerPlaceHolder>
   );
 };
 
 const SkeletonStatCard = () => (
-  <View style={[styles.statCounterCard, { backgroundColor: '#F0F0F0' }]}>
-    <SkeletonPulse style={[styles.statIconBackground, { backgroundColor: '#D0D0D0' }]}>
+  <View style={styles.statCounterCard}>
+    <SkeletonPulse 
+      style={[styles.statIconBackground, { backgroundColor: '#FDF1EC' }]}
+      shimmerColors={SHIMMER_COLORS}
+    >
       <View />
     </SkeletonPulse>
-    <SkeletonPulse style={[styles.skeletonText, { width: '60%', height: 14, marginBottom: 3 }]}>
+    <SkeletonPulse 
+      style={[styles.skeletonText, { width: '60%', height: 18, marginBottom: 4, backgroundColor: '#FDF1EC' }]}
+      shimmerColors={SHIMMER_COLORS}
+    >
       <View />
     </SkeletonPulse>
-    <SkeletonPulse style={[styles.skeletonText, { width: '80%', height: 10, marginBottom: 6 }]}>
-      <View />
-    </SkeletonPulse>
-    <SkeletonPulse style={[styles.progressBarContainer, { backgroundColor: '#E0E0E0' }]}>
+    <SkeletonPulse 
+      style={[styles.skeletonText, { width: '80%', height: 12, backgroundColor: '#FEF8F5' }]}
+      shimmerColors={SHIMMER_COLORS}
+    >
       <View />
     </SkeletonPulse>
   </View>
 );
 
-// Skeleton Loading Component for Parcel Cards
+// Enhanced Skeleton Loading Component for Parcel Cards
 const SkeletonParcelCard = () => (
-  <View style={[styles.twoColumnCard, { borderLeftColor: '#E0E0E0' }]}>
-    <View style={styles.cardTouchable}>
-      {/* Header Skeleton */}
-      <View style={styles.cardHeader}>
-        <View style={styles.parcelIdContainer}>
-          <SkeletonPulse style={[styles.skeletonText, { width: 80, height: 15, backgroundColor: '#E0E0E0' }]}>
-            <View />
-          </SkeletonPulse>
-        </View>
-        <SkeletonPulse style={[styles.statusBadge, { backgroundColor: '#E0E0E0', width: 70, height: 20 }]}>
-          <View />
-        </SkeletonPulse>
-      </View>
+  <View style={styles.modernTransactionItem}>
+    <View style={styles.transactionHeader}>
+      <SkeletonPulse 
+        style={[styles.skeletonText, { width: 80, height: 14, backgroundColor: '#FDF1EC', borderRadius: 4 }]}
+        shimmerColors={SHIMMER_COLORS}
+      >
+        <View />
+      </SkeletonPulse>
+      <SkeletonPulse 
+        style={[styles.statusBadge, { backgroundColor: '#FEF8F5', width: 70, height: 20, borderRadius: 12 }]}
+        shimmerColors={SHIMMER_COLORS}
+      >
+        <View />
+      </SkeletonPulse>
+    </View>
 
-      {/* Content Skeleton */}
-      <View style={styles.twoColumnContent}>
-        {/* Right Column Skeleton */}
-        <View style={styles.rightColumn}>
-          <SkeletonPulse style={[styles.skeletonText, { width: '90%', height: 15, marginBottom: 8, backgroundColor: '#E0E0E0' }]}>
-            <View />
-          </SkeletonPulse>
-          <SkeletonPulse style={[styles.skeletonText, { width: '70%', height: 12, marginBottom: 6, backgroundColor: '#E0E0E0' }]}>
-            <View />
-          </SkeletonPulse>
-          <SkeletonPulse style={[styles.skeletonText, { width: '80%', height: 12, marginBottom: 6, backgroundColor: '#E0E0E0' }]}>
-            <View />
-          </SkeletonPulse>
-          <SkeletonPulse style={[styles.amountContainer, { backgroundColor: '#F0F0F0', width: 80, height: 25 }]}>
-            <View />
-          </SkeletonPulse>
-        </View>
+    <SkeletonPulse 
+      style={[styles.skeletonText, { width: '90%', height: 16, marginBottom: 12, backgroundColor: '#FDF1EC', borderRadius: 4 }]}
+      shimmerColors={SHIMMER_COLORS}
+    >
+      <View />
+    </SkeletonPulse>
 
-        {/* Left Column Skeleton */}
-        <View style={styles.leftColumn}>
-          <View style={styles.dateContainer}>
-            <SkeletonPulse style={[styles.skeletonText, { width: 60, height: 10, marginBottom: 2, backgroundColor: '#E0E0E0' }]}>
-              <View />
-            </SkeletonPulse>
-            <SkeletonPulse style={[styles.skeletonText, { width: 40, height: 11, backgroundColor: '#E0E0E0' }]}>
-              <View />
-            </SkeletonPulse>
-          </View>
-          <View style={styles.additionalInfo}>
-            <SkeletonPulse style={[styles.skeletonText, { width: 35, height: 10, marginBottom: 2, backgroundColor: '#E0E0E0' }]}>
-              <View />
-            </SkeletonPulse>
-            <SkeletonPulse style={[styles.skeletonText, { width: 50, height: 11, backgroundColor: '#E0E0E0' }]}>
-              <View />
-            </SkeletonPulse>
-          </View>
-          <SkeletonPulse style={[{ width: 18, height: 18, borderRadius: 9, backgroundColor: '#E0E0E0', marginTop: 6 }]}>
-            <View />
-          </SkeletonPulse>
-        </View>
-      </View>
+    <View style={styles.transactionAmounts}>
+      <SkeletonPulse 
+        style={[styles.creditAmount, { backgroundColor: '#FEF8F5', width: 80, height: 28 }]}
+        shimmerColors={SHIMMER_COLORS}
+      >
+        <View />
+      </SkeletonPulse>
+    </View>
+
+    <View style={styles.transactionFooter}>
+      <SkeletonPulse 
+        style={[styles.skeletonText, { width: 60, height: 12, backgroundColor: '#FDF1EC', borderRadius: 4 }]}
+        shimmerColors={SHIMMER_COLORS}
+      >
+        <View />
+      </SkeletonPulse>
+      <SkeletonPulse 
+        style={[styles.skeletonText, { width: 40, height: 16, backgroundColor: '#FEF8F5', borderRadius: 4 }]}
+        shimmerColors={SHIMMER_COLORS}
+      >
+        <View />
+      </SkeletonPulse>
     </View>
   </View>
 );
 
-// Compact Two-Column Parcel Card Component
+// Status color functions from Reports Dashboard context
+const getStatusColor = (status, statusName) => {
+  const numericColorMap = {
+    1: '#FFF4E6', // Very light orange for new
+    2: '#FFF8E1', // Very light amber for preparing
+    3: '#FFF3E0', // Very light orange for ready to ship
+    4: '#FFEDCC', // Very light peach for in transit
+    5: '#E8F5E8', // Very light green for delivered
+    6: '#FFE4E1', // Very light red for rejected
+    7: '#FFE0B2', // Very light orange for returned
+  };
+  
+  if (status && numericColorMap[status]) {
+    return numericColorMap[status];
+  }
+  
+  const statusNameColorMap = {
+    'جديد': '#FFF4E6',
+    'قيد التحضير': '#FFF8E1',
+    'جاهز للشحن': '#FFF3E0',
+    'قيد التوصيل': '#FFEDCC',
+    'في الطريق إلى الفرع الوجهة': '#FFEDCC',
+    'تم التسليم': '#E8F5E8',
+    'مرفوض': '#FFE4E1',
+    'مرتجع': '#FFE0B2',
+    'تم الاستلام من العميل': '#FFF8E1',
+    'في المخزن': '#FFF3E0',
+  };
+  
+  if (statusName && statusNameColorMap[statusName]) {
+    return statusNameColorMap[statusName];
+  }
+  
+  return '#FFF4E6';
+};
+
+const getStatusTextColor = (status, statusName) => {
+  const numericTextColorMap = {
+    1: '#D97706', // Dark orange for new
+    2: '#B45309', // Dark amber for preparing
+    3: '#EA580C', // Dark orange for ready to ship
+    4: '#C2410C', // Dark peach for in transit
+    5: '#059669', // Dark green for delivered
+    6: '#DC2626', // Dark red for rejected
+    7: '#D97706', // Dark orange for returned
+  };
+  
+  if (status && numericTextColorMap[status]) {
+    return numericTextColorMap[status];
+  }
+  
+  const statusNameTextColorMap = {
+    'جديد': '#D97706',
+    'قيد التحضير': '#B45309',
+    'جاهز للشحن': '#EA580C',
+    'قيد التوصيل': '#C2410C',
+    'في الطريق إلى الفرع الوجهة': '#C2410C',
+    'تم التسليم': '#059669',
+    'مرفوض': '#DC2626',
+    'مرتجع': '#D97706',
+    'تم الاستلام من العميل': '#B45309',
+    'في المخزن': '#EA580C',
+  };
+  
+  if (statusName && statusNameTextColorMap[statusName]) {
+    return statusNameTextColorMap[statusName];
+  }
+  
+  return '#D97706';
+};
+
+// Compact Two-Column Parcel Card Component - Updated with Reports Dashboard styling
 const ParcelCard = ({ item, onPress, index }) => {
   const scaleValue = new Animated.Value(1);
 
@@ -183,19 +247,6 @@ const ParcelCard = ({ item, onPress, index }) => {
     }).start();
   };
 
-  const getStatusColor = (status) => {
-    const colorMap = {
-      1: '#3182CE',
-      2: '#F6AD55',
-      3: '#38B2AC',
-      4: '#9F7AEA',
-      5: '#48BB78',
-      6: '#E53E3E',
-      7: '#ED8936',
-    };
-    return colorMap[status] || '#718096';
-  };
-
   const getStatusText = (status) => {
     const statusMap = {
       1: 'جديد',
@@ -209,15 +260,15 @@ const ParcelCard = ({ item, onPress, index }) => {
     return statusMap[status] || 'غير محدد';
   };
 
-  const statusColor = getStatusColor(item.status);
+  const statusColor = getStatusColor(item.status, item.StatusName);
+  const statusTextColor = getStatusTextColor(item.status, item.StatusName);
   const displayStatus = item.StatusName || getStatusText(item.status);
 
   return (
     <Animated.View
       style={[
-        styles.twoColumnCard,
+        styles.modernTransactionItem,
         { transform: [{ scale: scaleValue }] },
-        { borderLeftColor: statusColor },
       ]}
     >
       <TouchableOpacity
@@ -228,86 +279,113 @@ const ParcelCard = ({ item, onPress, index }) => {
         activeOpacity={0.9}
       >
         {/* Header */}
-        <View style={styles.cardHeader}>
-          <Text style={styles.parcelId}>
+        <View style={styles.transactionHeader}>
+          <Text style={styles.transactionDate}>
             #{item.intParcelCode || item.id || item.parcel_id}
           </Text>
-          <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-            <Text style={styles.statusText}>{displayStatus}</Text>
+          <View style={styles.transactionAmounts}>
+            <View style={[styles.creditAmount, { backgroundColor: statusColor }]}>
+              <Text style={[styles.creditText, { color: statusTextColor }]}>{displayStatus}</Text>
+            </View>
           </View>
         </View>
 
-        {/* Two Column Layout */}
-        <View style={styles.twoColumnContent}>
-          {/* Right Column */}
-          <View style={styles.rightColumn}>
-            <Text style={styles.cardTitle} numberOfLines={1}>
-              {item.ReferenceNo || item.title || 'طرد'}
+        <Text style={styles.transactionBranch}>
+          {item.ReferenceNo || item.title || 'طرد'}
+        </Text>
+
+        {item.CityName && (
+          <Text style={styles.transactionRemarks}>{item.CityName}</Text>
+        )}
+
+        <View style={styles.transactionFooter}>
+          <Text style={styles.runningTotalLabel}>
+            {item.CreatedAt && 
+              new Date(item.CreatedAt).toLocaleDateString('ar', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })
+            }
+          </Text>
+          {item.Total && (
+            <Text style={styles.runningTotal}>
+              {item.Total.toLocaleString()} د.ل
             </Text>
-
-            {item.Total && (
-              <Text style={styles.amountText}>{item.Total} د.ل</Text>
-            )}
-
-            {item.CityName && (
-              <Text style={styles.infoValue}>{item.CityName}</Text>
-            )}
-          </View>
-
-          {/* Left Column */}
-          <View style={styles.leftColumn}>
-            {item.CreatedAt && (
-              <Text style={styles.dateValue}>
-                {new Date(item.CreatedAt).toLocaleDateString('ar-SA', {
-                  month: 'short',
-                  day: 'numeric',
-                })}
-              </Text>
-            )}          
-          </View>
+          )}
         </View>
       </TouchableOpacity>
     </Animated.View>
   );
 };
 
-
-// Stats Header Component
+// Stats Header Component - Updated with Reports Dashboard styling
 const StatsHeader = ({ statsData }) => (
-  <View style={styles.statsHeaderSection}>
+  <View style={styles.summarySection}>
     <Text style={styles.sectionTitle}>ملخص الطرود</Text>
-    <ScrollView 
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.horizontalStatsContainer}
-    >
-      {statsData.map(stat => (
+    <View style={styles.summaryCards}>
+      {statsData.slice(0, 3).map(stat => (
         <StatCounterCard 
           key={stat.label}
           item={{
             number: String(stat.value),
             label: stat.label,
             icon: stat.icon,
-            iconColor: stat.iconColor,
-            progress: stat.progress,
+            color: stat.color,
           }} 
         />
       ))}
-    </ScrollView>
+    </View>
   </View>
 );
 
-// List Header Component
-const ListHeader = ({ userRole, parcelsLength }) => (
-  <View style={styles.listHeaderContainer}>
-    <Text style={styles.header}>
-      {userRole === 'Entity' ? 'الطرود الخاصة بالمؤسسة' : 'الطرود الخاصة بك'}
-    </Text>
-    {parcelsLength > 0 && (
-      <Text style={styles.subHeader}>
-        {parcelsLength} طرد متاح
-      </Text>
+// New Dropdown component for entities
+const EntitiesDropdown = ({ entities, selectedEntity, onSelectEntity, onToggle, isOpen }) => {
+  return (
+    <View style={styles.dropdownContainer}>
+      <TouchableOpacity onPress={onToggle} style={styles.dropdownHeader}>
+        <Text style={styles.dropdownText}>{selectedEntity ? selectedEntity.EntityName : 'اختر مؤسسة'}</Text>
+        <ChevronDown size={18} color="#1F2937" />
+      </TouchableOpacity>
+      {isOpen && (
+        <View style={styles.dropdownList}>
+          {entities.map(entity => (
+            <TouchableOpacity
+              key={entity.intEntityCode}
+              style={styles.dropdownItem}
+              onPress={() => onSelectEntity(entity)}
+            >
+              <Text style={styles.dropdownItemText}>{entity.EntityName}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+};
+
+// List Header Component - Updated with Reports Dashboard styling
+const ListHeader = ({ userRole, parcelsLength, entities, selectedEntity, onSelectEntity, dropdownOpen, setDropdownOpen }) => (
+  <View>
+    {userRole === 'Entity' && (
+      <View>
+        <Text style={styles.sectionTitle}>اختر مؤسسة</Text>
+        <EntitiesDropdown
+          entities={entities}
+          selectedEntity={selectedEntity}
+          onSelectEntity={onSelectEntity}
+          isOpen={dropdownOpen}
+          onToggle={() => setDropdownOpen(!dropdownOpen)}
+        />
+      </View>
     )}
+    <View style={styles.listHeaderContainer}>
+      {parcelsLength > 0 && (
+        <Text style={styles.sectionTitle}>
+          {userRole === 'Entity' ? 'الطرود الخاصة بالمؤسسة' : 'الطرود الخاصة بك'} ({parcelsLength})
+        </Text>
+      )}
+    </View>
   </View>
 );
 
@@ -316,67 +394,106 @@ const ParcelsScreen = ({ route }) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userRole, setUserRole] = useState(null);
-  const [entityId, setEntityId] = useState(null);
   const [userId, setUserId] = useState(null);
+  const [selectedEntityId, setSelectedEntityId] = useState(null);
+  const [entities, setEntities] = useState([]);
+  const [selectedEntity, setSelectedEntity] = useState(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
   const [modalVisible, setModalVisible] = useState(false);
-const [selectedParcel, setSelectedParcel] = useState(null);
+  const [selectedParcel, setSelectedParcel] = useState(null);
   const statusCode = route?.params?.statusCode || 4;
   const routeUserRole = route?.params?.userRole;
   const routeUserId = route?.params?.userId;
+  
+  // Custom Alert states
+  const [isAlertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertConfirmColor, setAlertConfirmColor] = useState('#FF6B35');
 
   useEffect(() => {
     initializeUserData();
   }, []);
 
+  useEffect(() => {
+    if (userRole === 'Entity' && userId) {
+      fetchEntities(userId);
+    }
+  }, [userRole, userId]);
+
+  useEffect(() => {
+    // This effect handles data fetching when entityId or userId changes
+    if (userRole && (selectedEntityId || userId)) {
+      fetchParcels(userRole, selectedEntityId, userId);
+    }
+  }, [selectedEntityId, userId, userRole, statusCode]);
+
   const initializeUserData = async () => {
     try {
       const userDataString = await AsyncStorage.getItem('user');
-      console.log('Raw user data:', userDataString);
-      
       let role = null;
       let storedUserId = null;
       
       if (userDataString) {
         try {
           const userData = JSON.parse(userDataString);
-          console.log('Parsed user data:', userData);
-          
           role = userData.roleName;
           storedUserId = userData.userId?.toString();
-          
-          console.log('Retrieved role:', role);
-          console.log('Retrieved userId:', storedUserId);
         } catch (parseError) {
           console.error('Error parsing user data:', parseError);
         }
       }
       
       if ((!role || !storedUserId) && routeUserRole && routeUserId) {
-        console.log('Using route params as fallback');
         role = routeUserRole;
         storedUserId = routeUserId.toString();
       }
       
-      if (!role) {
-        throw new Error('User role not found. Please login again.');
-      }
-      
-      if (!storedUserId) {
-        throw new Error('User ID not found. Please login again.');
+      if (!role || !storedUserId) {
+        throw new Error('User data not found. Please log in again.');
       }
       
       setUserRole(role);
       setUserId(storedUserId);
       
       if (role === 'Entity') {
-        setEntityId(storedUserId);
+        setSelectedEntityId(storedUserId);
       }
-      
-      await fetchParcels(role, storedUserId, storedUserId);
     } catch (error) {
       console.error('Error initializing user data:', error);
-      Alert.alert('خطأ', error.message || 'حدث خطأ في تحميل بيانات المستخدم');
+      setAlertTitle('خطأ');
+      setAlertMessage(error.message || 'حدث خطأ في تحميل بيانات المستخدم');
+      setAlertConfirmColor('#E74C3C');
+      setAlertVisible(true);      
       setLoading(false);
+    }
+  };
+
+  const fetchEntities = async (usrId) => {
+    try {
+      const apiUrl = `https://tanmia-group.com:84/courierApi/Entity/GetHistoryEntities/${usrId}/${statusCode}`;
+      console.log('Fetching entities from:', apiUrl);
+      const response = await fetch(apiUrl);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setEntities(data);
+        // Set the default selected entity to the one corresponding to the user ID
+        const defaultEntity = data.find(e => e.intEntityCode.toString() === usrId);
+        if (defaultEntity) {
+          setSelectedEntity(defaultEntity);
+        } else {
+          setSelectedEntity(data[0] || null);
+          setSelectedEntityId(data[0]?.intEntityCode.toString() || null);
+        }
+      } else {
+        setEntities([]);
+      }
+    } catch (error) {
+      console.error('Error fetching entities:', error);
     }
   };
 
@@ -387,11 +504,10 @@ const [selectedParcel, setSelectedParcel] = useState(null);
       let apiUrl = '';
       
       if (role === 'Entity') {
-        apiUrl = `https://tanmia-group.com:84/courierApi/parcels/details/${usrId}/${statusCode}`;
-        console.log('Entity API URL:', apiUrl);
+        // Use the selected entity ID for the API call
+        apiUrl = `https://tanmia-group.com:84/courierApi/parcels/details/${entId}/${statusCode}`;
       } else if (role === 'Driver') {
         apiUrl = `https://tanmia-group.com:84/courierApi/Driverparcels/details/${usrId}/${statusCode}`;
-        console.log('Driver API URL:', apiUrl);
       } else {
         throw new Error(`Invalid user role: ${role}`);
       }
@@ -410,28 +526,25 @@ const [selectedParcel, setSelectedParcel] = useState(null);
       }
 
       const data = await response.json();
-      console.log('API Response:', data);
       
       if (data.Parcels && Array.isArray(data.Parcels)) {
         setParcels(data.Parcels);
-        console.log('Set parcels from data.Parcels:', data.Parcels.length);
       } else if (data.success && data.data) {
         setParcels(data.data);
-        console.log('Set parcels from data.data:', data.data.length);
       } else if (Array.isArray(data)) {
         setParcels(data);
-        console.log('Set parcels from array:', data.length);
       } else if (data.parcels) {
         setParcels(data.parcels);
-        console.log('Set parcels from data.parcels:', data.parcels.length);
       } else {
-        console.log('No parcels found in response structure');
         setParcels([]);
       }
       
     } catch (error) {
       console.error('Error fetching parcels:', error);
-      Alert.alert('خطأ', 'حدث خطأ في تحميل البيانات');
+      setAlertTitle('خطأ');
+      setAlertMessage('حدث خطأ في تحميل البيانات');
+      setAlertConfirmColor('#E74C3C');
+      setAlertVisible(true);      
       setParcels([]);
     } finally {
       setLoading(false);
@@ -441,17 +554,29 @@ const [selectedParcel, setSelectedParcel] = useState(null);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchParcels(userRole, entityId, userId);
-  }, [userRole, entityId, userId]);
+    if (userRole === 'Entity') {
+      await fetchEntities(userId);
+    }
+    await fetchParcels(userRole, selectedEntityId, userId);
+  }, [userRole, userId, selectedEntityId]);
 
-const handleParcelPress = (parcel) => {
-  setSelectedParcel(parcel);
-  setModalVisible(true);
-};
-const handleCloseModal = () => {
-  setModalVisible(false);
-  setSelectedParcel(null);
-};
+  const handleParcelPress = (parcel) => {
+    setSelectedParcel(parcel);
+    setModalVisible(true);
+  };
+  
+  const handleCloseModal = () => {
+    setModalVisible(false);
+    setSelectedParcel(null);
+  };
+
+  const handleSelectEntity = (entity) => {
+    setSelectedEntity(entity);
+    setSelectedEntityId(entity.intEntityCode.toString());
+    setDropdownOpen(false); // Close dropdown after selection
+    // The useEffect hook will automatically trigger fetchParcels
+  };
+
   const getScreenTitle = () => {
     if (userRole === 'Entity') {
       return 'تفاصيل الطرود';
@@ -463,62 +588,42 @@ const handleCloseModal = () => {
 
   const getStatsData = () => {
     const totalParcels = parcels.length;
-    const newParcels = parcels.filter(p => p.status === 1).length;
-    const preparingParcels = parcels.filter(p => p.status === 2).length;
-    const readyParcels = parcels.filter(p => p.status === 3).length;
     const inTransitParcels = parcels.filter(p => p.status === 4).length;
     const deliveredParcels = parcels.filter(p => p.status === 5).length;
-    const rejectedParcels = parcels.filter(p => p.status === 6).length;
-    const returnedParcels = parcels.filter(p => p.status === 7).length;
 
     const statsArray = [
-      { label: 'إجمالي الطرود', value: totalParcels, icon: Package, iconColor: '#3182CE', progress: 1 },
-      { label: 'جديد', value: newParcels, icon: ClipboardList, iconColor: '#6366F1', progress: totalParcels > 0 ? newParcels / totalParcels : 0 },
-      { label: 'قيد التحضير', value: preparingParcels, icon: Clock, iconColor: '#F59E0B', progress: totalParcels > 0 ? preparingParcels / totalParcels : 0 },
-      { label: 'جاهز للشحن', value: readyParcels, icon: Package, iconColor: '#06B6D4', progress: totalParcels > 0 ? readyParcels / totalParcels : 0 },
-      { label: 'قيد التوصيل', value: inTransitParcels, icon: Truck, iconColor: '#8B5CF6', progress: totalParcels > 0 ? inTransitParcels / totalParcels : 0 },
-      { label: 'تم التسليم', value: deliveredParcels, icon: CheckCircle, iconColor: '#10B981', progress: totalParcels > 0 ? deliveredParcels / totalParcels : 0 },
-      { label: 'مرفوض', value: rejectedParcels, icon: AlertCircle, iconColor: '#EF4444', progress: totalParcels > 0 ? rejectedParcels / totalParcels : 0 },
-      { label: 'مرتجع', value: returnedParcels, icon: RotateCcw, iconColor: '#F97316', progress: totalParcels > 0 ? returnedParcels / totalParcels : 0 },
+      { label: 'إجمالي الطرود', value: totalParcels, icon: Package, color: '#27AE60' },
+      { label: 'قيد التوصيل', value: inTransitParcels, icon: Truck, color: '#E74C3C' },
+      { label: 'تم التسليم', value: deliveredParcels, icon: CheckCircle, color: '#FF6B35' },
     ];
-
-    return statsArray.filter(stat => stat.value > 0);
+    return statsArray;
   };
 
   const renderSkeletonLoader = () => (
     <View style={styles.container}>
       <ModernTopBar title={getScreenTitle()} />
       <View style={styles.content}>
-        <View style={styles.statsHeaderSection}>
+        <View style={styles.summarySection}>
           <Text style={styles.sectionTitle}>ملخص الطرود</Text>
-          <ScrollView 
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalStatsContainer}
-          >
-            {[1, 2, 3, 4, 5, 6].map((item, index) => (
+          <View style={styles.summaryCards}>
+            {[1, 2, 3].map((item, index) => (
               <SkeletonStatCard key={index} />
             ))}
-          </ScrollView>
+          </View>
         </View>
         
-        {/* List Header Skeleton */}
         <View style={styles.listHeaderContainer}>
-          <SkeletonPulse style={[styles.skeletonText, { width: '70%', height: 18, marginBottom: 2, backgroundColor: '#E0E0E0' }]}>
-            <View />
-          </SkeletonPulse>
-          <SkeletonPulse style={[styles.skeletonText, { width: '40%', height: 13, backgroundColor: '#E0E0E0' }]}>
+          <SkeletonPulse 
+            style={[styles.skeletonText, { width: '70%', height: 18, marginBottom: 16, backgroundColor: '#FDF1EC', borderRadius: 4 }]}
+            shimmerColors={SHIMMER_COLORS}
+          >
             <View />
           </SkeletonPulse>
         </View>
 
-        {/* Parcel Cards Skeleton */}
         <ScrollView style={styles.parcelsList} showsVerticalScrollIndicator={false}>
           {[1, 2, 3, 4, 5].map((item, index) => (
-            <View key={index}>
-              <SkeletonParcelCard />
-              {index < 4 && <View style={styles.separator} />}
-            </View>
+            <SkeletonParcelCard key={index} />
           ))}
         </ScrollView>
       </View>
@@ -534,15 +639,26 @@ const handleCloseModal = () => {
   const renderListHeaderComponent = () => (
     <View>
       <StatsHeader statsData={statsData} />
-      <ListHeader userRole={userRole} parcelsLength={parcels.length} />
+      <ListHeader 
+        userRole={userRole} 
+        parcelsLength={parcels.length}
+        entities={entities}
+        selectedEntity={selectedEntity}
+        onSelectEntity={handleSelectEntity}
+        dropdownOpen={dropdownOpen}
+        setDropdownOpen={setDropdownOpen}
+      />
     </View>
   );
 
   const renderEmptyComponent = () => (
     <View style={styles.emptyContainer}>
-      <Text style={styles.emptyIcon}>📦</Text>
-      <Text style={styles.emptyTitle}>لا توجد طرود متاحة</Text>
-      <Text style={styles.emptySubtitle}>ستظهر الطرود هنا عند توفرها</Text>
+      <Image
+        source={require("../../assets/images/empty-reports.png")}
+        style={styles.emptyImage}
+      />
+      <Text style={styles.emptyText}>لا توجد طرود متاحة</Text>
+      <Text style={styles.emptySubText}>ستظهر الطرود هنا عند توفرها</Text>
     </View>
   );
 
@@ -550,43 +666,52 @@ const handleCloseModal = () => {
     <View style={styles.container}>
       <ModernTopBar title={getScreenTitle()} />
       
-      <View style={styles.content}>
-        <FlatList
-          data={parcels}
-          renderItem={({ item, index }) => (
-            <ParcelCard
-              item={item}
-              onPress={handleParcelPress}
-              index={index}
-            />
-          )}
-          keyExtractor={(item, index) => 
-            item.intParcelCode?.toString() || 
-            item.id?.toString() || 
-            index.toString()
-          }
-          ListHeaderComponent={renderListHeaderComponent}
-          ListEmptyComponent={renderEmptyComponent}
-          contentContainerStyle={styles.listContainer}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={['#3182CE']}
-              tintColor="#3182CE"
-              progressBackgroundColor="#F7FAFC"
-            />
-          }
-          showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
-          style={styles.parcelsList}
-        />
-      </View>
-       <ParcelDetailsModal
-      isVisible={modalVisible}
-      onClose={handleCloseModal}
-      parcel={selectedParcel}
-    />
+      <FlatList
+        data={parcels}
+        renderItem={({ item, index }) => (
+          <ParcelCard
+            item={item}
+            onPress={handleParcelPress}
+            index={index}
+          />
+        )}
+        keyExtractor={(item, index) => 
+          item.intParcelCode?.toString() || 
+          item.id?.toString() || 
+          index.toString()
+        }
+        ListHeaderComponent={renderListHeaderComponent}
+        ListEmptyComponent={renderEmptyComponent}
+        contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 120 }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#FF6B35']}
+            tintColor="#FF6B35"
+            progressBackgroundColor="#F7FAFC"
+          />
+        }
+        showsVerticalScrollIndicator={false}
+        style={styles.parcelsList}
+      />
+      
+      <ParcelDetailsModal
+        isVisible={modalVisible}
+        onClose={handleCloseModal}
+        parcel={selectedParcel}
+      />
+      
+      {/* Custom Alert */}
+      <CustomAlert
+        isVisible={isAlertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        confirmText="حسنًا"
+        cancelText=""
+        onConfirm={() => setAlertVisible(false)}
+        onCancel={() => setAlertVisible(false)}
+      />
     </View>
   );
 };
@@ -602,85 +727,103 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   
-  // Stats Header Section (now part of FlatList header)
-  statsHeaderSection: { 
-    backgroundColor: '#F8F9FA',
-    paddingVertical: 12,
-    marginBottom: 8,
+  // Dropdown Styles
+  dropdownContainer: {
+    marginHorizontal: 12,
+    marginBottom: 20,
+    zIndex: 10, // Ensure dropdown is on top
   },
-  sectionTitle: {
+  dropdownHeader: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  dropdownText: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#343A40',
-    marginBottom: 12,
+    color: '#1F2937',
+    fontWeight: '600',
     textAlign: 'right',
-    paddingHorizontal: 16,
+    flex: 1,
   },
-  horizontalStatsContainer: {
-    paddingHorizontal: 12,
-    paddingRight: 16,
+  dropdownList: {
+    position: 'absolute',
+    top: 60,
+    width: '100%',
+    maxHeight: 200,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    zIndex: 100,
   },
-  statCounterCard: {
-    width: 100,
-    padding: 10,
-    borderRadius: 12,
-    alignItems: "center",
-    marginHorizontal: 4,
-    marginRight: 8,
+  dropdownItem: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
-  statIconBackground: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  statCounterNumber: {
+  dropdownItemText: {
     fontSize: 16,
-    fontWeight: "700",
-    color: "#111",
-    marginBottom: 2,
-  },
-  statCounterLabel: {
-    fontSize: 10,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 6,
-  },
-  progressBarContainer: {
-    width: "100%",
-    height: 3,
-    borderRadius: 1.5,
-    overflow: "hidden",
-  },
-  progressBarFill: {
-    height: "100%",
-    borderRadius: 1.5,
-  },
-  skeletonText: {
-    backgroundColor: '#E0E0E0',
-    borderRadius: 4,
-    alignSelf: 'flex-end',
+    color: '#374151',
+    textAlign: 'right',
   },
   
-  // List Header
-  listHeaderContainer: {
-    marginBottom: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#F8F9FA',
+  // Summary Section
+  summarySection: { 
+    marginBottom: 20 
   },
-  header: {
+  sectionTitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: '#2D3748',
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 16,
     textAlign: 'right',
-    marginBottom: 2,
+    paddingHorizontal: 12,
   },
-  subHeader: {
-    fontSize: 13,
-    color: '#718096',
-    textAlign: 'right',
+  summaryCards: { 
+    flexDirection: 'row-reverse', 
+    gap: 12,
+    paddingHorizontal: 12,
+  },
+  
+  // Stat Counter Card
+  statCounterCard: {
+    flex: 1, 
+    padding: 16, 
+    borderRadius: 8, 
+    alignItems: 'center'
+  },
+  statIconBackground: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  statCounterNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  statCounterLabel: { 
+    fontSize: 12, 
+    color: '#6B7280',
+    textAlign: 'center' 
+  },
+  skeletonText: {
+    borderRadius: 4,
+    alignSelf: 'flex-end',
   },
   
   // Parcels List
@@ -688,198 +831,115 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   
-  // Compact Two-Column Cards - FIXED SPACING
-  twoColumnCard: {
+  // Modern Transaction Item
+  modernTransactionItem: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    marginHorizontal: 16, // Increased from 12 to 16 for better side margins
-    marginVertical: 3,
-    overflow: 'hidden',
-    borderLeftWidth: 3,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+    marginHorizontal: 12,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
   },
   cardTouchable: {
-    padding: 16, // Increased from 12 to 16 for better internal spacing
+    // No additional styling needed
   },
   
-  // Compact Card Header
-  cardHeader: {
+  // Transaction Header
+  transactionHeader: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
-    paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    marginBottom: 12,
   },
-  parcelIdContainer: {
-    alignItems: 'flex-end',
+  transactionDate: { 
+    color: '#1F2937',
+    fontSize: 14, 
+    fontWeight: '600' 
   },
-  parcelId: {
-    fontSize: 15, // Increased from 14
-    fontWeight: '700',
-    color: '#FF6B35',
+  transactionAmounts: { 
+    flexDirection: 'row', 
+    gap: 12 
   },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
+  creditAmount: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
   },
-  statusText: {
-    color: '#FFFFFF',
-    fontSize: 11, // Increased from 10
-    fontWeight: '600',
-  },
-  
-  // Compact Two Column Content - IMPROVED LAYOUT
-  twoColumnContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start', // Added to align columns properly
+  creditText: { 
+    fontSize: 14, 
+    fontWeight: '600' 
   },
   
-  // Right Column (Main Info) - REDUCED WIDTH
-  rightColumn: {
-    flex: 1.8, // Reduced from 2 to give more space to left column
-    paddingRight: 8, // Reduced from 12
-  },
-  cardTitle: {
-    fontSize: 15, // Increased from 14
-    fontWeight: '600',
-    color: '#2D3748',
+  // Transaction Content
+  transactionBranch: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 12,
     textAlign: 'right',
-    marginBottom: 8,
-    lineHeight: 19, // Increased from 18
   },
-  infoRow: {
-    marginBottom: 6,
-    alignItems: 'flex-end',
+  transactionRemarks: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontStyle: 'italic',
+    textAlign: 'right',
+    marginBottom: 12,
   },
-  infoLabel: {
-    fontSize: 12, // Increased from 11
-    color: '#718096',
-    marginBottom: 1,
-  },
-  infoValue: {
-    fontSize: 13, // Increased from 12
-    color: '#4A5568',
-    fontWeight: '500',
-  },
-  amountContainer: {
-    backgroundColor: '#F0FFF4',
-    padding: 6,
-    borderRadius: 6,
-    marginTop: 6,
-    alignItems: 'flex-end',
-  },
-  amountText: {
-    fontSize: 15, // Increased from 14
-    fontWeight: '700',
-    color: '#38A169',
-  },
-  
-  // Left Column (Additional Info) - BETTER SPACING
-  leftColumn: {
-    flex: 1.2, // Increased from 1 to get more space
-    alignItems: 'flex-end',
+  transactionFooter: {
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
-    paddingLeft: 4, // Added left padding
-  },
-  dateContainer: {
-    alignItems: 'flex-end',
-    marginBottom: 8,
-  },
-  dateLabel: {
-    fontSize: 10, // Increased from 9
-    color: '#A0AEC0',
-    marginBottom: 1,
-  },
-  dateValue: {
-    fontSize: 11, // Increased from 10
-    color: '#718096',
-    fontWeight: '500',
-  },
-  additionalInfo: {
-    alignItems: 'flex-end',
-    marginBottom: 6,
-  },
-  additionalInfoLabel: {
-    fontSize: 10, // Increased from 9
-    color: '#A0AEC0',
-    marginBottom: 1,
-  },
-  additionalInfoValue: {
-    fontSize: 11, // Increased from 10
-    color: '#4A5568',
-    fontWeight: '500',
-  },
-  statusIconContainer: {
-    marginTop: 6,
-    alignSelf: 'center', // Center the icon
-  },
-  
-  // Remarks Section
-  remarksContainer: {
-    marginTop: 8,
-    paddingTop: 8,
+    alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    alignItems: 'flex-end',
+    borderTopColor: '#F3F4F6',
+    paddingTop: 12,
+    marginTop: 8,
   },
-  remarksLabel: {
-    fontSize: 11, // Increased from 10
-    color: '#718096',
-    marginBottom: 2,
+  runningTotalLabel: { 
+    color: '#6B7280',
+    fontSize: 12 
   },
-  remarksText: {
-    fontSize: 12, // Increased from 11
-    color: '#4A5568',
-    textAlign: 'right',
-    lineHeight: 17, // Increased from 16
+  runningTotal: { 
+    color: '#FF6B35',
+    fontSize: 16, 
+    fontWeight: 'bold' 
   },
   
-  // List Container
-  listContainer: {
-    paddingBottom: 112, // Increased from 16 to 32 for more bottom space
-  },
-  separator: {
-    height: 2,
+  // List Header
+  listHeaderContainer: {
+    marginBottom: 12,
+    paddingHorizontal: 12,
   },
   
   // Empty State
   emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    paddingVertical: 40,
+    paddingHorizontal: 20,
     alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 32,
-    marginTop: 40,
+    marginTop: 20,
+    marginHorizontal: 12,
   },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 12,
+  emptyImage: { 
+    width: 200, 
+    height: 120, 
+    marginBottom: 16, 
+    opacity: 0.7 
   },
-  emptyTitle: {
+  emptyText: {
+    color: '#374151',
     fontSize: 18,
     fontWeight: '600',
-    color: '#2D3748',
-    textAlign: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
-  emptySubtitle: {
+  emptySubText: {
+    color: '#6B7280',
     fontSize: 14,
-    color: '#718096',
     textAlign: 'center',
     lineHeight: 20,
   },
-}); 
+});

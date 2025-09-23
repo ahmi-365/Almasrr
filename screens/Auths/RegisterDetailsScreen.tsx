@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   ScrollView,
@@ -22,6 +21,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import CustomAlert from '../../components/CustomAlert';
 
 type RegisterDetailsRouteProp = RouteProp<RootStackParamList, 'RegisterDetails'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -200,6 +200,12 @@ const RegisterDetailsScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
+  // Custom Alert states
+  const [isAlertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange);
+  
   // Animation references
   const headerAnim = useRef(new Animated.Value(0)).current;
   const formOpacityAnim = useRef(new Animated.Value(0)).current;
@@ -326,31 +332,22 @@ const RegisterDetailsScreen: React.FC = () => {
       const responseData = await response.json();
 
       if (responseData.Success) {
-        Alert.alert(
-          'تم التسجيل بنجاح', 
-          'يمكنك الآن تسجيل الدخول بحسابك الجديد.',
-          [
-            {
-              text: 'تسجيل الدخول',
-              onPress: () => navigation.reset({ 
-                index: 0, 
-                routes: [{ name: 'Login' }] 
-              }),
-            },
-          ]
-        );
+        setAlertTitle('تم التسجيل بنجاح');
+        setAlertMessage('يمكنك الآن تسجيل الدخول بحسابك الجديد.');
+        setAlertConfirmColor(Colors.successGreen);
+        setAlertVisible(true);
       } else {
-        Alert.alert(
-          'خطأ في التسجيل', 
-          responseData.Message || 'حدث خطأ ما، يرجى المحاولة مرة أخرى.'
-        );
+        setAlertTitle('خطأ في التسجيل');
+        setAlertMessage(responseData.Message || 'حدث خطأ ما، يرجى المحاولة مرة أخرى.');
+        setAlertConfirmColor(Colors.errorRed);
+        setAlertVisible(true);
       }
     } catch (error) {
       console.error('Registration error:', error);
-      Alert.alert(
-        'خطأ في الاتصال', 
-        'يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى.'
-      );
+      setAlertTitle('خطأ في الاتصال');
+      setAlertMessage('يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى.');
+      setAlertConfirmColor(Colors.errorRed);
+      setAlertVisible(true);
     } finally {
       setIsLoading(false);
     }
@@ -535,6 +532,25 @@ const RegisterDetailsScreen: React.FC = () => {
           <View style={styles.bottomIndicator} />
         </View>
       </ScrollView>
+
+      {/* Custom Alert */}
+      <CustomAlert
+        isVisible={isAlertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        confirmText="حسنًا"
+        cancelText=""
+        onConfirm={() => {
+          setAlertVisible(false);
+          if (alertTitle === 'تم التسجيل بنجاح') {
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Login' }],
+            });
+          }
+        }}
+        onCancel={() => setAlertVisible(false)}
+      />
     </KeyboardAvoidingView>
   );
 };

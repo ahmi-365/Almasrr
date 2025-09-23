@@ -13,6 +13,7 @@ import AddParcelScreen from '../screens/Entity/AddParcelScreen';
 import CityRatesScreen from '../screens/Entity/CityRatesScreen';
 import RegisterDetailsScreen from '../screens/Auths/RegisterDetailsScreen';
 import DriverDashboard from '../screens/Driver/DriverDashboard'; // Import DriverDashboard to ensure it's in the build
+import EntitiesBalanceScreen from '../screens/Entity/Balance';
 
 // --- THIS IS THE FIX ---
 // Add all possible screen names, including the new Driver tabs, to the master list.
@@ -26,17 +27,14 @@ export type RootStackParamList = {
   CityRates: undefined;
   RegisterDetails: { mobileNumber: string };
 
-  // For type safety in nested navigators
   EntityDashboard: undefined;
   ReportsTab: undefined;
   StoresTab: undefined;
   AccountTab: undefined;
-
-  // Add the Driver-specific tab names
+  EntitiesBalanceScreen: undefined;
   DriverDashboard: undefined;
   ParcelsTab: undefined;
 };
-// ----------------------
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -66,6 +64,7 @@ const AppContent = () => {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="MainTabs" component={MainTabNavigator} />
         <Stack.Screen name="DeliveryTracking" component={DeliveryTracking} />
+        <Stack.Screen name="EntitiesBalanceScreen" component={EntitiesBalanceScreen} />
         <Stack.Screen name="CityRates" component={CityRatesScreen} />
         <Stack.Screen name="RegisterDetails" component={RegisterDetailsScreen} />
         <Stack.Screen

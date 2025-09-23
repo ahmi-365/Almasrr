@@ -9,7 +9,15 @@ import {
   ScrollView,
   Animated,
 } from 'react-native';
-import { XCircle } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
+
+// Helper function from Reports Dashboard
+const hexToRgba = (hex: string, opacity: number) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
 
 const ParcelDetailsModal = ({ isVisible, onClose, parcel }) => {
   const animatedScale = useRef(new Animated.Value(0.7)).current;
@@ -44,24 +52,85 @@ const ParcelDetailsModal = ({ isVisible, onClose, parcel }) => {
     if (!value) return null;
     return (
       <View style={modalStyles.detailRow}>
-        <Text style={modalStyles.detailLabel}>{label}:</Text>
+        <Text style={modalStyles.detailLabel}>{label}</Text>
         <Text style={modalStyles.detailValue}>{value}</Text>
       </View>
     );
   };
 
-  const getStatusColor = (status) => {
-    const colorMap = {
-      1: '#3182CE', // In-transit
-      2: '#F6AD55', // Pending
-      3: '#38B2AC', // Delivered
-      4: '#9F7AEA', // Returned
-      5: '#48BB78', // Picked up
-      6: '#E53E3E', // Canceled
-      7: '#ED8936', // Exception
+  // Updated status colors to match Reports Dashboard
+  const getStatusColor = (status, statusName) => {
+    const numericColorMap = {
+      1: '#D97706', // Dark orange for new
+      2: '#B45309', // Dark amber for preparing
+      3: '#EA580C', // Dark orange for ready to ship
+      4: '#C2410C', // Dark peach for in transit
+      5: '#059669', // Dark green for delivered
+      6: '#DC2626', // Dark red for rejected
+      7: '#D97706', // Dark orange for returned
     };
-    return colorMap[status] || '#718096';
+    
+    if (status && numericColorMap[status]) {
+      return numericColorMap[status];
+    }
+    
+    const statusNameColorMap = {
+      'جديد': '#D97706',
+      'قيد التحضير': '#B45309',
+      'جاهز للشحن': '#EA580C',
+      'قيد التوصيل': '#C2410C',
+      'في الطريق إلى الفرع الوجهة': '#C2410C',
+      'تم التسليم': '#059669',
+      'مرفوض': '#DC2626',
+      'مرتجع': '#D97706',
+      'تم الاستلام من العميل': '#B45309',
+      'في المخزن': '#EA580C',
+    };
+    
+    if (statusName && statusNameColorMap[statusName]) {
+      return statusNameColorMap[statusName];
+    }
+    
+    return '#D97706'; // Default orange
   };
+
+  const getStatusBackgroundColor = (status, statusName) => {
+    const numericColorMap = {
+      1: '#FFF4E6', // Very light orange for new
+      2: '#FFF8E1', // Very light amber for preparing
+      3: '#FFF3E0', // Very light orange for ready to ship
+      4: '#FFEDCC', // Very light peach for in transit
+      5: '#E8F5E8', // Very light green for delivered
+      6: '#FFE4E1', // Very light red for rejected
+      7: '#FFE0B2', // Very light orange for returned
+    };
+    
+    if (status && numericColorMap[status]) {
+      return numericColorMap[status];
+    }
+    
+    const statusNameColorMap = {
+      'جديد': '#FFF4E6',
+      'قيد التحضير': '#FFF8E1',
+      'جاهز للشحن': '#FFF3E0',
+      'قيد التوصيل': '#FFEDCC',
+      'في الطريق إلى الفرع الوجهة': '#FFEDCC',
+      'تم التسليم': '#E8F5E8',
+      'مرفوض': '#FFE4E1',
+      'مرتجع': '#FFE0B2',
+      'تم الاستلام من العميل': '#FFF8E1',
+      'في المخزن': '#FFF3E0',
+    };
+    
+    if (statusName && statusNameColorMap[statusName]) {
+      return statusNameColorMap[statusName];
+    }
+    
+    return '#FFF4E6';
+  };
+
+  const statusColor = getStatusColor(parcel.status, parcel.StatusName);
+  const statusBgColor = getStatusBackgroundColor(parcel.status, parcel.StatusName);
 
   return (
     <Modal
@@ -71,11 +140,6 @@ const ParcelDetailsModal = ({ isVisible, onClose, parcel }) => {
       onRequestClose={onClose}
     >
       <TouchableWithoutFeedback onPress={onClose}>
-        {/*
-          This is the key to a full-screen backdrop. 
-          Use StyleSheet.absoluteFillObject on the parent View of the modal content.
-          This will make it cover the entire screen, regardless of the parent view's size.
-        */}
         <View style={modalStyles.backdrop}>
           <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
             <Animated.View 
@@ -88,13 +152,15 @@ const ParcelDetailsModal = ({ isVisible, onClose, parcel }) => {
               ]}
             >
               <TouchableOpacity onPress={onClose} style={modalStyles.closeButton}>
-                <XCircle color="#999" size={24} />
+                <X color="#9CA3AF" size={24} />
               </TouchableOpacity>
 
               <Text style={modalStyles.modalTitle}>تفاصيل الطرد</Text>
 
-              <View style={[modalStyles.statusHeader, { backgroundColor: getStatusColor(parcel.status) }]}>
-                <Text style={modalStyles.statusText}>{parcel.StatusName}</Text>
+              <View style={[modalStyles.statusHeader, { backgroundColor: statusBgColor }]}>
+                <Text style={[modalStyles.statusText, { color: statusColor }]}>
+                  {parcel.StatusName}
+                </Text>
               </View>
               
               <ScrollView contentContainerStyle={modalStyles.detailsContainer}>
@@ -124,64 +190,67 @@ const modalStyles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Same as Reports Dashboard modal
   },
   modalView: {
     width: '90%',
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 20,
+    maxWidth: 400,
+    backgroundColor: '#FFFFFF', // Same as Reports Dashboard
+    borderRadius: 8, // Same border radius as Reports Dashboard
+    padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOpacity: 0.1, // Reduced to match Reports Dashboard
+    shadowRadius: 8, // Same as Reports Dashboard
+    elevation: 3, // Same as Reports Dashboard
   },
   closeButton: {
     position: 'absolute',
-    top: 10,
-    right: 10,
+    top: 12,
+    left: 12, // Changed from right to left for consistency
     zIndex: 1,
+    padding: 2,
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 18, // Reduced from 20
     fontWeight: 'bold',
+    color: '#1F2937', // Same as Reports Dashboard
     textAlign: 'center',
-    marginBottom: 10,
-    color: '#333',
+    marginBottom: 12,
+    paddingRight: 32, // Reduced padding
   },
   statusHeader: {
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 8,
-    marginBottom: 15,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8, // Same border radius as Reports Dashboard badges
+    marginBottom: 16,
     alignItems: 'center',
   },
   statusText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
+    fontSize: 14, // Same as Reports Dashboard status text
+    fontWeight: '600', // Same as Reports Dashboard
   },
   detailsContainer: {
-    paddingBottom: 20,
+    paddingBottom: 16,
   },
   detailRow: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 8, // Reduced from 12
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#F3F4F6', // Same as Reports Dashboard border color
   },
   detailLabel: {
-    fontSize: 14,
-    color: '#777',
+    fontSize: 12, // Same as Reports Dashboard label size
+    color: '#6B7280', // Same as Reports Dashboard label color
     fontWeight: '600',
     flex: 1,
     textAlign: 'right',
+    marginBottom: 2,
   },
   detailValue: {
-    fontSize: 15,
-    color: '#333',
+    fontSize: 14, // Same as Reports Dashboard value size
+    color: '#1F2937', // Same as Reports Dashboard text color
     fontWeight: '500',
     flex: 2,
     textAlign: 'right',

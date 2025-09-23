@@ -22,6 +22,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import CustomAlert from '../../components/CustomAlert';
 
 type RegisterScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Register'>;
 
@@ -39,6 +40,8 @@ const Colors = {
   borderGrey: '#E0E0E0',
   errorRed: '#EF5350',
   softOrange: '#FFD7C5',
+  successGreen: '#4CAF50', 
+
 };
 
 const RegisterScreen = () => {
@@ -50,14 +53,18 @@ const RegisterScreen = () => {
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [errors, setErrors] = useState<any>({});
-
+  
+// Custom Alert states
+const [isAlertVisible, setAlertVisible] = useState(false);
+const [alertTitle, setAlertTitle] = useState('');
+const [alertMessage, setAlertMessage] = useState('');
+const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange);
   // Animation references
   const headerAnim = useRef(new Animated.Value(0)).current;
   const formOpacityAnim = useRef(new Animated.Value(0)).current;
   const buttonScaleAnim = useRef(new Animated.Value(1)).current;
   const waveOffset1 = useRef(new Animated.Value(0)).current;
   const waveOffset2 = useRef(new Animated.Value(0)).current;
-
   useFocusEffect(
     useCallback(() => {
       setPhoneNumber('');
@@ -178,17 +185,26 @@ const RegisterScreen = () => {
         body: formBody,
       });
       const responseData = await response.json();
-      if (responseData.Success) {
-        setIsCodeSent(true);
-        startCountdown();
-        Alert.alert('تم الإرسال', responseData.Message);
-      } else {
-        Alert.alert('خطأ', responseData.Message || 'فشل إرسال الرمز.');
-      }
+     if (responseData.Success) {
+  setIsCodeSent(true);
+  startCountdown();
+  setAlertTitle('تم الإرسال');
+  setAlertMessage(responseData.Message);
+  setAlertConfirmColor(Colors.successGreen);
+  setAlertVisible(true);
+} else {
+  setAlertTitle('خطأ');
+  setAlertMessage(responseData.Message || 'فشل إرسال الرمز.');
+  setAlertConfirmColor(Colors.errorRed);
+  setAlertVisible(true);
+}
     } catch (error) {
-      console.error('Send OTP error:', error);
-      Alert.alert('خطأ في الاتصال', 'يرجى التحقق من اتصالك بالإنترنت.');
-    } finally {
+  console.error('Send OTP error:', error);
+  setAlertTitle('خطأ في الاتصال');
+  setAlertMessage('يرجى التحقق من اتصالك بالإنترنت.');
+  setAlertConfirmColor(Colors.errorRed);
+  setAlertVisible(true);
+} finally {
       setIsLoading(false);
     }
   };
@@ -226,15 +242,21 @@ const RegisterScreen = () => {
         body: formBody,
       });
       const responseData = await response.json();
-      if (responseData.Success) {
-        navigation.navigate('RegisterDetails', { mobileNumber: phoneNumber });
-      } else {
-        Alert.alert('خطأ في التحقق', responseData.Message || 'الرمز الذي أدخلته غير صحيح أو انتهت صلاحيته.');
-      }
-    } catch (error) {
-      console.error('Verify OTP error:', error);
-      Alert.alert('خطأ في الاتصال', 'يرجى التحقق من اتصالك بالإنترنت.');
-    } finally {
+    if (responseData.Success) {
+  navigation.navigate('RegisterDetails', { mobileNumber: phoneNumber });
+} else {
+  setAlertTitle('خطأ في التحقق');
+  setAlertMessage(responseData.Message || 'الرمز الذي أدخلته غير صحيح أو انتهت صلاحيته.');
+  setAlertConfirmColor(Colors.errorRed);
+  setAlertVisible(true);
+}
+    }catch (error) {
+  console.error('Verify OTP error:', error);
+  setAlertTitle('خطأ في الاتصال');
+  setAlertMessage('يرجى التحقق من اتصالك بالإنترنت.');
+  setAlertConfirmColor(Colors.errorRed);
+  setAlertVisible(true);
+} finally {
       setIsLoading(false);
     }
   };
@@ -269,6 +291,16 @@ const RegisterScreen = () => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* Custom Alert */}
+<CustomAlert
+  isVisible={isAlertVisible}
+  title={alertTitle}
+  message={alertMessage}
+  confirmText="حسنًا"
+  cancelText=""
+  onConfirm={() => setAlertVisible(false)}
+  onCancel={() => setAlertVisible(false)}
+/>
         {/* Top SVG Waves */}
         <View style={styles.topSvgContainer}>
           <Svg height={screenHeight * 0.3} width={screenWidth}>

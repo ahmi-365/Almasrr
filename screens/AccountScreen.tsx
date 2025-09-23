@@ -23,7 +23,8 @@ import Svg, { Path } from 'react-native-svg';
 import CustomAlert from '../components/CustomAlert'; // Ensure this path is correct
 
 import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
-import LinearGradient from 'react-native-linear-gradient';
+import { LinearGradient } from 'expo-linear-gradient';
+
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const { width } = Dimensions.get('window');
