@@ -27,7 +27,8 @@ import {
     Store as StoreIcon,
     MapPin,
     Truck,
-    Box, // Added for Quantity/Type
+    Box,
+    Bell,
 } from "lucide-react-native";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
@@ -90,22 +91,26 @@ const formatDateTime = (isoString: string) => {
     } catch (e) { return isoString; }
 };
 
-// --- FINAL Card Design - Compact & Themed ---
-const DeliveryCard = ({ item }: { item: Parcel }) => (
+const DeliveryCard = ({ item, onNotifyPress }: { item: Parcel, onNotifyPress: (parcel: Parcel) => void }) => (
     <View style={styles.modernTransactionItem}>
         <View style={styles.cardHeader}>
-            <View style={styles.headerRow}>
-                <View style={styles.statusContainer}>
-                    <View style={styles.statusBadge}><Text style={styles.statusText}>{item.CityName}</Text></View>
-                    <View style={styles.dateContainer}>
-                        <Calendar size={12} color="#FFF" style={styles.dateIcon} />
-                        <Text style={styles.dateText}>{formatDateTime(item.CreatedAt)}</Text>
-                    </View>
+            <View style={styles.headerTopRow}>
+                <View style={styles.statusBadge}><Text style={styles.statusText}>{item.CityName}</Text></View>
+                <View style={styles.dateContainer}>
+                    <Calendar size={12} color="#FFF" />
+                    <Text style={styles.dateText}>{formatDateTime(item.CreatedAt)}</Text>
                 </View>
             </View>
-            <View style={styles.orderIdContainer}>
-                <View style={styles.packageIconBackground}><Package color="#FFF" size={20} /></View>
-                <Text style={styles.orderId}>{item.ReferenceNo}</Text>
+            {/* MODIFICATION: Notify button is now on the same row as the Reference No */}
+            <View style={styles.headerBottomRow}>
+                <View style={styles.orderIdContainer}>
+                    <View style={styles.packageIconBackground}><Package color="#FFF" size={20} /></View>
+                    <Text style={styles.orderId}>{item.ReferenceNo}</Text>
+                </View>
+                <TouchableOpacity style={styles.notifyButton} onPress={() => onNotifyPress(item)}>
+                    <Bell size={14} color="#FFF" />
+                    <Text style={styles.notifyButtonText}>إشعار</Text>
+                </TouchableOpacity>
             </View>
         </View>
 
@@ -155,7 +160,6 @@ const DeliveryCard = ({ item }: { item: Parcel }) => (
     </View>
 );
 
-
 export default function OnTheWayScreen() {
     const [loading, setLoading] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -172,6 +176,9 @@ export default function OnTheWayScreen() {
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
     const [alertSuccess, setAlertSuccess] = useState(false);
+
+    const [parcelToNotify, setParcelToNotify] = useState<Parcel | null>(null);
+    const [isNotifyAlertVisible, setNotifyAlertVisible] = useState(false);
 
     useFocusEffect(
         useCallback(() => {
@@ -243,6 +250,27 @@ export default function OnTheWayScreen() {
         handleSearch();
     }, [handleSearch]);
 
+    const handleNotifyPress = (parcel: Parcel) => {
+        setParcelToNotify(parcel);
+        setNotifyAlertVisible(true);
+    };
+
+    const confirmSendNotification = () => {
+        console.log(`Sending notification for parcel: ${parcelToNotify?.ReferenceNo}`);
+        setNotifyAlertVisible(false);
+        setParcelToNotify(null);
+
+        setAlertTitle("نجاح");
+        setAlertMessage("تم إرسال الإشعار بنجاح.");
+        setAlertSuccess(true);
+        setAlertVisible(true);
+    };
+
+    const cancelSendNotification = () => {
+        setNotifyAlertVisible(false);
+        setParcelToNotify(null);
+    };
+
     const filteredParcels = useMemo(() => {
         if (!parcelSearchQuery) return allParcels;
         return allParcels.filter(p =>
@@ -264,7 +292,7 @@ export default function OnTheWayScreen() {
             <TopBar title="في الطريق" />
             <FlatList
                 data={filteredParcels}
-                renderItem={({ item }) => <DeliveryCard item={item} />}
+                renderItem={({ item }) => <DeliveryCard item={item} onNotifyPress={handleNotifyPress} />}
                 keyExtractor={(item) => item.intParcelCode.toString()}
                 contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 120 }}
                 refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#FF6B35']} tintColor="#FF6B35" />}
@@ -296,7 +324,11 @@ export default function OnTheWayScreen() {
                 ListEmptyComponent={
                     loading ? <ParcelsSkeleton /> : (
                         <View style={styles.emptyContainer}>
-                            <Truck color="#9CA3AF" size={64} style={styles.emptyIcon} />
+
+                            <Image
+                                source={require('../../assets/images/empty-reports.png')}
+                                style={styles.emptyImage}
+                            />
                             <Text style={styles.emptyText}>{allParcels.length === 0 ? "لا توجد طرود في الطريق حالياً" : "لم يتم العثور على نتائج"}</Text>
                             <Text style={styles.emptySubText}>{allParcels.length === 0 ? 'يرجى تحديد فلتر والضغط على بحث' : 'جرب البحث بكلمات مختلفة'}</Text>
                         </View>
@@ -333,6 +365,7 @@ export default function OnTheWayScreen() {
                 </TouchableWithoutFeedback>
             </Modal>
             <CustomAlert isVisible={isAlertVisible} title={alertTitle} message={alertMessage} confirmText="حسنًا" onConfirm={() => setAlertVisible(false)} success={alertSuccess} cancelText={undefined} onCancel={undefined} />
+            <CustomAlert isVisible={isNotifyAlertVisible} title="تأكيد الإرسال" message="هل تريد إرسال إشعار إلى المندوب؟" confirmText="نعم" cancelText="لا" onConfirm={confirmSendNotification} onCancel={cancelSendNotification} confirmButtonColor="#27AE60" />
         </View>
     );
 }
@@ -350,19 +383,19 @@ const styles = StyleSheet.create({
     searchButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
     sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginTop: 8, },
 
-    // Delivery Tracker Card Styles
     modernTransactionItem: { backgroundColor: "#FFFFFF", borderRadius: 8, marginBottom: 12, borderWidth: 1, borderColor: "#F3F4F6", overflow: "hidden", },
     cardHeader: { backgroundColor: "#FF6B35", padding: 16, },
-    headerRow: { marginBottom: 12, },
-    statusContainer: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", },
+    headerTopRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    headerBottomRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' },
     statusBadge: { backgroundColor: hexToRgba("#FFFFFF", 0.2), paddingHorizontal: 12, paddingVertical: 4, borderRadius: 20, },
     statusText: { color: "#FFF", fontSize: 12, fontWeight: "600", },
     dateContainer: { flexDirection: "row-reverse", alignItems: "center", gap: 4, },
-    dateIcon: { marginRight: 4, },
     dateText: { color: "#FFF", fontSize: 12, opacity: 0.9, },
     orderIdContainer: { flexDirection: "row-reverse", alignItems: "center", gap: 8, },
     packageIconBackground: { width: 32, height: 32, backgroundColor: hexToRgba("#FFFFFF", 0.2), borderRadius: 6, justifyContent: "center", alignItems: "center", },
     orderId: { color: "#FFF", fontSize: 20, fontWeight: "bold", },
+    notifyButton: { flexDirection: 'row-reverse', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 16, },
+    notifyButtonText: { color: '#FFF', fontSize: 12, fontWeight: '600', },
     cardContent: { padding: 16, },
     section: { marginBottom: 12, },
     sectionHeader: { flexDirection: "row-reverse", alignItems: "center", marginBottom: 8, gap: 6, },
@@ -387,14 +420,17 @@ const styles = StyleSheet.create({
     totalValueContainer: { flexDirection: "row-reverse", alignItems: "center", gap: 4, },
     totalValue: { color: "#28a745", fontSize: 18, fontWeight: "bold", },
 
-    // Empty State & Skeletons
     emptyContainer: { backgroundColor: "#FFFFFF", borderRadius: 8, paddingVertical: 40, paddingHorizontal: 20, alignItems: "center", marginTop: 20, },
     emptyIcon: { marginBottom: 16, opacity: 0.5, },
     emptyText: { color: "#374151", fontSize: 18, fontWeight: "600", marginBottom: 4, textAlign: "center", },
     emptySubText: { color: "#6B7280", fontSize: 14, textAlign: "center", lineHeight: 20, },
     cardSkeleton: { height: 350, width: "100%", borderRadius: 8, marginBottom: 12, },
-
-    // Modal Styles
+    emptyImage: {
+        width: 200,
+        height: 120,
+        marginBottom: 20,
+        opacity: 0.7,
+    },
     modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.5)", justifyContent: "center", alignItems: "center", padding: 20, },
     modalContent: { backgroundColor: "#FFFFFF", borderRadius: 8, width: "100%", maxHeight: "70%", padding: 20, },
     modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginBottom: 16, },

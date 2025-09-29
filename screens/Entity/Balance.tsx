@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,26 +13,26 @@ import {
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Store as StoreIcon, DollarSign } from 'lucide-react-native';
+import { Store as StoreIcon } from 'lucide-react-native';
 import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
 import { LinearGradient } from 'expo-linear-gradient';
 import TopBar from '../../components/Entity/TopBarNew';
+import CustomAlert from '../../components/CustomAlert';
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const { width } = Dimensions.get('window');
 
 const BASE_URL = 'https://tanmia-group.com:84/courierApi';
 
-// A refined, professional color palette
 const Colors = {
-  primary: '#FF6B35', // Tangerine
-  background: '#F9FAFB', // Very light gray
+  primary: '#FF6B35',
+  background: '#F9FAFB',
   cardBackground: '#FFFFFF',
-  textPrimary: '#1F2937', // Dark gray
-  textSecondary: '#6B7280', // Medium gray
-  border: '#E5E7EB', // Lighter gray for borders
-  positive: '#27AE60', // Green
-  negative: '#E74C3C', // Red
+  textPrimary: '#1F2937',
+  textSecondary: '#6B7280',
+  border: '#E5E7EB',
+  positive: '#27AE60',
+  negative: '#E74C3C',
 };
 
 interface BalanceEntity {
@@ -44,7 +44,6 @@ interface BalanceEntity {
 
 const BalanceItemSkeleton = () => {
   const shimmerColors = [Colors.background, Colors.cardBackground, Colors.background];
-
   return (
     <View style={styles.skeletonContainer}>
       <ShimmerPlaceHolder style={styles.cardSkeleton} shimmerColors={shimmerColors} />
@@ -54,31 +53,24 @@ const BalanceItemSkeleton = () => {
   );
 };
 
+// MODIFICATION: Removed DollarSign icon, added currency text
 const BalanceCard = ({ item }: { item: BalanceEntity }) => (
   <View style={styles.balanceCard}>
-    {/* Header Section */}
     <View style={styles.cardHeader}>
       <View style={styles.storeIconWrapper}>
         <StoreIcon color={Colors.cardBackground} size={20} />
       </View>
       <View style={styles.storeDetails}>
-        <Text style={styles.storeName} numberOfLines={1}>
-          {item.EntityName}
-        </Text>
-        <Text style={styles.storeCode}>Code: {item.intEntityCode}</Text>
+        <Text style={styles.storeName} numberOfLines={1}>{item.EntityName}</Text>
+
       </View>
     </View>
 
-    {/* Balance Details Section */}
     <View style={styles.balanceSection}>
       <View style={styles.balanceRow}>
-        <DollarSign size={16} color={Colors.textSecondary} />
         <Text style={styles.balanceLabel}>الرصيد:</Text>
-        <Text style={[
-          styles.balanceValue,
-          item.Balance < 0 ? styles.negativeBalance : styles.positiveBalance
-        ]}>
-          {item.Balance.toFixed(2)}
+        <Text style={[styles.balanceValue, item.Balance < 0 ? styles.negativeBalance : styles.positiveBalance]}>
+          {item.Balance.toFixed(2)} د.ل
         </Text>
       </View>
     </View>
@@ -92,6 +84,10 @@ const EntitiesBalanceScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
+  const [isAlertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+
   const loadUserId = useCallback(async () => {
     try {
       const storedUser = await AsyncStorage.getItem('user');
@@ -104,8 +100,6 @@ const EntitiesBalanceScreen = () => {
     } catch (e) {
       console.error('Failed to load user ID from storage:', e);
       setError('An error occurred while retrieving user data.');
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 
@@ -115,7 +109,7 @@ const EntitiesBalanceScreen = () => {
       setIsRefreshing(false);
       return;
     }
-
+    setIsLoading(true);
     try {
       const response = await axios.get(`${BASE_URL}/Entity/getentitybalances/${userId}`);
       if (response.data && Array.isArray(response.data)) {
@@ -123,12 +117,14 @@ const EntitiesBalanceScreen = () => {
         setError(null);
       } else {
         setBalances([]);
-        setError('No balance data found or unexpected response format.');
+        setError('No balance data found.');
       }
     } catch (err) {
       console.error('API Error:', err);
       setError('فشل في جلب البيانات. يرجى التحقق من اتصالك بالإنترنت.');
-      Alert.alert('خطأ', 'فشل في جلب الأرصدة. يرجى التحقق من اتصالك بالشبكة.');
+      setAlertTitle('خطأ');
+      setAlertMessage('فشل في جلب الأرصدة. يرجى التحقق من اتصالك بالشبكة.');
+      setAlertVisible(true);
       setBalances([]);
     } finally {
       setIsLoading(false);
@@ -142,8 +138,9 @@ const EntitiesBalanceScreen = () => {
 
   useEffect(() => {
     if (userId) {
-      setIsLoading(true);
       fetchBalances();
+    } else {
+      setIsLoading(false);
     }
   }, [userId, fetchBalances]);
 
@@ -152,198 +149,102 @@ const EntitiesBalanceScreen = () => {
     fetchBalances();
   }, [fetchBalances]);
 
+  // MODIFICATION: Calculate total balance
+  const totalBalance = useMemo(() => {
+    return balances.reduce((sum, item) => sum + item.Balance, 0);
+  }, [balances]);
+
   const renderEmptyComponent = () => (
     <View style={styles.emptyContainer}>
-      <Image
-        source={require('../../assets/images/empty-reports.png')}
-        style={styles.emptyImage}
-      />
-      <Text style={styles.emptyText}>
-        {error ? error : "لا توجد أرصدة لعرضها"}
-      </Text>
-      {!error && (
-        <Text style={styles.emptySubText}>
-          تأكد من أن لديك متاجر مرتبطة بهذا الحساب
-        </Text>
-      )}
+      <Image source={require('../../assets/images/empty-reports.png')} style={styles.emptyImage} />
+      <Text style={styles.emptyText}>{error ? error : "لا توجد أرصدة لعرضها"}</Text>
+      {!error && <Text style={styles.emptySubText}>تأكد من أن لديك متاجر مرتبطة بهذا الحساب</Text>}
     </View>
   );
 
   return (
     <View style={styles.container}>
       <TopBar title="أرصدة المتاجر" />
+      <FlatList
+        data={balances}
+        keyExtractor={(item) => item.intEntityCode.toString()}
+        renderItem={({ item }) => <BalanceCard item={item} />}
+        contentContainerStyle={styles.listContent}
+        refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={[Colors.primary]} tintColor={Colors.primary} />}
+        ListEmptyComponent={!isLoading ? renderEmptyComponent : null}
+        ListHeaderComponent={isLoading ? <BalanceItemSkeleton /> : null}
+        showsVerticalScrollIndicator={false}
+      />
 
-      {isLoading && <BalanceItemSkeleton />}
-
-      {!isLoading && (
-        <FlatList
-          data={balances}
-          keyExtractor={(item) => item.intEntityCode.toString()}
-          renderItem={({ item }) => <BalanceCard item={item} />}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefreshing}
-              onRefresh={onRefresh}
-              colors={[Colors.primary]}
-              tintColor={Colors.primary}
-            />
-          }
-          ListEmptyComponent={renderEmptyComponent}
-          showsVerticalScrollIndicator={false}
-        />
+      {/* MODIFICATION: Add total balance footer */}
+      {!isLoading && balances.length > 0 && (
+        <View style={styles.totalFooter}>
+          <Text style={styles.totalLabel}>الرصيد الإجمالي:</Text>
+          <Text style={[styles.totalValue, totalBalance < 0 ? styles.negativeBalance : styles.positiveBalance]}>
+            {totalBalance.toFixed(2)} د.ل
+          </Text>
+        </View>
       )}
+
+      <CustomAlert
+        isVisible={isAlertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        confirmText="حسنًا"
+        onConfirm={() => setAlertVisible(false)} cancelText={undefined} onCancel={undefined} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  topBar: {
-    paddingHorizontal: 24, // Consistent padding
-    paddingBottom: 16,
-    backgroundColor: Colors.background,
-  },
-  topBarTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.textPrimary,
-    textAlign: 'center',
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  skeletonContainer: { paddingHorizontal: 16, paddingTop: 16 },
+  cardSkeleton: { height: 100, width: '100%', borderRadius: 12, marginBottom: 16 },
+  listContent: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 100 }, // Added paddingBottom
+  balanceCard: { backgroundColor: Colors.cardBackground, borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: Colors.border, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+  cardHeader: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12, marginBottom: 12 },
+  storeIconWrapper: { width: 44, height: 44, backgroundColor: Colors.primary, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  storeDetails: { flex: 1, flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' },
+  storeName: { color: Colors.textPrimary, fontSize: 16, fontWeight: '600', textAlign: 'right' },
+  balanceSection: { borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 16, marginTop: 4 },
+  balanceRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
+  balanceLabel: { color: Colors.textSecondary, fontSize: 14, fontWeight: '500', textAlign: 'right' },
+  balanceValue: { fontSize: 18, fontWeight: '700', textAlign: 'right' },
+  positiveBalance: { color: Colors.positive },
+  negativeBalance: { color: Colors.negative },
+  emptyContainer: { backgroundColor: Colors.cardBackground, borderRadius: 12, paddingVertical: 50, paddingHorizontal: 20, alignItems: 'center', marginTop: 20, marginHorizontal: 16, elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+  emptyImage: { width: 200, height: 120, marginBottom: 20, opacity: 0.7 },
+  emptyText: { color: Colors.textPrimary, fontSize: 18, fontWeight: '600', marginBottom: 4, textAlign: 'center' },
+  emptySubText: { color: Colors.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 20 },
 
-  // Skeleton Styles
-  skeletonContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  cardSkeleton: {
-    height: 100,
-    width: '100%',
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-
-  // Main List Content
-  listContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 120,
-    paddingTop: 8,
-  },
-
-  // Balance Card Styles
-  balanceCard: {
-    backgroundColor: Colors.cardBackground,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    elevation: 3, // Android shadow
-    shadowColor: '#000', // iOS shadow
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-
-  // Card Header Section
-  cardHeader: {
+  // Total Footer Styles
+  totalFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-  },
-  storeIconWrapper: {
-    width: 44,
-    height: 44,
-    backgroundColor: Colors.primary,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  storeDetails: {
-    flex: 1,
-    flexDirection: 'row-reverse', // To place name and code in one row
-    justifyContent: 'space-between', // To push them to opposite ends
-    alignItems: 'center',
-  },
-  storeName: {
-    color: Colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'right', // Keep the name on the right
-  },
-  storeCode: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    textAlign: 'left', // Place code on the left
-  },
-
-  // Balance Details Section
-  balanceSection: {
+    padding: 16,
+    paddingBottom: 24, // Extra padding for home indicator
+    backgroundColor: Colors.cardBackground,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
-    paddingTop: 16,
-    marginTop: 4,
-  },
-  balanceRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 8,
-  },
-  balanceLabel: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    fontWeight: '500',
-    textAlign: 'right',
-  },
-  balanceValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    textAlign: 'right',
-  },
-  positiveBalance: {
-    color: Colors.positive,
-  },
-  negativeBalance: {
-    color: Colors.negative,
-  },
-
-  // Empty State Styles
-  emptyContainer: {
-    backgroundColor: Colors.cardBackground,
-    borderRadius: 12,
-    paddingVertical: 50,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    marginTop: 20,
-    marginHorizontal: 16,
-    elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 5,
+    elevation: 10,
   },
-  emptyImage: {
-    width: 200,
-    height: 120,
-    marginBottom: 20,
-    opacity: 0.7,
-  },
-  emptyText: {
+  totalLabel: {
     color: Colors.textPrimary,
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 4,
-    textAlign: 'center',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
-  emptySubText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
+  totalValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
   },
 });
 

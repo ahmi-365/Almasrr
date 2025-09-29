@@ -141,8 +141,8 @@ export default function AccountScreen({ navigation }) {
   }, []);
 
   const getRoleInArabic = (role) => {
-    if (role === 'Entity') return 'تاجر';
-    if (role === 'Driver') return 'سائق';
+    if (role === 'Entity') return 'المتجر';
+    if (role === 'Driver') return 'المندوب';
     return role || 'مستخدم';
   };
 

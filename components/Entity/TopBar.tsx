@@ -15,8 +15,8 @@ const ModernTopBar: React.FC = () => {
 
   // --- NEW: Helper function to translate the user role to Arabic ---
   const getRoleInArabic = (role: string | undefined): string => {
-    if (role === 'Entity') return 'تاجر';
-    if (role === 'Driver') return 'سائق';
+    if (role === 'Entity') return 'المتجر';
+    if (role === 'Driver') return 'المندوب';
     return role || 'مستخدم'; // Provides a fallback if role is null, undefined, or a different value
   };
 
