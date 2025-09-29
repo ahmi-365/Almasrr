@@ -10,10 +10,20 @@ import DeliveryTracking from '../screens/Entity/DeliveryTracking';
 import { useDashboard } from '../Context/DashboardContext';
 import Sidebar from '../components/Entity/Sidebar';
 import AddParcelScreen from '../screens/Entity/AddParcelScreen';
+
 import CityRatesScreen from '../screens/Entity/CityRatesScreen';
 import RegisterDetailsScreen from '../screens/Auths/RegisterDetailsScreen';
 import DriverDashboard from '../screens/Driver/DriverDashboard'; // Import DriverDashboard to ensure it's in the build
 import EntitiesBalanceScreen from '../screens/Entity/Balance';
+import AddParcelWhatsappScreen from '../screens/Entity/AddParcelWhatsapp';
+import DeliverdParcelScreen from '../screens/Driver/DeliveredParcelScreen';
+import ReturnedParcelScreen from '../screens/Driver/ReturnedParcelScreen';
+import ParcelsScreen from '../screens/Driver/ParcelsScreen';
+import SuccessfulDeliveryScreen from '../screens/Entity/SuccessDeliveredParcelScreen';
+import ReturnedParcelsScreen from '../screens/Entity/EntityReturnedParcelScreen';
+import PendingApprovalScreen from '../screens/Entity/PendingParcelScreen';
+import AtBranchScreen from '../screens/Entity/AtBranchScreen';
+import OnTheWayScreen from '../screens/Entity/OnTheWayScreen';
 
 // --- THIS IS THE FIX ---
 // Add all possible screen names, including the new Driver tabs, to the master list.
@@ -23,10 +33,10 @@ export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<TabParamList>;
   Register: undefined;
   DeliveryTracking: undefined;
-  AddParcel: undefined;
+  AddParcelForm: undefined;
   CityRates: undefined;
+  AddParcelWhatsapp: undefined;
   RegisterDetails: { mobileNumber: string };
-
   EntityDashboard: undefined;
   ReportsTab: undefined;
   StoresTab: undefined;
@@ -34,6 +44,15 @@ export type RootStackParamList = {
   EntitiesBalanceScreen: undefined;
   DriverDashboard: undefined;
   ParcelsTab: undefined;
+  DeliverdParcel: undefined
+  ReturnedParcel: undefined
+  ParcelsScreen: undefined
+  SuccessfulDeliveryScreen: undefined
+  ReturnedParcelsScreen: undefined
+  PendingApprovalScreen: undefined
+  AtBranchScreen: undefined
+  OnTheWayScreen: undefined
+
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -67,17 +86,21 @@ const AppContent = () => {
         <Stack.Screen name="EntitiesBalanceScreen" component={EntitiesBalanceScreen} />
         <Stack.Screen name="CityRates" component={CityRatesScreen} />
         <Stack.Screen name="RegisterDetails" component={RegisterDetailsScreen} />
-        <Stack.Screen
-          name="AddParcel"
-          component={AddParcelScreen}
-          options={{
-            ...modalHeaderOptions,
-            title: 'إضافة طرد',
-            presentation: 'modal',
-          }}
-        />
+        <Stack.Screen name="AddParcelForm" component={AddParcelScreen} />
+        <Stack.Screen name="AddParcelWhatsapp" component={AddParcelWhatsappScreen} />
+        <Stack.Screen name="DeliverdParcel" component={DeliverdParcelScreen} />
+        <Stack.Screen name="ReturnedParcel" component={ReturnedParcelScreen} />
+        <Stack.Screen name="ParcelsScreen" component={ReturnedParcelScreen} />
+        <Stack.Screen name="SuccessfulDeliveryScreen" component={SuccessfulDeliveryScreen} />
+        <Stack.Screen name="ReturnedParcelsScreen" component={ReturnedParcelsScreen} />
+        <Stack.Screen name="PendingApprovalScreen" component={PendingApprovalScreen} />
+        <Stack.Screen name="AtBranchScreen" component={AtBranchScreen} />
+        <Stack.Screen name="OnTheWayScreen" component={OnTheWayScreen} />
+
+
+
         {/* We add DriverDashboard here as well to ensure it's a valid top-level route if needed */}
-        <Stack.Screen name="DriverDashboard" component={DriverDashboard} />
+        <Stack.Screen name="DriverDashboard" component={ParcelsScreen} />
       </Stack.Navigator>
 
       <Sidebar visible={isSidebarVisible} onClose={toggleSidebar} />

@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../navigation/AppNavigator";
+import { useDashboard } from "../../Context/DashboardContext";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -13,9 +14,15 @@ const TopBar = ({ title, showBackButton = true }) => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
 
+  const { user } = useDashboard(); // ✅ HOOK should be used inside the component
+  const isDriver = user?.roleName === "Driver";
+  const dashboardRoute: keyof RootStackParamList = isDriver
+    ? "DriverDashboard"
+    : "EntityDashboard";
+
   const handleBackPress = () => {
     navigation.navigate("MainTabs", {
-      screen: "EntityDashboard",
+      screen: dashboardRoute,
     });
   };
 
@@ -40,7 +47,7 @@ const TopBar = ({ title, showBackButton = true }) => {
           {title}
         </Text>
 
-        {/* Logo / Favicon */}
+        {/* Logo */}
         <TouchableOpacity style={styles.iconButton} activeOpacity={0.6}>
           <Image
             source={require("../../assets/images/NavLogo2.png")}
@@ -55,7 +62,7 @@ const TopBar = ({ title, showBackButton = true }) => {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#ffe0e0ff",
     paddingHorizontal: 16,
     paddingBottom: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -70,8 +77,8 @@ const styles = StyleSheet.create({
   iconButton: {
     width: 38,
     height: 38,
-    borderRadius: 12,
-    backgroundColor: "#F3F4F6",
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -91,9 +98,8 @@ const styles = StyleSheet.create({
   logo: {
     width: 40,
     height: 40,
-    borderRadius: 10,
+    borderRadius: 8,
   },
-
 });
 
 export default TopBar;

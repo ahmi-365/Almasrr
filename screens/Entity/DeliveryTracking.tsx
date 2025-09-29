@@ -11,17 +11,17 @@ import {
   Image,
   Platform,
 } from 'react-native';
-import { 
-  Search, 
-  ChevronDown, 
-  Package, 
-  Phone, 
-  MapPin, 
-  Truck, 
-  Calendar, 
-  DollarSign 
+import {
+  Search,
+  ChevronDown,
+  Package,
+  Phone,
+  MapPin,
+  Truck,
+  Calendar,
+  DollarSign
 } from 'lucide-react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import TopBar from '../../components/Entity/TopBarNew';
 
 // Helper function for color transparency
@@ -32,14 +32,6 @@ const hexToRgba = (hex, opacity) => {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
-const MaterialTopBar = ({ title }) => {
-  const insets = useSafeAreaInsets();
-  return (
-    <View style={[styles.topBar, { paddingTop: insets.top + 30 }]}>
-      <Text style={styles.topBarTitle}>{title}</Text>
-    </View>
-  );
-};
 
 const DeliveryCard = ({ item }) => (
   <View style={styles.modernTransactionItem}>
@@ -202,11 +194,11 @@ export default function DeliveryTrackingScreen() {
   const renderListHeaderComponent = () => (
     <View style={styles.modernFilterSection}>
       <Text style={styles.filterSectionTitle}>البحث والفلترة</Text>
-      
+
       {/* Store Dropdown */}
       <View style={styles.dropdownContainer}>
         <Text style={styles.dropdownLabel}>يرجى اختيار المتجر</Text>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.dropdown}
           onPress={() => setShowDropdown(!showDropdown)}
         >
@@ -215,7 +207,7 @@ export default function DeliveryTrackingScreen() {
           </Text>
           <ChevronDown color="#9CA3AF" size={20} />
         </TouchableOpacity>
-        
+
         {showDropdown && (
           <View style={styles.dropdownOptions}>
             {stores.map((store) => (
@@ -249,7 +241,7 @@ export default function DeliveryTrackingScreen() {
           onChangeText={setSearchText}
         />
       </View>
-      
+
       {filteredItems.length > 0 && (
         <Text style={styles.sectionTitle}>
           الطلبات ({filteredItems.length})
@@ -265,7 +257,7 @@ export default function DeliveryTrackingScreen() {
         {deliveryItems.length === 0 ? 'لا توجد طلبات' : 'لم يتم العثور على نتائج'}
       </Text>
       <Text style={styles.emptySubText}>
-        {deliveryItems.length === 0 
+        {deliveryItems.length === 0
           ? 'لم يتم إضافة أي طلبات بعد'
           : 'جرب البحث بكلمات مختلفة'
         }
@@ -299,22 +291,10 @@ export default function DeliveryTrackingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: "#F8F9FA" 
+  container: {
+    flex: 1,
+    backgroundColor: "#F8F9FA"
   },
-  topBar: {
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    backgroundColor: "#F8F9FA",
-  },
-  topBarTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#1F2937",
-    textAlign: "center",
-  },
-  
   // Filter Section
   modernFilterSection: {
     backgroundColor: "#FFFFFF",
@@ -335,7 +315,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: "right",
   },
-  
+
   // Dropdown Styles
   dropdownContainer: {
     marginBottom: 16,
@@ -383,7 +363,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: "right",
   },
-  
+
   // Search Container
   modernModalSearchContainer: {
     flexDirection: "row-reverse",
@@ -409,7 +389,7 @@ const styles = StyleSheet.create({
     color: "#1F2937",
     textAlign: "right",
   },
-  
+
   // Card Styles
   modernTransactionItem: {
     backgroundColor: "#FFFFFF",
@@ -419,7 +399,7 @@ const styles = StyleSheet.create({
     borderColor: "#F3F4F6",
     overflow: "hidden",
   },
-  
+
   // Card Header
   cardHeader: {
     backgroundColor: "#FF6B35",
@@ -475,7 +455,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
   },
-  
+
   // Card Content
   cardContent: {
     padding: 16,
@@ -495,7 +475,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FF6B35",
     borderRadius: 3,
   },
-  
+
   // Info Box
   infoBox: {
     backgroundColor: "#F9FAFB",
@@ -523,7 +503,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: "right",
   },
-  
+
   // Details Row
   detailsRow: {
     flexDirection: "row-reverse",
@@ -548,7 +528,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 2,
   },
-  
+
   // Pricing
   pricingContainer: {
     gap: 8,
@@ -572,7 +552,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-   totalBox: {
+  totalBox: {
     flexDirection: "row-reverse",
     justifyContent: "space-between",
     alignItems: "center",
@@ -598,7 +578,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
   },
-  
+
   // Empty State
   emptyContainer: {
     backgroundColor: "#FFFFFF",

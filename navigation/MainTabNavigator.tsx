@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, ActivityIndicator, Text, BackHandler, Image } from 'react-native';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { ChartBar as BarChart3, FileText, User, Store, Package, Truck, LayoutDashboardIcon, LucideLayoutDashboard } from 'lucide-react-native';
+import { LayoutDashboardIcon } from 'lucide-react-native';
 import { useNavigation, EventArg, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -13,6 +13,8 @@ import AccountScreen from '../screens/AccountScreen';
 import StoresScreen from '../screens/StoresScreen';
 import CustomTabBar from './CustomTabBar';
 import { RootStackParamList } from './AppNavigator';
+import ParcelsScreen from '../screens/Driver/ParcelsScreen';
+import AssignedParcelScreen from '../screens/Driver/AssignedParcelScreen';
 
 export type TabParamList = {
   EntityDashboard: undefined;
@@ -26,7 +28,6 @@ export type TabParamList = {
 
 const Tab = createBottomTabNavigator<TabParamList>();
 const EmptyComponent = () => null;
-const ParcelsScreen = () => <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><Text>Parcels Screen</Text></View>;
 
 const TabBarIcon = ({ source, color, size }) => (
   <Image
@@ -71,9 +72,6 @@ const MainTabNavigator = () => {
           const activeTabRouteName = tabState.routeNames[tabState.index];
 
           if (activeTabRouteName !== initialRouteName) {
-            // --- THE FIX IS HERE ---
-            // We tell the parent navigator to navigate to the 'MainTabs' screen,
-            // and inside that, to focus on the 'initialRouteName' screen.
             navigation.navigate('MainTabs', { screen: initialRouteName });
             return true;
           }
@@ -85,16 +83,6 @@ const MainTabNavigator = () => {
       return () => subscription.remove();
     }, [navigation, initialRouteName])
   );
-
-
-
-  const handleEntityPlusPress = () => {
-    navigation.navigate('AddParcel');
-  };
-
-  // const handleDriverPlusPress = () => {
-  //   navigation.navigate('SomeDriverPage');
-  // };
 
   if (!userRole) {
     return (
@@ -114,6 +102,7 @@ const MainTabNavigator = () => {
       }}
     >
       {userRole === 'Entity' ? (
+        // Tabs for Entity (with AddTab)
         <>
           <Tab.Screen name="AccountTab" component={AccountScreen} options={{ title: 'حسابي', tabBarIcon: ({ color }) => <TabBarIcon source={require('../assets/icons/user-icon-tb.png')} color={color} size={35} /> }} />
           <Tab.Screen name="StoresTab" component={StoresScreen} options={{ title: 'المتاجر', tabBarIcon: ({ color }) => <TabBarIcon source={require('../assets/icons/store-icon-tb.png')} color={color} size={40} /> }} />
@@ -124,31 +113,20 @@ const MainTabNavigator = () => {
             listeners={{
               tabPress: (e: EventArg<'tabPress', true>) => {
                 e.preventDefault();
-                handleEntityPlusPress();
               },
             }}
           />
-          <Tab.Screen name="ReportsTab" component={ReportsDashboard} options={{ title: 'التقارير', tabBarIcon: ({ color }) => <TabBarIcon source={require('../assets/icons/reports-icon-tb.png')} color={color} size={35} /> }} />
-          <Tab.Screen name="EntityDashboard" component={EntityDashboard} options={{ title: 'الرئيسية', tabBarIcon: ({ color, size }) => <LayoutDashboardIcon color={color} size={27} /> }} />
-
+          <Tab.Screen name="ReportsTab" component={ReportsDashboard} options={{ title: 'تقرير المعاملات', tabBarIcon: ({ color }) => <TabBarIcon source={require('../assets/icons/reports-icon-tb.png')} color={color} size={35} /> }} />
+          <Tab.Screen name="EntityDashboard" component={EntityDashboard} options={{ title: 'لوحة القيادة', tabBarIcon: ({ color }) => <LayoutDashboardIcon color={color} size={27} /> }} />
         </>
       ) : (
+        // --- FIX: Tabs for Driver (AddTab has been removed) ---
         <>
           <Tab.Screen name="AccountTab" component={AccountScreen} options={{ title: 'حسابي', tabBarIcon: ({ color }) => <TabBarIcon source={require('../assets/icons/user-icon-tb.png')} color={color} size={35} /> }} />
-          <Tab.Screen name="ParcelsTab" component={ParcelsScreen} options={{ title: 'الطرود', tabBarIcon: ({ color }) => <TabBarIcon source={require('../assets/icons/package-icon-tb.png')} color={color} size={35} /> }} />
-          <Tab.Screen
-            name="AddTab"
-            component={EmptyComponent}
-            options={{ title: '', tabBarIcon: () => null }}
-            listeners={{
-              tabPress: (e: EventArg<'tabPress', true>) => {
-                e.preventDefault();
-                // handleDriverPlusPress();
-              },
-            }}
-          />
-          <Tab.Screen name="ReportsTab" component={ReportsDashboard} options={{ title: 'التقارير', tabBarIcon: ({ color }) => <TabBarIcon source={require('../assets/icons/reports-icon-tb.png')} color={color} size={35} /> }} />
-          <Tab.Screen name="DriverDashboard" component={DriverDashboard} options={{ title: 'الرئيسية', tabBarIcon: ({ color }) => <TabBarIcon source={require('../assets/icons/ddashboard-icon-tb.png')} color={color} size={35} /> }} />
+          <Tab.Screen name="ParcelsTab" component={AssignedParcelScreen} options={{ title: 'الطرد المعين', tabBarIcon: ({ color }) => <TabBarIcon source={require('../assets/icons/package-icon-tb.png')} color={color} size={35} /> }} />
+          {/* The "AddTab" Screen has been removed from here */}
+          <Tab.Screen name="ReportsTab" component={ReportsDashboard} options={{ title: 'تقرير المعاملات', tabBarIcon: ({ color }) => <TabBarIcon source={require('../assets/icons/reports-icon-tb.png')} color={color} size={35} /> }} />
+          <Tab.Screen name="DriverDashboard" component={DriverDashboard} options={{ title: 'الرئيسية', tabBarIcon: ({ color }) => <TabBarIcon source={require('../assets/icons/ddashboard-icon-tb.png')} color={color} size={37} /> }} />
         </>
       )}
     </Tab.Navigator>

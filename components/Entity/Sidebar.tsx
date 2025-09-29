@@ -26,6 +26,7 @@ const images = {
   cityRates: require('../../assets/icons/rates-icon.png'),
   balance: require('../../assets/icons/balance-icon.png'),
   pending: require('../../assets/icons/pending-icon.png'),
+  assigned: require('../../assets/pending.png'),
   inBranch: require('../../assets/icons/branch-icon.png'),
   onTheWay: require('../../assets/icons/on-the-way-icon.png'),
   returned: require('../../assets/icons/returned-parcels-icon.png'),
@@ -66,17 +67,18 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
     const isDriver = user.roleName === 'Driver';
     const allItems: DialerMenuItem[] = isDriver
       ? [
-        { image: images.deliveredParcels, title: 'الطرود المسلمة' },
-        { image: images.returnedParcels, title: 'الطرود المرتجعة' }
+        { image: images.deliveredParcels, title: 'الطرود المسلمة', route: 'DeliverdParcel' },
+        { image: images.returnedParcels, title: 'الطرود المرتجعة', route: 'ReturnedParcel' }
       ]
       : [
-        { image: images.cityRates, title: 'الأسعار', route: 'CityRates' },
-        { image: images.balance, title: 'الرصيد',route: 'EntitiesBalanceScreen' },
-        { image: images.pending, title: 'قيد الانتظار' },
-        { image: images.inBranch, title: 'في الفرع' },
-        { image: images.onTheWay, title: 'في الطريق', route: 'DeliveryTracking' },
-        { image: images.returned, title: 'المرتجعة' },
-        { image: images.history, title: 'السجل' }
+        { image: images.cityRates, title: 'الأسعار حسب المدينة', route: 'CityRates' },
+        { image: images.balance, title: 'الرصيد المتاجر', route: 'EntitiesBalanceScreen' },
+        { image: images.pending, title: 'في انتظار التصديق', route: 'PendingApprovalScreen' },
+        { image: images.inBranch, title: 'في الفرع', route: 'AtBranchScreen' },
+        { image: images.onTheWay, title: 'في الطريق', route: 'OnTheWayScreen' },
+        { image: images.returned, title: 'الطرود المرتجعة', route: 'ReturnedParcelsScreen' },
+        { image: images.deliveredParcels, title: 'التوصيل ناجح', route: 'SuccessfulDeliveryScreen' }
+
       ];
     const dashboardRoute: keyof RootStackParamList = isDriver ? 'DriverDashboard' : 'EntityDashboard';
     return {
@@ -119,18 +121,26 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
     setTimeout(() => {
       if (!user || !item.route || item.route === currentRoute) return;
       const activeTabs = user.roleName === 'Driver' ? DRIVER_TAB_SCREENS : TAB_SCREENS;
+      // if (activeTabs.includes(item.route as any)) {
+      //   navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: item.route as any }] } }] });
+      // } else {
+      //   navigation.reset({ index: 1, routes: [{ name: 'MainTabs' }, { name: item.route }] });
+      // }
       if (activeTabs.includes(item.route as any)) {
-        navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: item.route as any }] } }] });
+        navigation.navigate('MainTabs', { screen: item.route as any });
       } else {
-        navigation.reset({ index: 1, routes: [{ name: 'MainTabs' }, { name: item.route }] });
+        navigation.navigate(item.route as any);
       }
+
     }, 250);
   }, [navigation, user, onClose, currentRoute]);
 
   const handleProfilePress = () => {
     onClose();
     setTimeout(() => {
-      navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: 'AccountTab' }] } }] });
+      // navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: 'AccountTab' }] } }] });
+      navigation.navigate('MainTabs', { screen: 'AccountTab' });
+
     }, 250);
   };
 
@@ -151,7 +161,7 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
   return (
     <Animated.View style={[styles.drawerContainer, { transform: [{ translateX: slideAnim }] }]}>
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar backgroundColor="transparent" translucent barStyle="light-content" />
+        <StatusBar backgroundColor="transparent" translucent barStyle="dark-content" />
         <View style={styles.topBar}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}><X color="#FFFFFF" size={28} /></TouchableOpacity>
         </View>

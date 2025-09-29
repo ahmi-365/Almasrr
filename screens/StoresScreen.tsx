@@ -154,13 +154,13 @@ const StoreModal = ({ mode, store, visible, onClose, onSave, user }) => {
       const response =
         mode === "edit" && store
           ? await axios.post(
-              "https://tanmia-group.com:84/courierApi/Entity/UpdateEntity",
-              { ...payload, intEntityCode: store.intEntityCode }
-            )
+            "https://tanmia-group.com:84/courierApi/Entity/UpdateEntity",
+            { ...payload, intEntityCode: store.intEntityCode }
+          )
           : await axios.post(
-              "https://tanmia-group.com:84/courierApi/Entity/AddEntity",
-              payload
-            );
+            "https://tanmia-group.com:84/courierApi/Entity/AddEntity",
+            payload
+          );
 
       if (response.data && (response.data.success || response.data.Success)) {
         onSave();
@@ -268,7 +268,7 @@ const StoreModal = ({ mode, store, visible, onClose, onSave, user }) => {
             </TouchableOpacity>
           </ScrollView>
         </View>
-        
+
         {/* Custom Alert */}
         <CustomAlert
           isVisible={isAlertVisible}
@@ -502,7 +502,7 @@ export default function StoresScreen() {
           المتاجر ({filteredStores.length})
         </Text>
       )}
-      
+
       {/* Add Store Button - Header Action */}
       <TouchableOpacity
         style={styles.addStoreButton}
@@ -588,14 +588,14 @@ export default function StoresScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
+  container: {
+    flex: 1,
     backgroundColor: "#F8F9FA" // Same as Reports Dashboard
   },
   topBar: {
     paddingHorizontal: 20,
     paddingBottom: 12,
-    backgroundColor: "#F8F9FA", // Same as Reports Dashboard
+    backgroundColor: "#ffe0e0ff", // Same as Reports Dashboard
   },
   topBarTitle: {
     fontSize: 24,
@@ -603,7 +603,7 @@ const styles = StyleSheet.create({
     color: "#1F2937", // Same as Reports Dashboard
     textAlign: "center",
   },
-  
+
   // Filter Section - Matching Reports Dashboard
   modernFilterSection: {
     backgroundColor: "#FFFFFF", // Same as Reports Dashboard
@@ -650,25 +650,25 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   storeDetailsRow: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-  marginTop: 8,
-},
-storeColumn: {
-  flex: 1,
-  paddingHorizontal: 6,
-},
-// storeInfoRow: {
-//   flexDirection: "row",
-//   alignItems: "center",
-//   marginVertical: 2,
-// },
-// storeInfoText: {
-//   marginLeft: 6,
-//   fontSize: 13,
-//   color: "#374151",
-//   flexShrink: 1,
-// },
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
+  storeColumn: {
+    flex: 1,
+    paddingHorizontal: 6,
+  },
+  // storeInfoRow: {
+  //   flexDirection: "row",
+  //   alignItems: "center",
+  //   marginVertical: 2,
+  // },
+  // storeInfoText: {
+  //   marginLeft: 6,
+  //   fontSize: 13,
+  //   color: "#374151",
+  //   flexShrink: 1,
+  // },
 
   // Modern Transaction Item - Same as Reports Dashboard
   modernTransactionItem: {
@@ -679,14 +679,14 @@ storeColumn: {
     borderWidth: 1,
     borderColor: "#F3F4F6", // Same as Reports Dashboard
   },
-  
+
   addStoreButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FF6B35", 
+    backgroundColor: "#FF6B35",
     paddingVertical: 14,
-    marginTop:10,
+    marginTop: 10,
     paddingHorizontal: 20,
     borderRadius: 12,
     shadowColor: "#000",
@@ -700,7 +700,7 @@ storeColumn: {
     fontSize: 16,
     fontWeight: "600",
     marginLeft: 8,
-  },  transactionHeader: {
+  }, transactionHeader: {
     marginBottom: 12,
   },
   storeHeaderContent: {
@@ -719,19 +719,19 @@ storeColumn: {
   storeNameContainer: {
     flex: 1,
   },
-  transactionDate: { 
+  transactionDate: {
     color: "#1F2937", // Same as Reports Dashboard
-    fontSize: 16, 
+    fontSize: 16,
     fontWeight: "600",
     textAlign: "right",
     marginBottom: 2,
   },
-  runningTotalLabel: { 
+  runningTotalLabel: {
     color: "#6B7280", // Same as Reports Dashboard
     fontSize: 12,
     textAlign: "right",
   },
-  
+
   // Store Details Section
   storeDetailsSection: {
     marginBottom: 12,
@@ -762,7 +762,7 @@ storeColumn: {
     textAlign: "right",
     marginTop: 4,
   },
-  
+
   // Transaction Footer - Adapted for action buttons
   transactionFooter: {
     flexDirection: "row-reverse",
@@ -806,12 +806,12 @@ storeColumn: {
     fontSize: 14,
     fontWeight: "600",
   },
-  
+
   // FAB
-  fabContainer: { 
-    position: "absolute", 
-    right: 20, 
-    zIndex: 10 
+  fabContainer: {
+    position: "absolute",
+    right: 20,
+    zIndex: 10
   },
   fab: {
     width: 60,
@@ -826,7 +826,7 @@ storeColumn: {
     shadowRadius: 4,
     elevation: 8,
   },
-  
+
   // Empty State - Same as Reports Dashboard
   emptyContainer: {
     backgroundColor: "#FFFFFF", // Same as Reports Dashboard
@@ -836,11 +836,11 @@ storeColumn: {
     alignItems: "center",
     marginTop: 20,
   },
-  emptyImage: { 
-    width: 200, 
-    height: 120, 
-    marginBottom: 16, 
-    opacity: 0.7 
+  emptyImage: {
+    width: 200,
+    height: 120,
+    marginBottom: 16,
+    opacity: 0.7
   },
   emptyText: {
     color: "#374151", // Same as Reports Dashboard
@@ -855,7 +855,7 @@ storeColumn: {
     textAlign: "center",
     lineHeight: 20,
   },
-  
+
   // Modal Styles - Same as Reports Dashboard
   modalOverlay: {
     flex: 1,
@@ -882,13 +882,13 @@ storeColumn: {
     alignItems: "center",
     marginBottom: 16,
   },
-  modalTitle: { 
+  modalTitle: {
     color: "#1F2937", // Same as Reports Dashboard
-    fontSize: 20, 
-    fontWeight: "bold" 
+    fontSize: 20,
+    fontWeight: "bold"
   },
-  inputContainer: { 
-    marginBottom: 16 
+  inputContainer: {
+    marginBottom: 16
   },
   label: {
     color: "#6B7280", // Same as Reports Dashboard
@@ -907,12 +907,12 @@ storeColumn: {
     borderWidth: 1,
     borderColor: "#E5E7EB", // Same as Reports Dashboard
   },
-  textArea: { 
-    height: 100, 
-    textAlignVertical: "top" 
+  textArea: {
+    height: 100,
+    textAlignVertical: "top"
   },
-  errorInput: { 
-    borderColor: "#EF4444" 
+  errorInput: {
+    borderColor: "#EF4444"
   },
   button: {
     backgroundColor: "#FF6B35", // Same as Reports Dashboard
@@ -921,10 +921,10 @@ storeColumn: {
     alignItems: "center",
     marginTop: 10,
   },
-  buttonText: { 
-    color: "#FFF", 
-    fontSize: 16, 
-    fontWeight: "600" 
+  buttonText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "600"
   },
   errorText: {
     color: "#EF4444",
@@ -932,7 +932,7 @@ storeColumn: {
     textAlign: "right",
     marginTop: 4,
   },
-  
+
   // Skeleton Styles
   searchSkeleton: {
     height: 50,

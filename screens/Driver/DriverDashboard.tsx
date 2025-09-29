@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   RefreshControl,
-  Alert,
   Animated,
   FlatList,
   Dimensions,
@@ -20,10 +19,11 @@ import {
 } from 'lucide-react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from '@react-navigation/native';
-import TopBar from '../../components/Entity/TopBar'; // Re-using the same TopBar
+// --- MODIFICATION 1: Import useNavigation ---
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import TopBar from '../../components/Entity/TopBar';
 import Svg, { Path } from 'react-native-svg';
-import { useDashboard } from '../../Context/DashboardContext'; // --- IMPORT THE CONTEXT ---
+import { useDashboard } from '../../Context/DashboardContext';
 import CustomAlert from '../../components/CustomAlert';
 import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -38,8 +38,9 @@ const hexToRgba = (hex, opacity) => {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
-const StatCounterCard = ({ item }) => (
-  <View style={[styles.statCounterCard, { backgroundColor: hexToRgba(item.color, 0.08) }]}>
+// --- MODIFICATION 4: Make the card pressable ---
+const StatCounterCard = ({ item, onPress }) => (
+  <TouchableOpacity onPress={onPress} activeOpacity={0.8} style={[styles.statCounterCard, { backgroundColor: hexToRgba(item.color, 0.08) }]}>
     <View style={styles.statImageContainer}>
       <Image source={item.icon} style={styles.statImage} />
       <View style={[styles.badgeContainer, { borderColor: hexToRgba(item.color, 0.1) }]}>
@@ -57,7 +58,7 @@ const StatCounterCard = ({ item }) => (
         ]}
       />
     </View>
-  </View>
+  </TouchableOpacity>
 );
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -121,12 +122,14 @@ interface StatCardData {
   icon: any;
   color: string;
   progress: number;
+  navigateTo: string; // Added for navigation
 }
 
+// --- MODIFICATION 3: Add navigateTo property with screen names ---
 const CARD_DEFINITIONS = [
-  { label: 'الطرد المعين', icon: require('../../assets/pending.png'), color: '#E67E22' },
-  { label: 'الطرود المسلمة', icon: require('../../assets/delivered.png'), color: '#27AE60' },
-  { label: 'الطرود المرتجعة', icon: require('../../assets/returned.png'), color: '#E74C3C' },
+  { label: 'الطرد المعين', icon: require('../../assets/pending.png'), color: '#E67E22', navigateTo: 'ParcelsTab' },
+  { label: 'الطرود المسلمة', icon: require('../../assets/delivered.png'), color: '#27AE60', navigateTo: 'DeliverdParcel' },
+  { label: 'الطرود المرتجعة', icon: require('../../assets/returned.png'), color: '#E74C3C', navigateTo: 'ReturnedParcel' },
 ];
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -163,20 +166,23 @@ export default function DriverDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const imageSliderRef = useRef(null);
-// Custom Alert states
-const [isAlertVisible, setAlertVisible] = useState(false);
-const [alertTitle, setAlertTitle] = useState('');
-const [alertMessage, setAlertMessage] = useState('');
-const [alertConfirmColor, setAlertConfirmColor] = useState('#E67E22');
+  const [isAlertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertConfirmColor, setAlertConfirmColor] = useState('#E67E22');
+
+  // --- MODIFICATION 2: Get navigation object ---
+  const navigation = useNavigation();
+
   useEffect(() => {
     const loadUser = async () => {
-      if (!user) { // Only run if the user is not already in the context.
+      if (!user) {
         try {
           const userDataString = await AsyncStorage.getItem('user');
           if (userDataString) {
             setUser(JSON.parse(userDataString));
           } else {
-            setLoading(false); // No user, stop loading
+            setLoading(false);
           }
         } catch (error) {
           console.error("Failed to load user from AsyncStorage", error);
@@ -185,7 +191,7 @@ const [alertConfirmColor, setAlertConfirmColor] = useState('#E67E22');
       }
     };
     loadUser();
-  }, [user, setUser]); // Dependencies ensure this runs only when necessary.
+  }, [user, setUser]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -197,34 +203,36 @@ const [alertConfirmColor, setAlertConfirmColor] = useState('#E67E22');
     return () => clearInterval(interval);
   }, []);
 
-  // --- MODIFIED: Use the user from context to fetch data ---
   const fetchDashboardData = useCallback(async () => {
     if (!user?.userId) {
       setRefreshing(false);
-      return; // Guard clause if user isn't loaded yet
+      return;
     }
     const userId = user.userId;
     try {
-      // Driver-specific API endpoint
       const response = await axios.get(
         `https://tanmia-group.com:84/courierApi/driverparcels/DashboardData/${userId}`
       );
       if (response.data) {
         setDashboardData(response.data);
         setDcBalance(String(response.data?.DCBalance?.toFixed(2) ?? '0.00'));
+        await AsyncStorage.setItem(
+          "dashboard_data",
+          JSON.stringify(response.data)
+        );
       }
     } catch (err) {
       console.error('Error fetching driver data:', err);
-setAlertTitle('خطأ');
-setAlertMessage('فشل في جلب بيانات لوحة القيادة.');
-setAlertConfirmColor('#E74C3C');
-setAlertVisible(true);    } finally {
+      setAlertTitle('خطأ');
+      setAlertMessage('فشل في جلب بيانات لوحة القيادة.');
+      setAlertConfirmColor('#E74C3C');
+      setAlertVisible(true);
+    } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, setDashboardData, setDcBalance]); // Add user and context setters to dependency array
+  }, [user, setDashboardData, setDcBalance]);
 
-  // --- MODIFIED: Fetch data when the screen is focused if data is missing ---
   useFocusEffect(useCallback(() => {
     if (!dashboardData && user) {
       fetchDashboardData();
@@ -245,13 +253,14 @@ setAlertVisible(true);    } finally {
     return countKeys.map((key, index) => {
       const count = Number(dashboardData[key]) || 0;
       const definition = CARD_DEFINITIONS[index] || {
-        label: `Unknown State ${index + 1}`, icon: require('../../assets/pending.png'), color: '#95A5A6',
+        label: `Unknown State ${index + 1}`, icon: require('../../assets/pending.png'), color: '#95A5A6', navigateTo: '',
       };
       return {
         number: String(count),
         label: definition.label,
         icon: definition.icon,
         color: definition.color,
+        navigateTo: definition.navigateTo, // Pass navigateTo property
         progress: totalCount > 0 ? count / totalCount : 0,
       };
     }).slice(0, 3);
@@ -274,16 +283,15 @@ setAlertVisible(true);    } finally {
         contentContainerStyle={styles.scrollContent}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
         scrollEventThrottle={16}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#E67E22']} tintColor={'#E6E67E22'} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#E67E22']} tintColor={'#E67E22'} />}
       >
         <>
-<TouchableOpacity style={styles.balanceCard} activeOpacity={0.95}>
+          <TouchableOpacity style={styles.balanceCard} activeOpacity={0.95}>
             <AnimatedBalanceBackground />
             <View style={styles.balanceContent}>
               <View style={styles.balanceHeader}>
                 <View style={styles.iconWrapper}><Wallet color="#FFFFFF" size={24} strokeWidth={2} /></View>
                 <View style={styles.balanceInfo}>
-                  {/* --- MODIFIED: More generic title for driver --- */}
                   <Text style={styles.balanceTitle}>الرصيد في المحفظة</Text>
                   <Text style={styles.balanceValue}>{dcBalance ?? '0.00'} <Text style={styles.currencyText}>د.ل</Text></Text>
                 </View>
@@ -308,9 +316,15 @@ setAlertVisible(true);    } finally {
           </View>
           <View style={styles.statsSection}>
             <Text style={styles.sectionTitle}>ملخص المهام</Text>
+            {/* --- MODIFICATION 5: Add onPress handler to the card --- */}
             <FlatList
               data={statsData}
-              renderItem={({ item }) => <StatCounterCard item={item} />}
+              renderItem={({ item }) => (
+                <StatCounterCard
+                  item={item}
+                  onPress={() => item.navigateTo && navigation.navigate(item.navigateTo as never)}
+                />
+              )}
               keyExtractor={(item) => item.label}
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -332,16 +346,15 @@ setAlertVisible(true);    } finally {
           </View>
         </>
       </Animated.ScrollView>
-      {/* Custom Alert */}
-<CustomAlert
-  isVisible={isAlertVisible}
-  title={alertTitle}
-  message={alertMessage}
-  confirmText="حسنًا"
-  cancelText=""
-  onConfirm={() => setAlertVisible(false)}
-  onCancel={() => setAlertVisible(false)}
-/>
+      <CustomAlert
+        isVisible={isAlertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        confirmText="حسنًا"
+        cancelText=""
+        onConfirm={() => setAlertVisible(false)}
+        onCancel={() => setAlertVisible(false)}
+      />
     </View>
   );
 }
@@ -406,7 +419,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   statCounterCard: {
-    width: 120, // Adjusted width to better fit 3 cards on most screens
+    width: 120,
     paddingVertical: 12,
     paddingHorizontal: 8,
     borderRadius: 8,

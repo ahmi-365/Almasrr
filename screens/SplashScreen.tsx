@@ -120,7 +120,7 @@ export default function SplashScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.darkOrange} />
-      
+
       {/* Full-screen banner */}
       <Animated.View style={[styles.bannerContainer, { opacity: bannerFadeAnim }]}>
         <Image
@@ -150,10 +150,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'black', // A dark background for a full-screen image
   },
   bannerImage: {
-    ...StyleSheet.absoluteFillObject, // Make the image take up the full parent view
-    width: screenWidth,
-    height: screenHeight,
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    justifyContent: 'flex-end', // or 'center' depending on content
+    alignItems: 'center',
   },
+
   loaderBottomContainer: {
     position: 'absolute',
     bottom: 50,

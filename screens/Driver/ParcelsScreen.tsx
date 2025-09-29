@@ -28,12 +28,13 @@ import {
   DollarSign,
   ChevronDown,
 } from 'lucide-react-native';
-import ModernTopBar from '../../components/Entity/TopBar';
+
 import ParcelDetailsModal from '../../components/Entity/ParcelDetailsModal';
 const { width, height } = Dimensions.get('window');
 import CustomAlert from '../../components/CustomAlert';
 import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // Create shimmer placeholder with LinearGradient
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
@@ -73,10 +74,9 @@ const SHIMMER_COLORS = ['#FDF1EC', '#FEF8F5', '#FDF1EC'];
 // Enhanced Skeleton Loading Component for Stats
 const SkeletonPulse = ({ children, style, shimmerColors = SHIMMER_COLORS }) => {
   return (
-    <ShimmerPlaceHolder 
-      style={style} 
+    <ShimmerPlaceHolder
+      style={style}
       shimmerColors={shimmerColors}
-      autoRun={true}
       visible={false}
     >
       {children}
@@ -86,19 +86,19 @@ const SkeletonPulse = ({ children, style, shimmerColors = SHIMMER_COLORS }) => {
 
 const SkeletonStatCard = () => (
   <View style={styles.statCounterCard}>
-    <SkeletonPulse 
+    <SkeletonPulse
       style={[styles.statIconBackground, { backgroundColor: '#FDF1EC' }]}
       shimmerColors={SHIMMER_COLORS}
     >
       <View />
     </SkeletonPulse>
-    <SkeletonPulse 
+    <SkeletonPulse
       style={[styles.skeletonText, { width: '60%', height: 18, marginBottom: 4, backgroundColor: '#FDF1EC' }]}
       shimmerColors={SHIMMER_COLORS}
     >
       <View />
     </SkeletonPulse>
-    <SkeletonPulse 
+    <SkeletonPulse
       style={[styles.skeletonText, { width: '80%', height: 12, backgroundColor: '#FEF8F5' }]}
       shimmerColors={SHIMMER_COLORS}
     >
@@ -111,13 +111,13 @@ const SkeletonStatCard = () => (
 const SkeletonParcelCard = () => (
   <View style={styles.modernTransactionItem}>
     <View style={styles.transactionHeader}>
-      <SkeletonPulse 
+      <SkeletonPulse
         style={[styles.skeletonText, { width: 80, height: 14, backgroundColor: '#FDF1EC', borderRadius: 4 }]}
         shimmerColors={SHIMMER_COLORS}
       >
         <View />
       </SkeletonPulse>
-      <SkeletonPulse 
+      <SkeletonPulse
         style={[styles.statusBadge, { backgroundColor: '#FEF8F5', width: 70, height: 20, borderRadius: 12 }]}
         shimmerColors={SHIMMER_COLORS}
       >
@@ -125,7 +125,7 @@ const SkeletonParcelCard = () => (
       </SkeletonPulse>
     </View>
 
-    <SkeletonPulse 
+    <SkeletonPulse
       style={[styles.skeletonText, { width: '90%', height: 16, marginBottom: 12, backgroundColor: '#FDF1EC', borderRadius: 4 }]}
       shimmerColors={SHIMMER_COLORS}
     >
@@ -133,7 +133,7 @@ const SkeletonParcelCard = () => (
     </SkeletonPulse>
 
     <View style={styles.transactionAmounts}>
-      <SkeletonPulse 
+      <SkeletonPulse
         style={[styles.creditAmount, { backgroundColor: '#FEF8F5', width: 80, height: 28 }]}
         shimmerColors={SHIMMER_COLORS}
       >
@@ -142,13 +142,13 @@ const SkeletonParcelCard = () => (
     </View>
 
     <View style={styles.transactionFooter}>
-      <SkeletonPulse 
+      <SkeletonPulse
         style={[styles.skeletonText, { width: 60, height: 12, backgroundColor: '#FDF1EC', borderRadius: 4 }]}
         shimmerColors={SHIMMER_COLORS}
       >
         <View />
       </SkeletonPulse>
-      <SkeletonPulse 
+      <SkeletonPulse
         style={[styles.skeletonText, { width: 40, height: 16, backgroundColor: '#FEF8F5', borderRadius: 4 }]}
         shimmerColors={SHIMMER_COLORS}
       >
@@ -169,11 +169,11 @@ const getStatusColor = (status, statusName) => {
     6: '#FFE4E1', // Very light red for rejected
     7: '#FFE0B2', // Very light orange for returned
   };
-  
+
   if (status && numericColorMap[status]) {
     return numericColorMap[status];
   }
-  
+
   const statusNameColorMap = {
     'جديد': '#FFF4E6',
     'قيد التحضير': '#FFF8E1',
@@ -186,11 +186,11 @@ const getStatusColor = (status, statusName) => {
     'تم الاستلام من العميل': '#FFF8E1',
     'في المخزن': '#FFF3E0',
   };
-  
+
   if (statusName && statusNameColorMap[statusName]) {
     return statusNameColorMap[statusName];
   }
-  
+
   return '#FFF4E6';
 };
 
@@ -204,11 +204,11 @@ const getStatusTextColor = (status, statusName) => {
     6: '#DC2626', // Dark red for rejected
     7: '#D97706', // Dark orange for returned
   };
-  
+
   if (status && numericTextColorMap[status]) {
     return numericTextColorMap[status];
   }
-  
+
   const statusNameTextColorMap = {
     'جديد': '#D97706',
     'قيد التحضير': '#B45309',
@@ -221,11 +221,11 @@ const getStatusTextColor = (status, statusName) => {
     'تم الاستلام من العميل': '#B45309',
     'في المخزن': '#EA580C',
   };
-  
+
   if (statusName && statusNameTextColorMap[statusName]) {
     return statusNameTextColorMap[statusName];
   }
-  
+
   return '#D97706';
 };
 
@@ -300,7 +300,7 @@ const ParcelCard = ({ item, onPress, index }) => {
 
         <View style={styles.transactionFooter}>
           <Text style={styles.runningTotalLabel}>
-            {item.CreatedAt && 
+            {item.CreatedAt &&
               new Date(item.CreatedAt).toLocaleDateString('ar', {
                 day: '2-digit',
                 month: 'short',
@@ -325,14 +325,14 @@ const StatsHeader = ({ statsData }) => (
     <Text style={styles.sectionTitle}>ملخص الطرود</Text>
     <View style={styles.summaryCards}>
       {statsData.slice(0, 3).map(stat => (
-        <StatCounterCard 
+        <StatCounterCard
           key={stat.label}
           item={{
             number: String(stat.value),
             label: stat.label,
             icon: stat.icon,
             color: stat.color,
-          }} 
+          }}
         />
       ))}
     </View>
@@ -389,6 +389,17 @@ const ListHeader = ({ userRole, parcelsLength, entities, selectedEntity, onSelec
   </View>
 );
 
+// --- Material 3 Style Top Bar ---
+const MaterialTopBar = ({ title }) => {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[styles.topBar, { paddingTop: insets.top + 30 }]}>
+      <Text style={styles.topBarTitle}>{title}</Text>
+    </View>
+  );
+};
+
+
 const ParcelsScreen = ({ route }) => {
   const [parcels, setParcels] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -405,7 +416,7 @@ const ParcelsScreen = ({ route }) => {
   const statusCode = route?.params?.statusCode || 4;
   const routeUserRole = route?.params?.userRole;
   const routeUserId = route?.params?.userId;
-  
+
   // Custom Alert states
   const [isAlertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
@@ -434,7 +445,7 @@ const ParcelsScreen = ({ route }) => {
       const userDataString = await AsyncStorage.getItem('user');
       let role = null;
       let storedUserId = null;
-      
+
       if (userDataString) {
         try {
           const userData = JSON.parse(userDataString);
@@ -444,19 +455,19 @@ const ParcelsScreen = ({ route }) => {
           console.error('Error parsing user data:', parseError);
         }
       }
-      
+
       if ((!role || !storedUserId) && routeUserRole && routeUserId) {
         role = routeUserRole;
         storedUserId = routeUserId.toString();
       }
-      
+
       if (!role || !storedUserId) {
         throw new Error('User data not found. Please log in again.');
       }
-      
+
       setUserRole(role);
       setUserId(storedUserId);
-      
+
       if (role === 'Entity') {
         setSelectedEntityId(storedUserId);
       }
@@ -465,7 +476,7 @@ const ParcelsScreen = ({ route }) => {
       setAlertTitle('خطأ');
       setAlertMessage(error.message || 'حدث خطأ في تحميل بيانات المستخدم');
       setAlertConfirmColor('#E74C3C');
-      setAlertVisible(true);      
+      setAlertVisible(true);
       setLoading(false);
     }
   };
@@ -500,9 +511,9 @@ const ParcelsScreen = ({ route }) => {
   const fetchParcels = async (role, entId, usrId) => {
     try {
       setLoading(true);
-      
+
       let apiUrl = '';
-      
+
       if (role === 'Entity') {
         // Use the selected entity ID for the API call
         apiUrl = `https://tanmia-group.com:84/courierApi/parcels/details/${entId}/${statusCode}`;
@@ -513,7 +524,7 @@ const ParcelsScreen = ({ route }) => {
       }
 
       console.log('Fetching parcels from:', apiUrl);
-      
+
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
@@ -526,7 +537,7 @@ const ParcelsScreen = ({ route }) => {
       }
 
       const data = await response.json();
-      
+
       if (data.Parcels && Array.isArray(data.Parcels)) {
         setParcels(data.Parcels);
       } else if (data.success && data.data) {
@@ -538,13 +549,13 @@ const ParcelsScreen = ({ route }) => {
       } else {
         setParcels([]);
       }
-      
+
     } catch (error) {
       console.error('Error fetching parcels:', error);
       setAlertTitle('خطأ');
       setAlertMessage('حدث خطأ في تحميل البيانات');
       setAlertConfirmColor('#E74C3C');
-      setAlertVisible(true);      
+      setAlertVisible(true);
       setParcels([]);
     } finally {
       setLoading(false);
@@ -564,7 +575,7 @@ const ParcelsScreen = ({ route }) => {
     setSelectedParcel(parcel);
     setModalVisible(true);
   };
-  
+
   const handleCloseModal = () => {
     setModalVisible(false);
     setSelectedParcel(null);
@@ -601,7 +612,7 @@ const ParcelsScreen = ({ route }) => {
 
   const renderSkeletonLoader = () => (
     <View style={styles.container}>
-      <ModernTopBar title={getScreenTitle()} />
+      <MaterialTopBar title="الطرود" />
       <View style={styles.content}>
         <View style={styles.summarySection}>
           <Text style={styles.sectionTitle}>ملخص الطرود</Text>
@@ -611,9 +622,9 @@ const ParcelsScreen = ({ route }) => {
             ))}
           </View>
         </View>
-        
+
         <View style={styles.listHeaderContainer}>
-          <SkeletonPulse 
+          <SkeletonPulse
             style={[styles.skeletonText, { width: '70%', height: 18, marginBottom: 16, backgroundColor: '#FDF1EC', borderRadius: 4 }]}
             shimmerColors={SHIMMER_COLORS}
           >
@@ -639,8 +650,8 @@ const ParcelsScreen = ({ route }) => {
   const renderListHeaderComponent = () => (
     <View>
       <StatsHeader statsData={statsData} />
-      <ListHeader 
-        userRole={userRole} 
+      <ListHeader
+        userRole={userRole}
         parcelsLength={parcels.length}
         entities={entities}
         selectedEntity={selectedEntity}
@@ -664,8 +675,8 @@ const ParcelsScreen = ({ route }) => {
 
   return (
     <View style={styles.container}>
-      <ModernTopBar title={getScreenTitle()} />
-      
+      <MaterialTopBar title="الطرود" />
+
       <FlatList
         data={parcels}
         renderItem={({ item, index }) => (
@@ -675,9 +686,9 @@ const ParcelsScreen = ({ route }) => {
             index={index}
           />
         )}
-        keyExtractor={(item, index) => 
-          item.intParcelCode?.toString() || 
-          item.id?.toString() || 
+        keyExtractor={(item, index) =>
+          item.intParcelCode?.toString() ||
+          item.id?.toString() ||
           index.toString()
         }
         ListHeaderComponent={renderListHeaderComponent}
@@ -695,13 +706,13 @@ const ParcelsScreen = ({ route }) => {
         showsVerticalScrollIndicator={false}
         style={styles.parcelsList}
       />
-      
+
       <ParcelDetailsModal
         isVisible={modalVisible}
         onClose={handleCloseModal}
         parcel={selectedParcel}
       />
-      
+
       {/* Custom Alert */}
       <CustomAlert
         isVisible={isAlertVisible}
@@ -726,7 +737,19 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  
+
+  topBar: {
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    backgroundColor: "#F8F9FA",
+  },
+  topBarTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#1F2937",
+    textAlign: "center",
+  },
+
   // Dropdown Styles
   dropdownContainer: {
     marginHorizontal: 12,
@@ -776,30 +799,39 @@ const styles = StyleSheet.create({
     color: '#374151',
     textAlign: 'right',
   },
-  
+
+  statusBadge: {
+    backgroundColor: '#FEF8F5',
+    width: 70,
+    height: 20,
+    borderRadius: 12,
+  },
+
+
   // Summary Section
-  summarySection: { 
-    marginBottom: 20 
+  summarySection: {
+    marginBottom: 20
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1F2937',
     marginBottom: 16,
+    marginTop: 20,
     textAlign: 'right',
     paddingHorizontal: 12,
   },
-  summaryCards: { 
-    flexDirection: 'row-reverse', 
+  summaryCards: {
+    flexDirection: 'row-reverse',
     gap: 12,
     paddingHorizontal: 12,
   },
-  
+
   // Stat Counter Card
   statCounterCard: {
-    flex: 1, 
-    padding: 16, 
-    borderRadius: 8, 
+    flex: 1,
+    padding: 16,
+    borderRadius: 8,
     alignItems: 'center'
   },
   statIconBackground: {
@@ -816,21 +848,21 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 4,
   },
-  statCounterLabel: { 
-    fontSize: 12, 
+  statCounterLabel: {
+    fontSize: 12,
     color: '#6B7280',
-    textAlign: 'center' 
+    textAlign: 'center'
   },
   skeletonText: {
     borderRadius: 4,
     alignSelf: 'flex-end',
   },
-  
+
   // Parcels List
   parcelsList: {
     flex: 1,
   },
-  
+
   // Modern Transaction Item
   modernTransactionItem: {
     backgroundColor: '#FFFFFF',
@@ -844,7 +876,7 @@ const styles = StyleSheet.create({
   cardTouchable: {
     // No additional styling needed
   },
-  
+
   // Transaction Header
   transactionHeader: {
     flexDirection: 'row-reverse',
@@ -852,14 +884,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
-  transactionDate: { 
+  transactionDate: {
     color: '#1F2937',
-    fontSize: 14, 
-    fontWeight: '600' 
+    fontSize: 14,
+    fontWeight: '600'
   },
-  transactionAmounts: { 
-    flexDirection: 'row', 
-    gap: 12 
+  transactionAmounts: {
+    flexDirection: 'row',
+    gap: 12
   },
   creditAmount: {
     flexDirection: 'row-reverse',
@@ -869,11 +901,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     gap: 4,
   },
-  creditText: { 
-    fontSize: 14, 
-    fontWeight: '600' 
+  creditText: {
+    fontSize: 14,
+    fontWeight: '600'
   },
-  
+
   // Transaction Content
   transactionBranch: {
     color: '#374151',
@@ -898,22 +930,22 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     marginTop: 8,
   },
-  runningTotalLabel: { 
+  runningTotalLabel: {
     color: '#6B7280',
-    fontSize: 12 
+    fontSize: 12
   },
-  runningTotal: { 
+  runningTotal: {
     color: '#FF6B35',
-    fontSize: 16, 
-    fontWeight: 'bold' 
+    fontSize: 16,
+    fontWeight: 'bold'
   },
-  
+
   // List Header
   listHeaderContainer: {
     marginBottom: 12,
     paddingHorizontal: 12,
   },
-  
+
   // Empty State
   emptyContainer: {
     backgroundColor: '#FFFFFF',
@@ -924,11 +956,11 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginHorizontal: 12,
   },
-  emptyImage: { 
-    width: 200, 
-    height: 120, 
-    marginBottom: 16, 
-    opacity: 0.7 
+  emptyImage: {
+    width: 200,
+    height: 120,
+    marginBottom: 16,
+    opacity: 0.7
   },
   emptyText: {
     color: '#374151',

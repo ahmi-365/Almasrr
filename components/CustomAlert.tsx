@@ -1,12 +1,25 @@
-// /src/components/CustomAlert.js
-
 import React from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, Dimensions } from 'react-native';
-import { AlertTriangle } from 'lucide-react-native';
+import { AlertTriangle, CheckCircle } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
 
-const CustomAlert = ({ isVisible, title, message, confirmText, cancelText, onConfirm, onCancel, confirmButtonColor = '#FF6B35' }) => {
+const CustomAlert = ({
+    isVisible,
+    title,
+    message,
+    confirmText,
+    cancelText,
+    onConfirm,
+    onCancel,
+    confirmButtonColor = '#FF6B35',
+    success = false, // Default to false (safe fallback)
+}) => {
+    const isSuccess = !!success; // Convert null, undefined, or false to false
+
+    const iconColor = isSuccess ? '#2ECC71' : '#FF6B35';
+    const iconBgColor = isSuccess ? '#2ECC7120' : '#FF6B3520';
+
     return (
         <Modal
             visible={isVisible}
@@ -16,19 +29,24 @@ const CustomAlert = ({ isVisible, title, message, confirmText, cancelText, onCon
         >
             <View style={styles.modalOverlay}>
                 <View style={styles.alertContainer}>
-                    <View style={styles.iconContainer}>
-                        <AlertTriangle color="#FF6B35" size={32} />
+                    <View style={[styles.iconContainer, { backgroundColor: iconBgColor }]}>
+                        {isSuccess ? (
+                            <CheckCircle color={iconColor} size={32} />
+                        ) : (
+                            <AlertTriangle color={iconColor} size={32} />
+                        )}
                     </View>
 
                     <Text style={styles.title}>{title}</Text>
                     <Text style={styles.message}>{message}</Text>
 
                     <View style={styles.buttonContainer}>
-                        {cancelText && (
+                        {cancelText ? (
                             <TouchableOpacity style={styles.cancelButton} onPress={onCancel}>
                                 <Text style={styles.cancelButtonText}>{cancelText}</Text>
                             </TouchableOpacity>
-                        )}
+                        ) : null}
+
                         <TouchableOpacity
                             style={[styles.confirmButton, { backgroundColor: confirmButtonColor }]}
                             onPress={onConfirm}
@@ -65,7 +83,6 @@ const styles = StyleSheet.create({
         width: 60,
         height: 60,
         borderRadius: 30,
-        backgroundColor: '#FF6B3520', // Light orange
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 15,

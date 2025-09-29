@@ -27,7 +27,7 @@ import {
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useDashboard } from "../../Context/DashboardContext";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import TopBar from "../../components/Entity/TopBar";
 import Svg, { Path } from "react-native-svg";
 
@@ -45,8 +45,10 @@ const hexToRgba = (hex, opacity) => {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
-const StatCounterCard = ({ item }) => (
-  <View
+const StatCounterCard = ({ item, onPress }) => (
+  <TouchableOpacity
+    onPress={onPress}
+    activeOpacity={0.8}
     style={[
       styles.statCounterCard,
       { backgroundColor: hexToRgba(item.color, 0.08) },
@@ -81,7 +83,7 @@ const StatCounterCard = ({ item }) => (
         ]}
       />
     </View>
-  </View>
+  </TouchableOpacity>
 );
 
 const { width: screenWidth } = Dimensions.get("window");
@@ -215,35 +217,19 @@ interface StatCardData {
   icon: any;
   color: string;
   progress: number;
+  navigateTo: string;
 }
 
+// --- MODIFICATION 3: Add navigateTo property with screen names ---
 const CARD_DEFINITIONS = [
-  {
-    label: "في انتظار التصديق",
-    icon: require("../../assets/pending.png"),
-    color: "#E67E22",
-  },
-  {
-    label: "في الفرع",
-    icon: require("../../assets/branch.png"),
-    color: "#3498DB",
-  },
-  {
-    label: "في الطريق",
-    icon: require("../../assets/truck.png"),
-    color: "#F39C12",
-  },
-  {
-    label: "التوصيل ناجح",
-    icon: require("../../assets/delivered.png"),
-    color: "#27AE60",
-  },
-  {
-    label: "الطرود المرتجعة",
-    icon: require("../../assets/returned.png"),
-    color: "#E74C3C",
-  },
+  { label: "في انتظار التصديق", icon: require("../../assets/pending.png"), color: "#E67E22", navigateTo: "PendingApprovalScreen" },
+  { label: "في الفرع", icon: require("../../assets/branch.png"), color: "#3498DB", navigateTo: "AtBranchScreen" },
+  { label: "في الطريق", icon: require("../../assets/truck.png"), color: "#F39C12", navigateTo: "OnTheWayScreen" },
+  { label: "التوصيل ناجح", icon: require("../../assets/delivered.png"), color: "#27AE60", navigateTo: "SuccessfulDeliveryScreen" },
+  { label: "الطرود المرتجعة", icon: require("../../assets/returned.png"), color: "#E74C3C", navigateTo: "ReturnedParcelsScreen" },
 ];
+
+
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -311,10 +297,12 @@ export default function EntityDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const imageSliderRef = useRef(null);
-const [isAlertVisible, setAlertVisible] = useState(false);
-const [alertTitle, setAlertTitle] = useState('');
-const [alertMessage, setAlertMessage] = useState('');
-const [alertConfirmColor, setAlertConfirmColor] = useState('#E74C3C');
+  const [isAlertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertConfirmColor, setAlertConfirmColor] = useState('#E74C3C');
+
+  const navigation = useNavigation();
   // --- ADDED: Effect to load user into context from AsyncStorage ---
   useEffect(() => {
     const loadUser = async () => {
@@ -372,6 +360,11 @@ const [alertConfirmColor, setAlertConfirmColor] = useState('#E74C3C');
         setDcBalance(
           String(dashboardResponse.data?.DCBalance?.toFixed(2) ?? "0.00")
         );
+        await AsyncStorage.setItem(
+          "dashboard_data",
+          JSON.stringify(dashboardResponse.data)
+        );
+        console.log(dashboardResponse.data)
       }
       if (entitiesResponse.data) {
         await AsyncStorage.setItem(
@@ -381,10 +374,11 @@ const [alertConfirmColor, setAlertConfirmColor] = useState('#E74C3C');
       }
     } catch (err) {
       console.error("Error fetching data:", err);
-setAlertTitle('خطأ');
-setAlertMessage('فشل في جلب بيانات لوحة القيادة.');
-setAlertConfirmColor('#E74C3C');
-setAlertVisible(true);    } finally {
+      setAlertTitle('خطأ');
+      setAlertMessage('فشل في جلب بيانات لوحة القيادة.');
+      setAlertConfirmColor('#E74C3C');
+      setAlertVisible(true);
+    } finally {
       // --- This block is now reachable ---
       setLoading(false);
       setRefreshing(false);
@@ -425,15 +419,18 @@ setAlertVisible(true);    } finally {
         label: `Unknown State ${index + 1}`,
         icon: require("../../assets/pending.png"),
         color: "#95A5A6",
+        navigateTo: '', // Add this empty navigateTo property
       };
       return {
         number: String(count),
         label: definition.label,
         icon: definition.icon,
         color: definition.color,
+        navigateTo: definition.navigateTo, // Pass navigateTo property
         progress: totalCount > 0 ? count / totalCount : 0,
+
       };
-    });
+    }); CARD_DEFINITIONS
   }, [dashboardData]);
 
   if (loading) {
@@ -512,11 +509,17 @@ setAlertVisible(true);    } finally {
             <Text style={styles.sectionTitle}>ملخص الطرود</Text>
             <FlatList
               data={statsData}
-              renderItem={({ item }) => <StatCounterCard item={item} />}
+              renderItem={({ item }) => (
+                <StatCounterCard
+                  item={item}
+                  onPress={() => item.navigateTo && navigation.navigate(item.navigateTo as never)}
+                />
+              )}
               keyExtractor={(item) => item.label}
               horizontal
               showsHorizontalScrollIndicator={false}
             />
+
           </View>
           <View style={styles.promoSliderContainer}>
             <FlatList
@@ -539,15 +542,15 @@ setAlertVisible(true);    } finally {
         </>
       </Animated.ScrollView>
       {/* Custom Alert */}
-<CustomAlert
-  isVisible={isAlertVisible}
-  title={alertTitle}
-  message={alertMessage}
-  confirmText="حسنًا"
-  cancelText=""
-  onConfirm={() => setAlertVisible(false)}
-  onCancel={() => setAlertVisible(false)}
-/>
+      <CustomAlert
+        isVisible={isAlertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        confirmText="حسنًا"
+        cancelText=""
+        onConfirm={() => setAlertVisible(false)}
+        onCancel={() => setAlertVisible(false)}
+      />
     </View>
   );
 }

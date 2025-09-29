@@ -5,6 +5,8 @@ import { NavigationContainer, useNavigationContainerRef, NavigationState } from 
 import React, { useEffect, useState } from "react";
 import AppNavigator from "./navigation/AppNavigator";
 import { DashboardProvider, useDashboard } from "./Context/DashboardContext";
+import { enableScreens } from 'react-native-screens';
+enableScreens(false); // ✅ disables native screen optimizations (which sometimes override StatusBar)
 
 // --- 1. THIS IS THE ROBUST HELPER FUNCTION ---
 // It recursively drills down into the navigation state to find the name of the deepest active screen.
@@ -79,7 +81,7 @@ export default function App() {
 
   return (
     <DashboardProvider>
-      <StatusBar translucent backgroundColor="#2C3E50" barStyle="light-content" />
+      <StatusBar translucent barStyle="dark-content" backgroundColor="#ffe0e0ff" />
       <AppContent />
     </DashboardProvider>
   );

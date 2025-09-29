@@ -41,14 +41,6 @@ interface BalanceEntity {
   Balance: number;
 }
 
-const MaterialTopBar = ({ title }: { title: string }) => {
-  const insets = useSafeAreaInsets();
-  return (
-    <View style={[styles.topBar, { paddingTop: insets.top + 20 }]}>
-      <Text style={styles.topBarTitle}>{title}</Text>
-    </View>
-  );
-};
 
 const BalanceItemSkeleton = () => {
   const shimmerColors = [Colors.background, Colors.cardBackground, Colors.background];
@@ -76,7 +68,7 @@ const BalanceCard = ({ item }: { item: BalanceEntity }) => (
         <Text style={styles.storeCode}>Code: {item.intEntityCode}</Text>
       </View>
     </View>
-    
+
     {/* Balance Details Section */}
     <View style={styles.balanceSection}>
       <View style={styles.balanceRow}>

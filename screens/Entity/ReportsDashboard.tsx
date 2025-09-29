@@ -123,7 +123,6 @@ const FilterSection = ({
   loading,
 }) => (
   <View style={styles.modernFilterSection}>
-    <Text style={styles.filterSectionTitle}>فلتر التقارير</Text>
     {user?.roleName === "Entity" && (
       <TouchableOpacity
         style={styles.modernDropdown}
@@ -158,7 +157,7 @@ const FilterSection = ({
         <View style={styles.modernDateContent}>
           <Text style={styles.modernDateLabel}>من تاريخ</Text>
           <Text style={styles.modernDateValue}>
-            {fromDate.toLocaleDateString("ar")}
+            {fromDate.toLocaleDateString("en")}
           </Text>
         </View>
       </TouchableOpacity>
@@ -173,7 +172,7 @@ const FilterSection = ({
         <View style={styles.modernDateContent}>
           <Text style={styles.modernDateLabel}>إلى تاريخ</Text>
           <Text style={styles.modernDateValue}>
-            {toDate.toLocaleDateString("ar")}
+            {toDate.toLocaleDateString("en")}
           </Text>
         </View>
       </TouchableOpacity>
@@ -199,7 +198,7 @@ const ModernTransactionItem = ({ item }) => (
   <View style={styles.modernTransactionItem}>
     <View style={styles.transactionHeader}>
       <Text style={styles.transactionDate}>
-        {new Date(item.CreatedAt).toLocaleDateString("ar", {
+        {new Date(item.CreatedAt).toLocaleDateString("en", {
           day: "2-digit",
           month: "short",
           year: "numeric",
@@ -273,10 +272,10 @@ export default function ReportsDashboard() {
     "from" | "to" | null
   >(null);
   const [searchQuery, setSearchQuery] = useState("");
-const [isAlertVisible, setAlertVisible] = useState(false);
-const [alertTitle, setAlertTitle] = useState('');
-const [alertMessage, setAlertMessage] = useState('');
-const [alertConfirmColor, setAlertConfirmColor] = useState('#E74C3C');
+  const [isAlertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertConfirmColor, setAlertConfirmColor] = useState('#E74C3C');
   useFocusEffect(
     useCallback(() => {
       const loadInitialData = async () => {
@@ -303,10 +302,10 @@ const [alertConfirmColor, setAlertConfirmColor] = useState('#E74C3C');
 
   const handleSearch = useCallback(async () => {
     if (user?.roleName === "Entity" && !selectedEntity) {
-setAlertTitle('خطأ');
-setAlertMessage('يرجى اختيار متجر أولاً.');
-setAlertConfirmColor('#E74C3C');
-setAlertVisible(true);      return;
+      setAlertTitle('خطأ');
+      setAlertMessage('يرجى اختيار متجر أولاً.');
+      setAlertConfirmColor('#E74C3C');
+      setAlertVisible(true); return;
     }
     if (!user) return;
     setLoading(true);
@@ -317,9 +316,8 @@ setAlertVisible(true);      return;
       const formattedToDate = formatDate(toDate);
       let url = "";
       if (user.roleName === "Entity") {
-        url = `https://tanmia-group.com:84/courierApi/Entity/GetTransaction/${
-          selectedEntity!.intEntityCode
-        }/${formattedFromDate}/${formattedToDate}`;
+        url = `https://tanmia-group.com:84/courierApi/Entity/GetTransaction/${selectedEntity!.intEntityCode
+          }/${formattedFromDate}/${formattedToDate}`;
       } else {
         url = `https://tanmia-group.com:84/courierApi/Driver/GetTransaction/${user.userId}/${formattedFromDate}/${formattedToDate}`;
       }
@@ -327,10 +325,11 @@ setAlertVisible(true);      return;
       setTransactions(response.data || []);
     } catch (error) {
       console.error("Failed to fetch transactions:", error);
-setAlertTitle('خطأ');
-setAlertMessage('فشل في جلب بيانات المعاملات.');
-setAlertConfirmColor('#E74C3C');
-setAlertVisible(true);    } finally {
+      setAlertTitle('خطأ');
+      setAlertMessage('فشل في جلب بيانات المعاملات.');
+      setAlertConfirmColor('#E74C3C');
+      setAlertVisible(true);
+    } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -523,7 +522,7 @@ setAlertVisible(true);    } finally {
                             style={[
                               styles.modernModalItemText,
                               selectedEntity?.intEntityCode ===
-                                item.intEntityCode && styles.modalItemSelected,
+                              item.intEntityCode && styles.modalItemSelected,
                             ]}
                           >
                             {item.strEntityName}
@@ -534,8 +533,8 @@ setAlertVisible(true);    } finally {
                         </View>
                         {selectedEntity?.intEntityCode ===
                           item.intEntityCode && (
-                          <Check color="#FF6B35" size={20} />
-                        )}
+                            <Check color="#FF6B35" size={20} />
+                          )}
                       </TouchableOpacity>
                     )}
                     showsVerticalScrollIndicator={false}
@@ -547,15 +546,15 @@ setAlertVisible(true);    } finally {
         </Modal>
       )}
       {/* Custom Alert */}
-<CustomAlert
-  isVisible={isAlertVisible}
-  title={alertTitle}
-  message={alertMessage}
-  confirmText="حسنًا"
-  cancelText=""
-  onConfirm={() => setAlertVisible(false)}
-  onCancel={() => setAlertVisible(false)}
-/>
+      <CustomAlert
+        isVisible={isAlertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        confirmText="حسنًا"
+        cancelText=""
+        onConfirm={() => setAlertVisible(false)}
+        onCancel={() => setAlertVisible(false)}
+      />
     </View>
   );
 }
@@ -565,7 +564,7 @@ const styles = StyleSheet.create({
   topBar: {
     paddingHorizontal: 20,
     paddingBottom: 12,
-    backgroundColor: "#F8F9FA",
+    backgroundColor: "#ffe0e0ff",
   },
   topBarTitle: {
     fontSize: 24,
