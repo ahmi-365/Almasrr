@@ -364,7 +364,7 @@ export default function EntityDashboard() {
           "dashboard_data",
           JSON.stringify(dashboardResponse.data)
         );
-        console.log(dashboardResponse.data)
+        // console.log(dashboardResponse.data)
       }
       if (entitiesResponse.data) {
         await AsyncStorage.setItem(

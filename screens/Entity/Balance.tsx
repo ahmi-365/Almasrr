@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Image,
   Dimensions,
+  TouchableOpacity, // Import TouchableOpacity
 } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,9 +19,14 @@ import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
 import { LinearGradient } from 'expo-linear-gradient';
 import TopBar from '../../components/Entity/TopBarNew';
 import CustomAlert from '../../components/CustomAlert';
+import { useNavigation } from '@react-navigation/native'; // Import useNavigation
+import { TabParamList } from '../../navigation/MainTabNavigator'; // Assuming this path
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../../navigation/AppNavigator';
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const { width } = Dimensions.get('window');
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 
 const BASE_URL = 'https://tanmia-group.com:84/courierApi';
 
@@ -41,7 +47,6 @@ interface BalanceEntity {
   Balance: number;
 }
 
-
 const BalanceItemSkeleton = () => {
   const shimmerColors = [Colors.background, Colors.cardBackground, Colors.background];
   return (
@@ -53,16 +58,20 @@ const BalanceItemSkeleton = () => {
   );
 };
 
-// MODIFICATION: Removed DollarSign icon, added currency text
-const BalanceCard = ({ item }: { item: BalanceEntity }) => (
-  <View style={styles.balanceCard}>
+// MODIFICATION: BalanceCard now accepts an onPress prop
+interface BalanceCardProps {
+  item: BalanceEntity;
+  onPress: (entityCode: number, entityName: string) => void;
+}
+
+const BalanceCard = ({ item, onPress }: BalanceCardProps) => (
+  <TouchableOpacity onPress={() => onPress(item.intEntityCode, item.EntityName)} style={styles.balanceCard}>
     <View style={styles.cardHeader}>
       <View style={styles.storeIconWrapper}>
         <StoreIcon color={Colors.cardBackground} size={20} />
       </View>
       <View style={styles.storeDetails}>
         <Text style={styles.storeName} numberOfLines={1}>{item.EntityName}</Text>
-
       </View>
     </View>
 
@@ -74,10 +83,12 @@ const BalanceCard = ({ item }: { item: BalanceEntity }) => (
         </Text>
       </View>
     </View>
-  </View>
+  </TouchableOpacity>
 );
 
 const EntitiesBalanceScreen = () => {
+  const navigation = useNavigation<NavigationProp>(); // Get navigation object
+
   const [balances, setBalances] = useState<BalanceEntity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -154,6 +165,16 @@ const EntitiesBalanceScreen = () => {
     return balances.reduce((sum, item) => sum + item.Balance, 0);
   }, [balances]);
 
+  // MODIFICATION: Handler for BalanceCard press
+  const handleBalanceCardPress = useCallback((entityCode: number, entityName: string) => {
+    // Navigate to ReportsDashboard and pass the entityCode as a parameter
+navigation.navigate('MainTabs', {
+  screen: 'ReportsTab',
+  params: { entityCode },
+});
+console.log(`Navigating to reports for entity:  ${entityCode}`);
+  }, [navigation]);
+
   const renderEmptyComponent = () => (
     <View style={styles.emptyContainer}>
       <Image source={require('../../assets/images/empty-reports.png')} style={styles.emptyImage} />
@@ -168,7 +189,7 @@ const EntitiesBalanceScreen = () => {
       <FlatList
         data={balances}
         keyExtractor={(item) => item.intEntityCode.toString()}
-        renderItem={({ item }) => <BalanceCard item={item} />}
+        renderItem={({ item }) => <BalanceCard item={item} onPress={handleBalanceCardPress} />} // Pass onPress handler
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={[Colors.primary]} tintColor={Colors.primary} />}
         ListEmptyComponent={!isLoading ? renderEmptyComponent : null}

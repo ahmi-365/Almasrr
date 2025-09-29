@@ -9,7 +9,9 @@ import {
   Animated,
   Dimensions,
   SafeAreaView,
-  Easing
+  Easing,
+  TextInput,
+  ActivityIndicator
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -17,14 +19,16 @@ import {
   Phone,
   MapPin,
   LogOut,
-  ChevronLeft
+  ChevronLeft,
+  Lock,
+  Eye,
+  EyeOff
 } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
-import CustomAlert from '../components/CustomAlert'; // Ensure this path is correct
+import CustomAlert from '../components/CustomAlert';
 
 import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
 import { LinearGradient } from 'expo-linear-gradient';
-
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const { width } = Dimensions.get('window');
@@ -35,6 +39,7 @@ interface UserProfile {
   strEntityPhone: string;
   strEntityAddress: string;
   vbrPicture: string | null;
+  intUserCode?: number;
 }
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -123,6 +128,16 @@ export default function AccountScreen({ navigation }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAlertVisible, setAlertVisible] = useState(false);
+  const [isPasswordAlertVisible, setPasswordAlertVisible] = useState(false);
+  
+  // Password change states
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -157,6 +172,83 @@ export default function AccountScreen({ navigation }) {
     }
   };
 
+const handleChangePassword = async () => {
+  // Reset messages
+  setPasswordError('');
+  setPasswordSuccess('');
+
+  // Validation
+  if (!newPassword || !confirmPassword) {
+    setPasswordError('يرجى ملء جميع الحقول');
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    setPasswordError('كلمة المرور الجديدة وتأكيد كلمة المرور غير متطابقين');
+    return;
+  }
+
+  if (newPassword.length < 3) {
+    setPasswordError('كلمة المرور الجديدة يجب أن تكون 3 أحرف على الأقل');
+    return;
+  }
+
+  setIsChangingPassword(true);
+
+  try {
+    // Get user data from AsyncStorage
+    const userDataString = await AsyncStorage.getItem('user');
+    if (!userDataString) {
+      setPasswordError('لم يتم العثور على بيانات المستخدم');
+      setIsChangingPassword(false);
+      return;
+    }
+
+    const userData = JSON.parse(userDataString);
+    const intUserCode = userData.userId;
+    const strRoleName = userData.roleName;
+
+    if (!intUserCode || !strRoleName) {
+      setPasswordError('بيانات المستخدم غير كاملة');
+      setIsChangingPassword(false);
+      return;
+    }
+
+    const payload = {
+      intUserCode,
+      strRoleName,
+      NewPassword: newPassword,
+    };
+
+    const response = await fetch('https://tanmia-group.com:84/courierApi/changePassword', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && (data.success || data.Success || data.Status === "success")) {
+      setPasswordSuccess(data.Message || 'تم تغيير كلمة المرور بنجاح');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => {
+        setPasswordAlertVisible(false);
+        setPasswordSuccess('');
+      }, 2000);
+    } else {
+      setPasswordError(data.Message || data.message || 'فشل تغيير كلمة المرور. حاول مرة أخرى');
+    }
+  } catch (error) {
+    setPasswordError('حدث خطأ أثناء تغيير كلمة المرور. حاول مرة أخرى');
+  } finally {
+    setIsChangingPassword(false);
+  }
+};
+
+
   if (loading) {
     return <AccountSkeleton />;
   }
@@ -188,10 +280,17 @@ export default function AccountScreen({ navigation }) {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>الإجراءات</Text>
+          <ActionRow 
+            icon={Lock} 
+            label="تغيير كلمة المرور" 
+            onPress={() => setPasswordAlertVisible(true)} 
+            color="#FF6B35" 
+          />
           <ActionRow icon={LogOut} label="تسجيل الخروج" onPress={() => setAlertVisible(true)} color="#E74C3C" />
         </View>
       </ScrollView>
 
+      {/* Logout Alert */}
       <CustomAlert
         isVisible={isAlertVisible}
         title="تأكيد تسجيل الخروج"
@@ -202,6 +301,105 @@ export default function AccountScreen({ navigation }) {
         onCancel={() => setAlertVisible(false)}
         confirmButtonColor="#E74C3C"
       />
+
+      {/* Password Change Modal */}
+      {isPasswordAlertVisible && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>تغيير كلمة المرور</Text>
+            
+            <View style={styles.passwordContainer}>
+              {/* New Password */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>كلمة المرور الجديدة</Text>
+                <View style={styles.passwordInputWrapper}>
+                  <TouchableOpacity 
+                    onPress={() => setShowNewPassword(!showNewPassword)}
+                    style={styles.eyeIcon}
+                  >
+                    {showNewPassword ? <EyeOff size={20} color="#718096" /> : <Eye size={20} color="#718096" />}
+                  </TouchableOpacity>
+                  <TextInput
+                    style={styles.passwordInput}
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    secureTextEntry={!showNewPassword}
+                    placeholder="أدخل كلمة المرور الجديدة"
+                    placeholderTextColor="#A0AEC0"
+                    textAlign="right"
+                    editable={!isChangingPassword}
+                  />
+                </View>
+              </View>
+
+              {/* Confirm Password */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>تأكيد كلمة المرور</Text>
+                <View style={styles.passwordInputWrapper}>
+                  <TouchableOpacity 
+                    onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={styles.eyeIcon}
+                  >
+                    {showConfirmPassword ? <EyeOff size={20} color="#718096" /> : <Eye size={20} color="#718096" />}
+                  </TouchableOpacity>
+                  <TextInput
+                    style={styles.passwordInput}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry={!showConfirmPassword}
+                    placeholder="أعد إدخال كلمة المرور الجديدة"
+                    placeholderTextColor="#A0AEC0"
+                    textAlign="right"
+                    editable={!isChangingPassword}
+                  />
+                </View>
+              </View>
+
+              {/* Error Message */}
+              {passwordError ? (
+                <View style={styles.messageContainer}>
+                  <Text style={styles.errorText}>{passwordError}</Text>
+                </View>
+              ) : null}
+
+              {/* Success Message */}
+              {passwordSuccess ? (
+                <View style={[styles.messageContainer, { backgroundColor: '#D4EDDA' }]}>
+                  <Text style={[styles.errorText, { color: '#155724' }]}>{passwordSuccess}</Text>
+                </View>
+              ) : null}
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]} 
+                onPress={() => {
+                  setPasswordAlertVisible(false);
+                  setNewPassword('');
+                  setConfirmPassword('');
+                  setPasswordError('');
+                  setPasswordSuccess('');
+                }}
+                disabled={isChangingPassword}
+              >
+                <Text style={styles.cancelButtonText}>إلغاء</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.confirmButton]} 
+                onPress={handleChangePassword}
+                disabled={isChangingPassword}
+              >
+                {isChangingPassword ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.confirmButtonText}>تغيير</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -211,10 +409,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F9FA'
   },
-  // --- FIX: INCREASED TOP PADDING ---
   scrollContent: {
     paddingHorizontal: 15,
-    paddingTop: 30, // Increased from 10 to give more space at the top
+    paddingTop: 30,
     paddingBottom: 100
   },
   profileHeader: {
@@ -332,5 +529,105 @@ const styles = StyleSheet.create({
     height: 75,
     borderRadius: 8,
     marginBottom: 10
+  },
+  passwordContainer: {
+    width: '100%',
+    marginBottom: 15,
+  },
+  inputGroup: {
+    marginBottom: 15,
+  },
+  inputLabel: {
+    fontSize: 14,
+    color: '#343A40',
+    marginBottom: 8,
+    textAlign: 'right',
+    fontWeight: '600',
+  },
+  passwordInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  passwordInput: {
+    flex: 1,
+    padding: 12,
+    fontSize: 16,
+    color: '#2D3748',
+  },
+  eyeIcon: {
+    padding: 12,
+  },
+  messageContainer: {
+    backgroundColor: '#F8D7DA',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 5,
+  },
+  errorText: {
+    color: '#721C24',
+    fontSize: 14,
+    textAlign: 'right',
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContainer: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 20,
+    width: '90%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#343A40',
+    marginBottom: 20,
+    textAlign: 'right',
+  },
+  modalButtons: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  confirmButton: {
+    backgroundColor: '#FF6B35',
+  },
+  cancelButton: {
+    backgroundColor: '#E2E8F0',
+  },
+  confirmButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  cancelButtonText: {
+    color: '#718096',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

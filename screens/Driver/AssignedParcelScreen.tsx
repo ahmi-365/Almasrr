@@ -16,6 +16,7 @@ import {
     RefreshControl,
     Image,
     Dimensions,
+    Modal,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
@@ -30,12 +31,13 @@ import {
     XCircle,
     User,
     Calendar,
+    X,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
 import { useDashboard } from "../..//Context/DashboardContext";
-import CustomAlert from "../../components/CustomAlert"; // Assuming CustomAlert is in components folder
+import CustomAlert from "../../components/CustomAlert";
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const { width } = Dimensions.get("window");
@@ -93,7 +95,6 @@ interface Parcel {
     strEntityName: string;
 }
 
-// Helper function to format date and time
 const formatDateTime = (isoString: string) => {
     if (!isoString) return '';
     try {
@@ -105,98 +106,9 @@ const formatDateTime = (isoString: string) => {
         const minutes = String(date.getMinutes()).padStart(2, '0');
         return `${day}-${month}-${year} ${hours}:${minutes}`;
     } catch (e) {
-        return isoString; // Fallback to original string if format is invalid
+        return isoString;
     }
 };
-
-const ParcelCard = ({ item }: { item: Parcel }) => (
-    <View style={styles.modernTransactionItem}>
-        {/* Header */}
-        <View style={styles.transactionHeader}>
-            <View style={styles.parcelHeaderContent}>
-                <View style={styles.parcelIconBackground}>
-                    <Package color="#fff" size={20} />
-                </View>
-                <View style={styles.parcelNameContainer}>
-                    <Text style={styles.transactionDate} numberOfLines={1}>
-                        {item.ReferenceNo}
-                    </Text>
-                    <Text style={styles.runningTotalLabel}>{item.CityName}</Text>
-                </View>
-            </View>
-            <Text style={styles.parcelTotal}>
-                {item.Total.toFixed(2)} د.ل
-            </Text>
-        </View>
-
-        <View style={[styles.parcelNameContainer, { marginTop: 12 }]}>
-            {item.strEntityName && (
-                <View style={styles.parcelInfoRow}>
-                    <Text style={styles.dateFooterText}>اسم المتجر :</Text>
-                    <Text style={styles.parcelInfoText}>{item.strEntityName}</Text>
-                </View>
-            )}
-        </View>
-
-        {/* Details Section */}
-        <View style={styles.parcelDetailsRow}>
-            {/* Left Column */}
-            <View style={styles.parcelColumn}>
-                {item.RecipientName && (
-                    <View style={styles.parcelInfoRow}>
-                        <User size={14} color="#6B7280" />
-                        <Text style={styles.parcelInfoText}>{item.RecipientName}</Text>
-                    </View>
-                )}
-                <View style={styles.parcelInfoRow}>
-                    <Phone size={14} color="#6B7280" />
-                    <Text style={styles.parcelInfoText}>{item.RecipientPhone}</Text>
-                </View>
-                <View style={styles.parcelInfoRow}>
-                    <Box size={14} color="#6B7280" />
-                    <Text style={styles.parcelInfoText}>الكمية: {item.Quantity}</Text>
-                </View>
-            </View>
-
-            {/* Right Column (DATE IS REMOVED FROM HERE) */}
-            <View style={styles.parcelColumn}>
-                <View style={styles.parcelInfoRow}>
-                    <FileText size={14} color="#6B7280" />
-                    <Text style={styles.parcelInfoText} numberOfLines={2}>
-                        {item.Remarks || 'لا توجد ملاحظات'}
-                    </Text>
-                </View>
-                {item.strDriverRemarks && (
-                    <Text style={styles.transactionRemarks} numberOfLines={2}>
-                        ملاحظات المندوب: {item.strDriverRemarks}
-                    </Text>
-                )}
-            </View>
-        </View>
-
-        {/* Footer Buttons */}
-        <View style={styles.transactionFooter}>
-            <TouchableOpacity style={styles.actionButtonReturn}>
-                <XCircle color="#E74C3C" size={16} />
-                <Text style={styles.actionButtonTextReturn}>إرجاع</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButtonRemarks}>
-                <MessageSquare color="#3498DB" size={16} />
-                <Text style={styles.actionButtonTextRemarks}>ملاحظات</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButtonComplete}>
-                <CheckCircle2 color="#27AE60" size={16} />
-                <Text style={styles.actionButtonTextComplete}>اكتمل</Text>
-            </TouchableOpacity>
-        </View>
-
-        {/* Date Footer (Moved to the bottom) */}
-        <View style={styles.dateFooter}>
-            <Calendar size={12} color="#9CA3AF" />
-            <Text style={styles.dateFooterText}>{formatDateTime(item.CreatedAt)}</Text>
-        </View>
-    </View>
-);
 
 export default function AssignedParcelScreen() {
     const [isLoading, setIsLoading] = useState(true);
@@ -204,8 +116,19 @@ export default function AssignedParcelScreen() {
     const [allParcels, setAllParcels] = useState<Parcel[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const { user, setUser } = useDashboard();
+    const [statusId, setStatusId] = useState<number | null>(null);
 
-    // State for Custom Alert
+    // Modal states
+    const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
+    const [showCompleteModal, setShowCompleteModal] = useState(false);
+    const [showReturnModal, setShowReturnModal] = useState(false);
+    const [showRemarksModal, setShowRemarksModal] = useState(false);
+    const [showCustomRemarkInput, setShowCustomRemarkInput] = useState(false);
+    const [customRemark, setCustomRemark] = useState("");
+    const [selectedRemarkOption, setSelectedRemarkOption] = useState("");
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    // Alert states
     const [isAlertVisible, setAlertVisible] = useState(false);
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
@@ -237,10 +160,11 @@ export default function AssignedParcelScreen() {
             if (sortedStatusIds.length === 0) {
                 throw new Error("لم يتم العثور على معرفات حالة صالحة");
             }
-            const statusId = sortedStatusIds[0];
+            const currentStatusId = sortedStatusIds[0];
+            setStatusId(currentStatusId);
 
             const response = await axios.get(
-                `https://tanmia-group.com:84/courierApi/Driverparcels/details/${parsedUser.userId}/${statusId}`
+                `https://tanmia-group.com:84/courierApi/Driverparcels/details/${parsedUser.userId}/${currentStatusId}`
             );
 
             if (response.data && response.data.Parcels) {
@@ -250,10 +174,9 @@ export default function AssignedParcelScreen() {
             }
         } catch (error) {
             console.error("Failed to load assigned parcels:", error);
-            // Use CustomAlert instead of native Alert
             setAlertTitle("خطأ");
             setAlertMessage(error.message || "فشل في تحميل الطرود المعينة.");
-            setAlertSuccess(false); // It's an error alert
+            setAlertSuccess(false);
             setAlertVisible(true);
             setAllParcels([]);
         } finally {
@@ -272,6 +195,103 @@ export default function AssignedParcelScreen() {
         loadData();
     }, [loadData]);
 
+    // API Handlers
+    const handleCompleteParcel = async () => {
+        if (!selectedParcel || !statusId) return;
+        
+        setIsProcessing(true);
+        try {
+            await axios.post(
+                `https://tanmia-group.com:84/courierApi/Parcel/Driver/UpdateStatus/${selectedParcel.intParcelCode}/${statusId}`
+            );
+            
+            setAlertTitle("نجاح");
+            setAlertMessage("تم تحديث حالة الطرد بنجاح");
+            setAlertSuccess(true);
+            setAlertVisible(true);
+            setShowCompleteModal(false);
+            loadData();
+            console.log('Parcel status updated:', selectedParcel.intParcelCode);
+        } catch (error) {
+            setAlertTitle("خطأ");
+            setAlertMessage("فشل في تحديث حالة الطرد");
+            setAlertSuccess(false);
+            setAlertVisible(true);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleReturnParcel = async () => {
+        if (!selectedParcel) return;
+        
+        setIsProcessing(true);
+        try {
+            await axios.post(
+                `https://tanmia-group.com:84/courierApi/Parcel/Driver/ReturnOnTheWay/${selectedParcel.intParcelCode}`
+            );
+            
+            setAlertTitle("نجاح");
+            setAlertMessage("تم إرجاع الطرد بنجاح");
+            setAlertSuccess(true);
+            setAlertVisible(true);
+            setShowReturnModal(false);
+            console.log('Parcel returned:', selectedParcel.intParcelCode);
+            loadData();
+        } catch (error) {
+            setAlertTitle("خطأ");
+            setAlertMessage("فشل في إرجاع الطرد");
+            setAlertSuccess(false);
+            setAlertVisible(true);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleAddRemarks = async (remark: string) => {
+        if (!selectedParcel || !remark.trim()) return;
+        
+        setIsProcessing(true);
+        try {
+            await axios.post(
+                `https://tanmia-group.com:84/courierApi/Parcel/Driver/AddRemarks/${selectedParcel.intParcelCode}/${encodeURIComponent(remark)}`
+            );
+            
+            setAlertTitle("نجاح");
+            setAlertMessage("تم إضافة الملاحظات بنجاح");
+            setAlertSuccess(true);
+            setAlertVisible(true);
+            setShowRemarksModal(false);
+            setShowCustomRemarkInput(false);
+            setCustomRemark("");
+            setSelectedRemarkOption("");
+            loadData();
+            console.log('Remarks added:', remark);
+        } catch (error) {
+            setAlertTitle("خطأ");
+            setAlertMessage("فشل في إضافة الملاحظات");
+            setAlertSuccess(false);
+            setAlertVisible(true);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleRemarkOptionSelect = (option: string) => {
+        setSelectedRemarkOption(option);
+        if (option === "العميل لا يرد على الهاتف") {
+            handleAddRemarks(option);
+        } else if (option === "الاخرون") {
+            setShowCustomRemarkInput(true);
+        }
+    };
+
+    const handleSaveCustomRemark = () => {
+        if (customRemark.trim()) {
+            handleAddRemarks(customRemark);
+        }
+    };
+
     const filteredParcels = useMemo(() => {
         if (!searchQuery) return allParcels;
         return allParcels.filter(
@@ -281,6 +301,107 @@ export default function AssignedParcelScreen() {
                 parcel.CityName.toLowerCase().includes(searchQuery.toLowerCase())
         );
     }, [allParcels, searchQuery]);
+
+    const ParcelCard = ({ item }: { item: Parcel }) => (
+        <View style={styles.modernTransactionItem}>
+            <View style={styles.transactionHeader}>
+                <View style={styles.parcelHeaderContent}>
+                    <View style={styles.parcelIconBackground}>
+                        <Package color="#fff" size={20} />
+                    </View>
+                    <View style={styles.parcelNameContainer}>
+                        <Text style={styles.transactionDate} numberOfLines={1}>
+                            {item.ReferenceNo}
+                        </Text>
+                        <Text style={styles.runningTotalLabel}>{item.CityName}</Text>
+                    </View>
+                </View>
+                <Text style={styles.parcelTotal}>
+                    {item.Total.toFixed(2)} د.ل
+                </Text>
+            </View>
+
+            <View style={[styles.parcelNameContainer, { marginTop: 12 }]}>
+                {item.strEntityName && (
+                    <View style={styles.parcelInfoRow}>
+                        <Text style={styles.dateFooterText}>اسم المتجر :</Text>
+                        <Text style={styles.parcelInfoText}>{item.strEntityName}</Text>
+                    </View>
+                )}
+            </View>
+
+            <View style={styles.parcelDetailsRow}>
+                <View style={styles.parcelColumn}>
+                    {item.RecipientName && (
+                        <View style={styles.parcelInfoRow}>
+                            <User size={14} color="#6B7280" />
+                            <Text style={styles.parcelInfoText}>{item.RecipientName}</Text>
+                        </View>
+                    )}
+                    <View style={styles.parcelInfoRow}>
+                        <Phone size={14} color="#6B7280" />
+                        <Text style={styles.parcelInfoText}>{item.RecipientPhone}</Text>
+                    </View>
+                    <View style={styles.parcelInfoRow}>
+                        <Box size={14} color="#6B7280" />
+                        <Text style={styles.parcelInfoText}>الكمية: {item.Quantity}</Text>
+                    </View>
+                </View>
+
+                <View style={styles.parcelColumn}>
+                    <View style={styles.parcelInfoRow}>
+                        <FileText size={14} color="#6B7280" />
+                        <Text style={styles.parcelInfoText} numberOfLines={2}>
+                            {item.Remarks || 'لا توجد ملاحظات'}
+                        </Text>
+                    </View>
+                    {item.strDriverRemarks && (
+                        <Text style={styles.transactionRemarks} numberOfLines={2}>
+                            ملاحظات المندوب: {item.strDriverRemarks}
+                        </Text>
+                    )}
+                </View>
+            </View>
+
+            <View style={styles.transactionFooter}>
+                <TouchableOpacity 
+                    style={styles.actionButtonReturn}
+                    onPress={() => {
+                        setSelectedParcel(item);
+                        setShowReturnModal(true);
+                    }}
+                >
+                    <XCircle color="#E74C3C" size={16} />
+                    <Text style={styles.actionButtonTextReturn}>إرجاع</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={styles.actionButtonRemarks}
+                    onPress={() => {
+                        setSelectedParcel(item);
+                        setShowRemarksModal(true);
+                    }}
+                >
+                    <MessageSquare color="#3498DB" size={16} />
+                    <Text style={styles.actionButtonTextRemarks}>ملاحظات</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={styles.actionButtonComplete}
+                    onPress={() => {
+                        setSelectedParcel(item);
+                        setShowCompleteModal(true);
+                    }}
+                >
+                    <CheckCircle2 color="#27AE60" size={16} />
+                    <Text style={styles.actionButtonTextComplete}>اكتمل</Text>
+                </TouchableOpacity>
+            </View>
+
+            <View style={styles.dateFooter}>
+                <Calendar size={12} color="#9CA3AF" />
+                <Text style={styles.dateFooterText}>{formatDateTime(item.CreatedAt)}</Text>
+            </View>
+        </View>
+    );
 
     const renderEmptyComponent = () => (
         <View style={styles.emptyContainer}>
@@ -346,7 +467,160 @@ export default function AssignedParcelScreen() {
                 </>
             )}
 
-            {/* Custom Alert Component */}
+            {/* Complete Confirmation Modal */}
+            <Modal
+                visible={showCompleteModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowCompleteModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.confirmationModal}>
+                        <Text style={styles.confirmationTitle}>تأكيد الإكتمال</Text>
+                        <Text style={styles.confirmationMessage}>
+                            متأكد/ة إنك بدك تأكد الطرد؟
+                        </Text>
+                        <View style={styles.confirmationButtons}>
+                            <TouchableOpacity
+                                style={[styles.confirmButton, styles.confirmButtonYes]}
+                                onPress={handleCompleteParcel}
+                                disabled={isProcessing}
+                            >
+                                {isProcessing ? (
+                                    <ActivityIndicator color="#fff" />
+                                ) : (
+                                    <Text style={styles.confirmButtonText}>نعم</Text>
+                                )}
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.confirmButton, styles.confirmButtonNo]}
+                                onPress={() => setShowCompleteModal(false)}
+                                disabled={isProcessing}
+                            >
+                                <Text style={styles.confirmButtonTextNo}>لا</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Return Confirmation Modal */}
+            <Modal
+                visible={showReturnModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowReturnModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.confirmationModal}>
+                        <Text style={styles.confirmationTitle}>تأكيد الحذف</Text>
+                        <Text style={styles.confirmationMessage}>
+                            متأكد/ة إنك بدك ترجع الطرد؟
+                        </Text>
+                        <View style={styles.confirmationButtons}>
+                            <TouchableOpacity
+                                style={[styles.confirmButton, styles.confirmButtonYes]}
+                                onPress={handleReturnParcel}
+                                disabled={isProcessing}
+                            >
+                                {isProcessing ? (
+                                    <ActivityIndicator color="#fff" />
+                                ) : (
+                                    <Text style={styles.confirmButtonText}>نعم</Text>
+                                )}
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.confirmButton, styles.confirmButtonNo]}
+                                onPress={() => setShowReturnModal(false)}
+                                disabled={isProcessing}
+                            >
+                                <Text style={styles.confirmButtonTextNo}>لا</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Remarks Modal */}
+            <Modal
+                visible={showRemarksModal}
+                transparent
+                animationType="slide"
+                onRequestClose={() => {
+                    setShowRemarksModal(false);
+                    setShowCustomRemarkInput(false);
+                    setCustomRemark("");
+                    setSelectedRemarkOption("");
+                }}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.remarksModal}>
+                        <TouchableOpacity
+                            style={styles.closeButton}
+                            onPress={() => {
+                                setShowRemarksModal(false);
+                                setShowCustomRemarkInput(false);
+                                setCustomRemark("");
+                                setSelectedRemarkOption("");
+                            }}
+                        >
+                            <X color="#fff" size={24} />
+                        </TouchableOpacity>
+                        
+                        <Text style={styles.remarksTitle}>اضف ملاحظات المندوب</Text>
+                        
+                        {!showCustomRemarkInput ? (
+                            <>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.remarkOption,
+                                        selectedRemarkOption === "العميل لا يرد على الهاتف" && styles.remarkOptionSelected
+                                    ]}
+                                    onPress={() => handleRemarkOptionSelect("العميل لا يرد على الهاتف")}
+                                    disabled={isProcessing}
+                                >
+                                    <Text style={styles.remarkOptionText}>العميل لا يرد على الهاتف</Text>
+                                </TouchableOpacity>
+                                
+                                <TouchableOpacity
+                                    style={[
+                                        styles.remarkOption,
+                                        selectedRemarkOption === "الاخرون" && styles.remarkOptionSelected
+                                    ]}
+                                    onPress={() => handleRemarkOptionSelect("الاخرون")}
+                                    disabled={isProcessing}
+                                >
+                                    <Text style={styles.remarkOptionText}>الاخرون</Text>
+                                </TouchableOpacity>
+                            </>
+                        ) : (
+                            <>
+                                <TextInput
+                                    style={styles.customRemarkInput}
+                                    placeholder="ملاحظات المندوب"
+                                    placeholderTextColor="#9CA3AF"
+                                    value={customRemark}
+                                    onChangeText={setCustomRemark}
+                                    multiline
+                                    textAlign="right"
+                                />
+                                <TouchableOpacity
+                                    style={styles.saveRemarkButton}
+                                    onPress={handleSaveCustomRemark}
+                                    disabled={isProcessing || !customRemark.trim()}
+                                >
+                                    {isProcessing ? (
+                                        <ActivityIndicator color="#fff" />
+                                    ) : (
+                                        <Text style={styles.saveRemarkButtonText}>احفظ</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </>
+                        )}
+                    </View>
+                </View>
+            </Modal>
+
             <CustomAlert
                 isVisible={isAlertVisible}
                 title={alertTitle}
@@ -562,50 +836,158 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: "600",
     },
-    emptyContainer: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 8,
-        paddingVertical: 40,
-        paddingHorizontal: 20,
+    dateFooter: {
+        flexDirection: "row-reverse",
         alignItems: "center",
-        marginTop: 20,
+        gap: 6,
+        marginTop: 8,
+    },
+    dateFooterText: {
+        color: "#9CA3AF",
+        fontSize: 12,
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        paddingVertical: 60,
     },
     emptyImage: {
-        width: 200,
-        height: 120,
-        marginBottom: 16,
-        opacity: 0.7
+        width: width * 0.6,
+        height: width * 0.6,
+        marginBottom: 20,
+        resizeMode: "contain",
     },
     emptyText: {
-        color: "#374151",
-        fontSize: 18,
-        fontWeight: "600",
-        marginBottom: 4,
+        fontSize: 16,
+        color: "#6B7280",
         textAlign: "center",
     },
     searchSkeleton: {
-        height: 180,
+        height: 50,
         borderRadius: 8,
-        width: "100%",
-        marginBottom: 12,
+        marginBottom: 16,
     },
     cardSkeleton: {
-        height: 220,
-        width: "100%",
+        height: 200,
         borderRadius: 8,
         marginBottom: 12,
     },
-
-    dateFooter: {
-        flexDirection: 'row-reverse',
-        alignItems: 'center',
-        justifyContent: 'flex-start', // Aligns to the right
-        marginTop: 12,
-        gap: 6,
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        justifyContent: "center",
+        alignItems: "center",
+        paddingHorizontal: 20,
     },
-    dateFooterText: {
-        fontSize: 12,
-        color: '#9CA3AF', // Lighter color for metadata
+    confirmationModal: {
+        backgroundColor: "#FFFFFF",
+        borderRadius: 12,
+        padding: 24,
+        width: "100%",
+        maxWidth: 400,
     },
-
+    confirmationTitle: {
+        fontSize: 20,
+        fontWeight: "bold",
+        color: "#1F2937",
+        textAlign: "center",
+        marginBottom: 12,
+    },
+    confirmationMessage: {
+        fontSize: 16,
+        color: "#6B7280",
+        textAlign: "center",
+        marginBottom: 24,
+    },
+    confirmationButtons: {
+        flexDirection: "row-reverse",
+        gap: 12,
+    },
+    confirmButton: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 8,
+        alignItems: "center",
+    },
+    confirmButtonYes: {
+        backgroundColor: "#27AE60",
+    },
+    confirmButtonNo: {
+        backgroundColor: "#F3F4F6",
+    },
+    confirmButtonText: {
+        color: "#FFFFFF",
+        fontSize: 16,
+        fontWeight: "600",
+    },
+    confirmButtonTextNo: {
+        color: "#1F2937",
+        fontSize: 16,
+        fontWeight: "600",
+    },
+    remarksModal: {
+        backgroundColor: "#FFFFFF",
+        borderRadius: 12,
+        padding: 24,
+        width: "100%",
+        maxWidth: 400,
+        position: "relative",
+    },
+    closeButton: {
+        position: "absolute",
+        top: 12,
+        left: 12,
+        backgroundColor: "#FF6B35",
+        borderRadius: 20,
+        padding: 6,
+        zIndex: 1,
+    },
+    remarksTitle: {
+        fontSize: 20,
+        fontWeight: "bold",
+        color: "#1F2937",
+        textAlign: "center",
+        marginBottom: 24,
+    },
+    remarkOption: {
+        backgroundColor: "#F9FAFB",
+        borderRadius: 8,
+        padding: 16,
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+    },
+    remarkOptionSelected: {
+        backgroundColor: hexToRgba("#FF6B35", 0.1),
+        borderColor: "#FF6B35",
+    },
+    remarkOptionText: {
+        fontSize: 16,
+        color: "#1F2937",
+        textAlign: "center",
+    },
+    customRemarkInput: {
+        backgroundColor: "#F9FAFB",
+        borderRadius: 8,
+        padding: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+        fontSize: 16,
+        color: "#1F2937",
+        minHeight: 100,
+        textAlignVertical: "top",
+    },
+    saveRemarkButton: {
+        backgroundColor: "#FF6B35",
+        borderRadius: 8,
+        paddingVertical: 14,
+        alignItems: "center",
+    },
+    saveRemarkButtonText: {
+        color: "#FFFFFF",
+        fontSize: 16,
+        fontWeight: "600",
+    },
 });

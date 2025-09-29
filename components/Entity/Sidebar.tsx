@@ -23,7 +23,7 @@ const { width: screenWidth } = Dimensions.get('window');
 
 const images = {
   dashboard: require('../../assets/icons/dashboard-icon.png'),
-  cityRates: require('../../assets/icons/rates-icon.png'),
+  cityRates: require('../../assets/icons/rates-icon-new.png'),
   balance: require('../../assets/icons/balance-icon.png'),
   pending: require('../../assets/icons/pending-icon.png'),
   assigned: require('../../assets/pending.png'),

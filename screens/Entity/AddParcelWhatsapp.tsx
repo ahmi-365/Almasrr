@@ -36,7 +36,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 
 // --- Shimmer Placeholder Imports ---
 import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
-import LinearGradient from 'react-native-linear-gradient';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const ShimmerPlaceholder = createShimmerPlaceholder(LinearGradient);
 const shimmerColors = ["#FDF1EC", "#FEF8F5", "#FDF1EC"];

@@ -40,7 +40,7 @@ import CustomAlert from '../../components/CustomAlert';
 
 // --- Shimmer Placeholder Imports ---
 import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
-import LinearGradient from 'react-native-linear-gradient';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const ShimmerPlaceholder = createShimmerPlaceholder(LinearGradient);
 

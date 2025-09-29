@@ -19,7 +19,7 @@ import AssignedParcelScreen from '../screens/Driver/AssignedParcelScreen';
 export type TabParamList = {
   EntityDashboard: undefined;
   DriverDashboard: undefined;
-  ReportsTab: undefined;
+  ReportsTab: { entityCode?: number }; 
   StoresTab: undefined;
   AccountTab: undefined;
   AddTab: undefined;

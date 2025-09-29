@@ -14,10 +14,13 @@ import {
   FlatList,
   RefreshControl,
   Image,
+  Share as RNShare,
 } from "react-native";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useRoute } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import RNFS from 'react-native-fs';
+import Share from 'react-native-share';
 import {
   ChevronDown,
   Check,
@@ -26,21 +29,21 @@ import {
   TrendingUp,
   TrendingDown,
   DollarSign,
-  Store as StoreIcon, // Use StoreIcon
+  Store as StoreIcon,
+  Wallet,
+  WalletMinimal,
+  Download,
 } from "lucide-react-native";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-// --- IMPORT FOR SHIMMER EFFECT ---
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomAlert from "../../components/CustomAlert";
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 
-// --- Material 3 Style Top Bar ---
 const MaterialTopBar = ({ title }) => {
   const insets = useSafeAreaInsets();
   return (
@@ -50,7 +53,6 @@ const MaterialTopBar = ({ title }) => {
   );
 };
 
-// Helper function
 const hexToRgba = (hex: string, opacity: number) => {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -58,7 +60,6 @@ const hexToRgba = (hex: string, opacity: number) => {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
-// --- SHIMMER SKELETON COMPONENT ---
 const ReportsSkeleton = () => {
   const shimmerColors = ["#FDF1EC", "#FEF8F5", "#FDF1EC"];
   return (
@@ -112,6 +113,7 @@ const StatsCard = ({ icon: Icon, title, value, color }) => (
     </Text>
   </View>
 );
+
 const FilterSection = ({
   user,
   selectedEntity,
@@ -194,6 +196,7 @@ const FilterSection = ({
     </TouchableOpacity>
   </View>
 );
+
 const ModernTransactionItem = ({ item }) => (
   <View style={styles.modernTransactionItem}>
     <View style={styles.transactionHeader}>
@@ -257,7 +260,12 @@ interface Transaction {
 
 const formatDate = (date: Date): string => date.toISOString().split("T")[0];
 
+type ReportsDashboardRouteParams = {
+  entityCode?: number;
+};
+
 export default function ReportsDashboard() {
+  const route = useRoute() as { params?: ReportsDashboardRouteParams };
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -276,6 +284,8 @@ export default function ReportsDashboard() {
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const [alertConfirmColor, setAlertConfirmColor] = useState('#E74C3C');
+  const [isDownloading, setIsDownloading] = useState(false);
+
   useFocusEffect(
     useCallback(() => {
       const loadInitialData = async () => {
@@ -288,7 +298,24 @@ export default function ReportsDashboard() {
             if (storedEntities) {
               const parsedEntities: Entity[] = JSON.parse(storedEntities);
               setEntities(parsedEntities);
-              if (parsedEntities.length > 0 && !selectedEntity) {
+              
+              // Check if entityCode was passed via route params
+              const entityCode = route.params?.entityCode;
+              
+              if (entityCode) {
+                // Find and set the entity from navigation params
+                const matchedEntity = parsedEntities.find(e => e.intEntityCode === entityCode);
+                if (matchedEntity) {
+                  setSelectedEntity(matchedEntity);
+                  // Set a flag to trigger search after component mounts
+                  setTimeout(() => {
+                    // Make sure user is set before searching
+                    if (parsedUser) {
+                      handleSearchWithEntity(matchedEntity, parsedUser);
+                    }
+                  }, 300);
+                }
+              } else if (parsedEntities.length > 0 && !selectedEntity) {
                 setSelectedEntity(parsedEntities[0]);
               }
             }
@@ -297,7 +324,7 @@ export default function ReportsDashboard() {
         setInitialLoad(false);
       };
       loadInitialData();
-    }, [selectedEntity])
+    }, [route.params?.entityCode])
   );
 
   const handleSearch = useCallback(async () => {
@@ -305,7 +332,8 @@ export default function ReportsDashboard() {
       setAlertTitle('خطأ');
       setAlertMessage('يرجى اختيار متجر أولاً.');
       setAlertConfirmColor('#E74C3C');
-      setAlertVisible(true); return;
+      setAlertVisible(true);
+      return;
     }
     if (!user) return;
     setLoading(true);
@@ -316,8 +344,7 @@ export default function ReportsDashboard() {
       const formattedToDate = formatDate(toDate);
       let url = "";
       if (user.roleName === "Entity") {
-        url = `https://tanmia-group.com:84/courierApi/Entity/GetTransaction/${selectedEntity!.intEntityCode
-          }/${formattedFromDate}/${formattedToDate}`;
+        url = `https://tanmia-group.com:84/courierApi/Entity/GetTransaction/${selectedEntity!.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
       } else {
         url = `https://tanmia-group.com:84/courierApi/Driver/GetTransaction/${user.userId}/${formattedFromDate}/${formattedToDate}`;
       }
@@ -334,6 +361,29 @@ export default function ReportsDashboard() {
       setRefreshing(false);
     }
   }, [selectedEntity, fromDate, toDate, user]);
+
+  // Helper function to search with a specific entity
+  const handleSearchWithEntity = useCallback(async (entity: Entity, currentUser: User) => {
+    if (!currentUser) return;
+    setLoading(true);
+    setTransactions([]);
+    try {
+      await new Promise((res) => setTimeout(res, 1500));
+      const formattedFromDate = formatDate(fromDate);
+      const formattedToDate = formatDate(toDate);
+      const url = `https://tanmia-group.com:84/courierApi/Entity/GetTransaction/${entity.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
+      const response = await axios.get(url);
+      setTransactions(response.data || []);
+    } catch (error) {
+      console.error("Failed to fetch transactions:", error);
+      setAlertTitle('خطأ');
+      setAlertMessage('فشل في جلب بيانات المعاملات.');
+      setAlertConfirmColor('#E74C3C');
+      setAlertVisible(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [fromDate, toDate]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -388,8 +438,6 @@ export default function ReportsDashboard() {
     <View style={styles.container}>
       <MaterialTopBar title="تقرير المعاملات" />
 
-      {/* --- CORRECTED RENDER LOGIC --- */}
-      {/* The FlatList is now the primary view, and we show the skeleton inside its empty component */}
       <FlatList
         data={transactions}
         keyExtractor={(item, index) => `${item.TransactionID}-${index}`}
@@ -417,7 +465,23 @@ export default function ReportsDashboard() {
             />
             {transactions.length > 0 && !loading && (
               <View style={styles.summarySection}>
-                <Text style={styles.sectionTitle}>ملخص المعاملات</Text>
+                <View style={styles.summaryHeader}>
+                  <Text style={styles.sectionTitle}>ملخص المعاملات</Text>
+                  <TouchableOpacity
+                    style={styles.downloadButton}
+                    disabled={isDownloading}
+                    activeOpacity={0.7}
+                  >
+                    {isDownloading ? (
+                      <ActivityIndicator color="#FFF" size="small" />
+                    ) : (
+                      <>
+                        <Download size={18} color="#FFF" />
+                        <Text style={styles.downloadButtonText}>تنزيل PDF</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
                 <View style={styles.summaryCards}>
                   <StatsCard
                     icon={TrendingUp}
@@ -432,7 +496,7 @@ export default function ReportsDashboard() {
                     color="#E74C3C"
                   />
                   <StatsCard
-                    icon={DollarSign}
+                    icon={WalletMinimal}
                     title="الرصيد النهائي"
                     value={totals.finalBalance.toLocaleString()}
                     color="#FF6B35"
@@ -441,7 +505,7 @@ export default function ReportsDashboard() {
               </View>
             )}
             {transactions.length > 0 && !loading && (
-              <Text style={styles.sectionTitle}>
+              <Text style={styles.transactionsListTitle}>
                 المعاملات ({transactions.length})
               </Text>
             )}
@@ -449,10 +513,8 @@ export default function ReportsDashboard() {
         }
         ListEmptyComponent={
           loading ? (
-            // --- SHOW SKELETON WHEN LOADING ---
             <ReportsSkeleton />
           ) : (
-            // --- SHOW EMPTY STATE WHEN NOT LOADING AND NO DATA ---
             <View style={styles.emptyContainer}>
               <Image
                 source={require("../../assets/images/empty-reports.png")}
@@ -545,7 +607,6 @@ export default function ReportsDashboard() {
           </TouchableWithoutFeedback>
         </Modal>
       )}
-      {/* Custom Alert */}
       <CustomAlert
         isVisible={isAlertVisible}
         title={alertTitle}
@@ -667,7 +728,37 @@ const styles = StyleSheet.create({
   },
   modernSearchButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
   summarySection: { marginBottom: 20 },
+  summaryHeader: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  downloadButton: {
+    backgroundColor: "#27AE60",
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    gap: 6,
+    shadowColor: "#27AE60",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  downloadButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
   sectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1F2937",
+  },
+  transactionsListTitle: {
     fontSize: 18,
     fontWeight: "bold",
     color: "#1F2937",
@@ -744,7 +835,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   runningTotalLabel: { color: "#6B7280", fontSize: 12 },
-  runningTotal: { color: "#FF6B35", fontSize: 16, fontWeight: "bold" },
+  runningTotal: { color: "#FF6B35" },
   transactionRemarks: {
     color: "#9CA3AF",
     fontSize: 12,
@@ -831,7 +922,6 @@ const styles = StyleSheet.create({
   },
   modalItemCode: { color: "#6B7280", fontSize: 12, textAlign: "right" },
   modalItemSelected: { color: "#FF6B35", fontWeight: "bold" },
-  // --- SKELETON STYLES (SYNCHRONIZED) ---
   sectionTitleSkeleton: {
     width: 150,
     height: 20,
