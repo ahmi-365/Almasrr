@@ -121,16 +121,16 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
     setTimeout(() => {
       if (!user || !item.route || item.route === currentRoute) return;
       const activeTabs = user.roleName === 'Driver' ? DRIVER_TAB_SCREENS : TAB_SCREENS;
-      // if (activeTabs.includes(item.route as any)) {
-      //   navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: item.route as any }] } }] });
-      // } else {
-      //   navigation.reset({ index: 1, routes: [{ name: 'MainTabs' }, { name: item.route }] });
-      // }
       if (activeTabs.includes(item.route as any)) {
-        navigation.navigate('MainTabs', { screen: item.route as any });
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: item.route as any }] } }] });
       } else {
-        navigation.navigate(item.route as any);
+        navigation.reset({ index: 1, routes: [{ name: 'MainTabs' }, { name: item.route }] });
       }
+      // if (activeTabs.includes(item.route as any)) {
+      //   navigation.navigate('MainTabs', { screen: item.route as any });
+      // } else {
+      //   navigation.navigate(item.route as any);
+      // }
 
     }, 250);
   }, [navigation, user, onClose, currentRoute]);
