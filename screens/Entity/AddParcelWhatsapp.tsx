@@ -176,9 +176,15 @@ export default function AddParcelWhatsappScreen() {
 
     // --- UPDATED: Handler now only sends to API ---
     const handleSendRequest = async () => {
-        if (!selectedStore) return showAlert({ title: 'حقل مطلوب', message: 'يرجى اختيار المتجر أولاً.' });
-        if (!quantity.trim() || !(parseInt(quantity, 10) > 0)) return showAlert({ title: 'قيمة غير صالحة', message: 'يرجى إدخال كمية صحيحة أكبر من صفر.' });
-        if (!productPrice.trim() || !(parseFloat(productPrice) > 0)) return showAlert({ title: 'قيمة غير صالحة', message: 'يرجى إدخال سعر منتج صحيح أكبر من صفر.' });
+        if (!selectedStore) {
+            return showAlert({ title: 'حقل مطلوب', message: 'يرجى اختيار المتجر أولاً.' });
+        }
+        if (!quantity.trim() || !(parseInt(quantity, 10) > 0)) {
+            return showAlert({ title: 'قيمة غير صالحة', message: 'يرجى إدخال كمية صحيحة أكبر من صفر.' });
+        }
+        if (!productPrice.trim() || !(parseFloat(productPrice) > 0)) {
+            return showAlert({ title: 'قيمة غير صالحة', message: 'يرجى إدخال سعر منتج صحيح أكبر من صفر.' });
+        }
 
         setIsSending(true);
 
@@ -192,16 +198,29 @@ export default function AddParcelWhatsappScreen() {
 
             const userDataString = await AsyncStorage.getItem('user');
             if (!userDataString) throw new Error("User not found");
+
             const parsedUser = JSON.parse(userDataString);
             const userId = parsedUser?.userId;
             const entitycode = userId;
-            // const entitycode = selectedStore.intEntityCode;
             const qty = quantity;
             const amount = productPrice;
 
             const apiUrl = `https://tanmia-group.com:84/courierApi/parcels/RequestParcelWhatsapp/${entitycode}/${apiDateTime}/${qty}/${amount}`;
 
-            const response = await axios.get(apiUrl);
+            // 🟠 Logging everything you're sending
+            console.log('🟠 Sending Request with the following data:');
+            console.log('User ID / Entity Code:', entitycode);
+            console.log('Order Date (formatted):', apiDateTime);
+            console.log('Quantity:', qty);
+            console.log('Product Price:', amount);
+            console.log('Constructed API URL:', apiUrl);
+
+            // ✅ Send POST request with empty body
+            const response = await axios.post(apiUrl, {});
+
+            // ✅ Log response
+            console.log('✅ API Response Status:', response.status);
+            console.log('✅ API Response Data:', response.data);
 
             if (response.status === 200) {
                 showAlert({
@@ -212,16 +231,22 @@ export default function AddParcelWhatsappScreen() {
                     success: true
                 });
             } else {
-                throw new Error("API responded with an error");
+                throw new Error("API responded with an error status");
             }
 
         } catch (error) {
-            console.error("Failed to send request:", error);
+            if (axios.isAxiosError(error)) {
+                console.error('❌ Axios Error:', error.response?.status, error.response?.data);
+            } else {
+                console.error('❌ Unexpected Error:', error);
+            }
+
             showAlert({ title: 'خطأ', message: 'فشل تسجيل الطلب. يرجى المحاولة مرة أخرى.' });
         } finally {
             setIsSending(false);
         }
     };
+
 
     return (
         <View style={styles.container}>

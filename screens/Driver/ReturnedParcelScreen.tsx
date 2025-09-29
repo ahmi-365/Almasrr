@@ -72,6 +72,7 @@ interface Parcel {
     Remarks: string;
     Total: number;
     strDriverRemarks: string;
+    strEntityName: string;
 }
 
 // Helper function to format date and time
@@ -110,6 +111,15 @@ const ParcelCard = ({ item }: { item: Parcel }) => (
             <Text style={styles.parcelTotal}>
                 {item.Total.toFixed(2)} د.ل
             </Text>
+        </View>
+
+        <View style={[styles.parcelNameContainer, { marginTop: 12 }]}>
+            {item.strEntityName && (
+                <View style={styles.parcelInfoRow}>
+                    <Text style={styles.dateFooterText}>اسم المتجر :</Text>
+                    <Text style={styles.parcelInfoText}>{item.strEntityName}</Text>
+                </View>
+            )}
         </View>
 
         {/* Details Section */}

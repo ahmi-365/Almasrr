@@ -26,6 +26,7 @@ import {
     Box,
     Calendar,
     User,
+    SendHorizonal,
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
@@ -72,6 +73,8 @@ interface Parcel {
     Remarks: string;
     Total: number;
     strDriverRemarks: string;
+    strEntityName: string;
+
 }
 
 // Helper function to format date and time
@@ -110,6 +113,16 @@ const ParcelCard = ({ item }: { item: Parcel }) => (
                 {item.Total.toFixed(2)} د.ل
             </Text>
         </View>
+
+        <View style={[styles.parcelNameContainer, { marginTop: 12 }]}>
+            {item.strEntityName && (
+                <View style={styles.parcelInfoRow}>
+                    <Text style={styles.dateFooterText}>اسم المتجر :</Text>
+                    <Text style={styles.parcelInfoText}>{item.strEntityName}</Text>
+                </View>
+            )}
+        </View>
+
 
         {/* Details Section */}
         <View style={styles.parcelDetailsRow}>
@@ -448,6 +461,7 @@ const styles = StyleSheet.create({
         color: "#4B5563",
         fontSize: 14,
         flex: 1,
+        fontWeight: "500",
         textAlign: "right",
     },
     transactionRemarks: {
