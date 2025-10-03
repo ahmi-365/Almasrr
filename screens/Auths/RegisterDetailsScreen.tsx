@@ -199,13 +199,13 @@ const RegisterDetailsScreen: React.FC = () => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
   // Custom Alert states
   const [isAlertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange);
-  
+
   // Animation references
   const headerAnim = useRef(new Animated.Value(0)).current;
   const formOpacityAnim = useRef(new Animated.Value(0)).current;
@@ -269,25 +269,25 @@ const RegisterDetailsScreen: React.FC = () => {
 
   const validateInputs = (): boolean => {
     const newErrors: Record<string, string> = {};
-    
+
     if (!entityName.trim()) newErrors.entityName = 'اسم المؤسسة مطلوب';
     if (!ownerName.trim()) newErrors.ownerName = 'اسم المالك مطلوب';
     if (!address.trim()) newErrors.address = 'العنوان مطلوب';
     if (!entityDescription.trim()) newErrors.entityDescription = 'وصف المؤسسة مطلوب';
-    
+
     if (!password) {
       newErrors.password = 'كلمة المرور مطلوبة';
     } else if (password.length < 3) {
       newErrors.password = 'كلمة المرور يجب أن تكون 3 أحرف على الأقل';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleFinalRegister = async (): Promise<void> => {
     if (!validateInputs()) return;
-    
+
     setIsLoading(true);
     Keyboard.dismiss();
 
@@ -311,14 +311,14 @@ const RegisterDetailsScreen: React.FC = () => {
       OwnerName: ownerName.trim(),
       Address: address.trim(),
       strPassword: password,
-      MobileNumber: `92${mobileNumber}`,
+      MobileNumber: `218${mobileNumber}`,
       EntityDescription: entityDescription.trim(),
     }).toString();
 
     try {
       const response = await fetch('https://tanmia-group.com:84/courierApi/register', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           'Accept': 'application/json',
         },
@@ -430,7 +430,7 @@ const RegisterDetailsScreen: React.FC = () => {
           {/* Verified Phone Number Display */}
           <View style={styles.verifiedPhoneContainer}>
             <Icon name="check-circle" size={20} color={Colors.successGreen} />
-            <Text style={styles.verifiedNumberText}>+92{mobileNumber} (تم التحقق)</Text>
+            <Text style={styles.verifiedNumberText}>+218{mobileNumber} (تم التحقق)</Text>
           </View>
 
           <CustomInput

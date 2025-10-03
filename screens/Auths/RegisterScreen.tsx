@@ -40,7 +40,7 @@ const Colors = {
   borderGrey: '#E0E0E0',
   errorRed: '#EF5350',
   softOrange: '#FFD7C5',
-  successGreen: '#4CAF50', 
+  successGreen: '#4CAF50',
 
 };
 
@@ -53,12 +53,12 @@ const RegisterScreen = () => {
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [errors, setErrors] = useState<any>({});
-  
-// Custom Alert states
-const [isAlertVisible, setAlertVisible] = useState(false);
-const [alertTitle, setAlertTitle] = useState('');
-const [alertMessage, setAlertMessage] = useState('');
-const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange);
+
+  // Custom Alert states
+  const [isAlertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange);
   // Animation references
   const headerAnim = useRef(new Animated.Value(0)).current;
   const formOpacityAnim = useRef(new Animated.Value(0)).current;
@@ -177,7 +177,7 @@ const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange)
     ]).start();
 
     try {
-      const fullMobileNumber = `92${phoneNumber}`;
+      const fullMobileNumber = `218${phoneNumber}`;
       const formBody = new URLSearchParams({ MobileNumber: fullMobileNumber }).toString();
       const response = await fetch('https://tanmia-group.com:84/courierApi/register/sendotp', {
         method: 'POST',
@@ -185,26 +185,26 @@ const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange)
         body: formBody,
       });
       const responseData = await response.json();
-     if (responseData.Success) {
-  setIsCodeSent(true);
-  startCountdown();
-  setAlertTitle('تم الإرسال');
-  setAlertMessage(responseData.Message);
-  setAlertConfirmColor(Colors.successGreen);
-  setAlertVisible(true);
-} else {
-  setAlertTitle('خطأ');
-  setAlertMessage(responseData.Message || 'فشل إرسال الرمز.');
-  setAlertConfirmColor(Colors.errorRed);
-  setAlertVisible(true);
-}
+      if (responseData.Success) {
+        setIsCodeSent(true);
+        startCountdown();
+        setAlertTitle('تم الإرسال');
+        setAlertMessage(responseData.Message);
+        setAlertConfirmColor(Colors.successGreen);
+        setAlertVisible(true);
+      } else {
+        setAlertTitle('خطأ');
+        setAlertMessage(responseData.Message || 'فشل إرسال الرمز.');
+        setAlertConfirmColor(Colors.errorRed);
+        setAlertVisible(true);
+      }
     } catch (error) {
-  console.error('Send OTP error:', error);
-  setAlertTitle('خطأ في الاتصال');
-  setAlertMessage('يرجى التحقق من اتصالك بالإنترنت.');
-  setAlertConfirmColor(Colors.errorRed);
-  setAlertVisible(true);
-} finally {
+      console.error('Send OTP error:', error);
+      setAlertTitle('خطأ في الاتصال');
+      setAlertMessage('يرجى التحقق من اتصالك بالإنترنت.');
+      setAlertConfirmColor(Colors.errorRed);
+      setAlertVisible(true);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -234,7 +234,7 @@ const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange)
     ]).start();
 
     try {
-      const fullMobileNumber = `92${phoneNumber}`;
+      const fullMobileNumber = `218${phoneNumber}`;
       const formBody = new URLSearchParams({ MobileNumber: fullMobileNumber, OTP: verificationCode }).toString();
       const response = await fetch('https://tanmia-group.com:84/courierApi/register/verifyotp', {
         method: 'POST',
@@ -242,21 +242,21 @@ const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange)
         body: formBody,
       });
       const responseData = await response.json();
-    if (responseData.Success) {
-  navigation.navigate('RegisterDetails', { mobileNumber: phoneNumber });
-} else {
-  setAlertTitle('خطأ في التحقق');
-  setAlertMessage(responseData.Message || 'الرمز الذي أدخلته غير صحيح أو انتهت صلاحيته.');
-  setAlertConfirmColor(Colors.errorRed);
-  setAlertVisible(true);
-}
-    }catch (error) {
-  console.error('Verify OTP error:', error);
-  setAlertTitle('خطأ في الاتصال');
-  setAlertMessage('يرجى التحقق من اتصالك بالإنترنت.');
-  setAlertConfirmColor(Colors.errorRed);
-  setAlertVisible(true);
-} finally {
+      if (responseData.Success) {
+        navigation.navigate('RegisterDetails', { mobileNumber: phoneNumber });
+      } else {
+        setAlertTitle('خطأ في التحقق');
+        setAlertMessage(responseData.Message || 'الرمز الذي أدخلته غير صحيح أو انتهت صلاحيته.');
+        setAlertConfirmColor(Colors.errorRed);
+        setAlertVisible(true);
+      }
+    } catch (error) {
+      console.error('Verify OTP error:', error);
+      setAlertTitle('خطأ في الاتصال');
+      setAlertMessage('يرجى التحقق من اتصالك بالإنترنت.');
+      setAlertConfirmColor(Colors.errorRed);
+      setAlertVisible(true);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -292,15 +292,15 @@ const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange)
         showsVerticalScrollIndicator={false}
       >
         {/* Custom Alert */}
-<CustomAlert
-  isVisible={isAlertVisible}
-  title={alertTitle}
-  message={alertMessage}
-  confirmText="حسنًا"
-  cancelText=""
-  onConfirm={() => setAlertVisible(false)}
-  onCancel={() => setAlertVisible(false)}
-/>
+        <CustomAlert
+          isVisible={isAlertVisible}
+          title={alertTitle}
+          message={alertMessage}
+          confirmText="حسنًا"
+          cancelText=""
+          onConfirm={() => setAlertVisible(false)}
+          onCancel={() => setAlertVisible(false)}
+        />
         {/* Top SVG Waves */}
         <View style={styles.topSvgContainer}>
           <Svg height={screenHeight * 0.3} width={screenWidth}>
@@ -347,7 +347,7 @@ const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange)
               <Text style={styles.label}>*رقم الجوال</Text>
               <View style={[styles.phoneInputWrapper, errors.phoneNumber && styles.inputError]}>
                 <Icon name="phone" size={20} color={Colors.greyText} style={styles.inputIcon} />
-                <Text style={styles.countryCode}>+92</Text>
+                <Text style={styles.countryCode}>+218</Text>
                 <TextInput
                   style={styles.textInput}
                   placeholder="XXXXXXXX"
@@ -359,9 +359,9 @@ const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange)
                   editable={!isLoading}
                   textAlign="right"
                 />
-                <TouchableOpacity 
-                  style={styles.sendCodeButton} 
-                  onPress={handleSendVerificationCode} 
+                <TouchableOpacity
+                  style={styles.sendCodeButton}
+                  onPress={handleSendVerificationCode}
                   disabled={isLoading}
                 >
                   {isLoading ? (
@@ -377,7 +377,7 @@ const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange)
             <>
               <View style={styles.successMessage}>
                 <Icon name="check-circle" size={20} color="#4CAF50" />
-                <Text style={styles.successText}>تم إرسال الرمز إلى +92{phoneNumber}</Text>
+                <Text style={styles.successText}>تم إرسال الرمز إلى +218{phoneNumber}</Text>
               </View>
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>*رمز التحقق</Text>

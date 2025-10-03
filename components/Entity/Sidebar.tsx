@@ -252,8 +252,8 @@ const styles = StyleSheet.create({
     tintColor: '#FFFFFF',
   },
   menuItemImage: {
-    width: 65,
-    height: 65,
+    width: 60,
+    height: 60,
     resizeMode: 'contain',
   },
   menuItemImageActive: {

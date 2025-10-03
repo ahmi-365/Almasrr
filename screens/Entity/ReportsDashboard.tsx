@@ -33,6 +33,7 @@ import {
   Wallet,
   WalletMinimal,
   Download,
+  FileDown,
 } from "lucide-react-native";
 import DateTimePicker, {
   DateTimePickerEvent,
@@ -285,6 +286,7 @@ export default function ReportsDashboard() {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertConfirmColor, setAlertConfirmColor] = useState('#E74C3C');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [alertSuccess, setAlertSuccess] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -298,10 +300,10 @@ export default function ReportsDashboard() {
             if (storedEntities) {
               const parsedEntities: Entity[] = JSON.parse(storedEntities);
               setEntities(parsedEntities);
-              
+
               // Check if entityCode was passed via route params
               const entityCode = route.params?.entityCode;
-              
+
               if (entityCode) {
                 // Find and set the entity from navigation params
                 const matchedEntity = parsedEntities.find(e => e.intEntityCode === entityCode);
@@ -326,6 +328,71 @@ export default function ReportsDashboard() {
       loadInitialData();
     }, [route.params?.entityCode])
   );
+
+  const handleDownloadPdf = useCallback(async () => {
+    if ((user?.roleName === 'Entity' && !selectedEntity) || transactions.length === 0) {
+      Alert.alert('خطأ', 'لا توجد بيانات لتصديرها.');
+      return;
+    }
+    setIsDownloading(true);
+
+    try {
+      const formattedFromDate = formatDate(fromDate);
+      const formattedToDate = formatDate(toDate);
+
+      let url = '';
+      let fileName = '';
+
+      if (user?.roleName === 'Entity') {
+        url = `https://tanmia-group.com:84/courierApi/Entity/GenerateTransactionReportPdf/${selectedEntity.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
+        fileName = `Report-${selectedEntity.strEntityCode}-${formattedFromDate}-${Date.now()}.pdf`;
+      } else if (user?.roleName === 'Driver') {
+        url = `https://tanmia-group.com:84/courierApi/Driver/GenerateTransactionReportPdf/${user.userId}/${formattedFromDate}/${formattedToDate}`;
+        fileName = `Report-Driver-${user.userId}-${formattedFromDate}-${Date.now()}.pdf`;
+      } else {
+        // Optional: handle cases where user role is not supported
+        setIsDownloading(false);
+        return;
+      }
+
+      const tempDownloadPath = `${RNFS.TemporaryDirectoryPath}/${fileName}`;
+
+      const downloadResult = await RNFS.downloadFile({
+        fromUrl: url,
+        toFile: tempDownloadPath,
+      }).promise;
+
+      if (downloadResult.statusCode !== 200) {
+        throw new Error(`Server responded with status code ${downloadResult.statusCode}`);
+      }
+
+      console.log('File downloaded successfully to temporary path:', tempDownloadPath);
+
+      if (Platform.OS === 'android') {
+        const downloadsPath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
+        await RNFS.moveFile(tempDownloadPath, downloadsPath);
+        setAlertTitle("نجاح");
+        setAlertMessage("تم حفظ الملف بنجاح في مجلد التنزيلات.");
+        setAlertSuccess(true);
+        setAlertVisible(true);
+        console.log('File moved to:', downloadsPath);
+      } else {
+        await Share.open({
+          url: `file://${tempDownloadPath}`,
+          type: 'application/pdf',
+          failOnCancel: false,
+          title: 'تنزيل التقرير',
+        });
+      }
+    } catch (error) {
+      console.error('Error downloading or saving PDF:', error);
+      setAlertTitle("خطأ");
+      setAlertMessage(error.message || "حدث خطأ أثناء تحميل أو حفظ ملف PDF.");
+      setAlertVisible(true);
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [user, selectedEntity, fromDate, toDate, transactions]);
 
   const handleSearch = useCallback(async () => {
     if (user?.roleName === "Entity" && !selectedEntity) {
@@ -467,10 +534,12 @@ export default function ReportsDashboard() {
               <View style={styles.summarySection}>
                 <View style={styles.summaryHeader}>
                   <Text style={styles.sectionTitle}>ملخص المعاملات</Text>
+
                   <TouchableOpacity
                     style={styles.downloadButton}
                     disabled={isDownloading}
                     activeOpacity={0.7}
+                    onPress={handleDownloadPdf}
                   >
                     {isDownloading ? (
                       <ActivityIndicator color="#FFF" size="small" />
@@ -615,6 +684,7 @@ export default function ReportsDashboard() {
         cancelText=""
         onConfirm={() => setAlertVisible(false)}
         onCancel={() => setAlertVisible(false)}
+        success={alertSuccess}
       />
     </View>
   );
@@ -923,7 +993,7 @@ const styles = StyleSheet.create({
   modalItemCode: { color: "#6B7280", fontSize: 12, textAlign: "right" },
   modalItemSelected: { color: "#FF6B35", fontWeight: "bold" },
   sectionTitleSkeleton: {
-    width: 150,
+    width: "auto",
     height: 20,
     borderRadius: 8,
     marginBottom: 16,

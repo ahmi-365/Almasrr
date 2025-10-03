@@ -68,6 +68,8 @@ react {
  */
 def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInReleaseBuilds') ?: false).toBoolean()
 
+def enableSeparateBuildPerCPUArchitecture = true
+
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
  *
@@ -86,6 +88,12 @@ android {
 
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
+
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
 
     namespace 'com.anonymous.Almasr'
     defaultConfig {
@@ -108,14 +116,25 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
-            shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
-            minifyEnabled enableProguardInReleaseBuilds
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
-            crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
+            // Make sure to use a proper signing config for production release
+            signingConfig signingConfigs.debug // Replace with your release signingConfig if available
+
+            shrinkResources true
+            minifyEnabled true
+
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+            crunchPngs true
         }
+
+        // release {
+        //     // Caution! In production, you need to generate your own keystore file.
+        //     // see https://reactnative.dev/docs/signed-apk-android.
+        //     signingConfig signingConfigs.debug
+        //     shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
+        //     minifyEnabled enableProguardInReleaseBuilds
+        //     proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        //     crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
+        // }
     }
     packagingOptions {
         jniLibs {
