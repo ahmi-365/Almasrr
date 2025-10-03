@@ -417,7 +417,7 @@ const handleLogin = async () => {
               resizeMode="contain"
             />
           </View>
-          <Text style={styles.welcometitle}>المصر</Text>
+          <Text style={styles.welcometitle}>المسار الذهبي</Text>
           <Text style={styles.welcomeSubtitle}>يارِيت تسجل دخولك لحسابك</Text>
         </Animated.View>
 

@@ -76,7 +76,13 @@ interface Parcel {
     Total: number;
     strDriverRemarks: string;
 }
-
+interface ReturnStatus {
+  Disabled: boolean;
+  Group: any;
+  Selected: boolean;
+  Text: string;
+  Value: string;
+}
 const formatDateTime = (isoString: string) => {
     if (!isoString) return '';
     try {
@@ -122,7 +128,7 @@ const ParcelCard = ({ item }: { item: Parcel }) => (
     </View>
 );
 
-const FilterSection = ({ selectedEntity, setEntityModalVisible, handleSearch, loading }) => (
+const FilterSection = ({ selectedEntity, setEntityModalVisible, selectedReturnStatus, setStatusModalVisible, handleSearch, loading }) => (
     <View style={styles.modernFilterSection}>
         <TouchableOpacity style={styles.modernDropdown} onPress={() => setEntityModalVisible(true)} activeOpacity={0.7}>
             <View style={styles.modernDropdownContent}>
@@ -136,6 +142,20 @@ const FilterSection = ({ selectedEntity, setEntityModalVisible, handleSearch, lo
                 <ChevronDown color="#9CA3AF" size={20} />
             </View>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.modernDropdown} onPress={() => setStatusModalVisible(true)} activeOpacity={0.7}>
+            <View style={styles.modernDropdownContent}>
+                <View style={styles.modernDropdownIcon}><PackageX color="#FF6B35" size={20} /></View>
+                <View style={styles.modernDropdownText}>
+                    <Text style={styles.modernDropdownLabel}>حالة الإرجاع</Text>
+                    <Text style={styles.modernDropdownValue} numberOfLines={1}>
+                        {selectedReturnStatus ? selectedReturnStatus.Text : "جميع الحالات"}
+                    </Text>
+                </View>
+                <ChevronDown color="#9CA3AF" size={20} />
+            </View>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.modernSearchButton} onPress={handleSearch} disabled={loading} activeOpacity={0.8}>
             {loading ? <ActivityIndicator color="#FFF" size="small" /> : (
                 <><Search size={20} color="#FFF" /><Text style={styles.modernSearchButtonText}>بحث عن الطرود</Text></>
@@ -155,11 +175,31 @@ export default function ReturnedParcelsScreen() {
     const [entityModalVisible, setEntityModalVisible] = useState(false);
     const [modalSearchQuery, setModalSearchQuery] = useState("");
     const [parcelSearchQuery, setParcelSearchQuery] = useState("");
-
+    const [returnStatuses, setReturnStatuses] = useState<ReturnStatus[]>([]);
+    const [selectedReturnStatus, setSelectedReturnStatus] = useState<ReturnStatus | null>(null);
+    const [isStatusModalVisible, setStatusModalVisible] = useState(false);
     const [isAlertVisible, setAlertVisible] = useState(false);
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
     const [alertSuccess, setAlertSuccess] = useState(false);
+
+    useEffect(() => {
+       const fetchReturnStatuses = async () => {
+  try {
+    const response = await axios.get(`https://tanmia-group.com:84/courierApi/parcels/GetSelectedStatuses`);
+    // response.data khud object hai, array andar "Statuses" key me hai
+    const fetchedStatuses = Array.isArray(response.data?.Statuses)
+      ? response.data.Statuses
+      : [];
+    setReturnStatuses(fetchedStatuses);
+  } catch (error) {
+    console.error("Error fetching return statuses:", error);
+    setReturnStatuses([]); // fallback
+  }
+};
+
+        fetchReturnStatuses();
+    }, []);
 
     useFocusEffect(
         useCallback(() => {
@@ -190,7 +230,7 @@ export default function ReturnedParcelsScreen() {
         }, [user])
     );
 
-    const handleSearch = useCallback(async () => {
+   const handleSearch = useCallback(async () => {
         setLoading(true);
         setParcelSearchQuery("");
         setAllParcels([]);
@@ -220,10 +260,20 @@ export default function ReturnedParcelsScreen() {
             );
 
             if (response.data && response.data.Parcels) {
-                setAllParcels(response.data.Parcels);
+                let parcels = response.data.Parcels;
+                
+                // Filter by selected return status if one is selected
+                if (selectedReturnStatus && selectedReturnStatus.Value) {
+                    parcels = parcels.filter(parcel => 
+                        parcel.intStatusCode.toString() === selectedReturnStatus.Value
+                    );
+                }
+                
+                setAllParcels(parcels);
             } else {
                 setAllParcels([]);
             }
+            console.log("Fetched returned parcels:", response.data?.Parcels || []);
         } catch (error) {
             console.error("Failed to load returned parcels:", error);
             setAlertTitle("خطأ");
@@ -233,8 +283,7 @@ export default function ReturnedParcelsScreen() {
             setLoading(false);
             setIsRefreshing(false);
         }
-    }, [user, setUser, selectedEntity]);
-
+    }, [user, setUser, selectedEntity, selectedReturnStatus]);
     const onRefresh = useCallback(() => {
         setIsRefreshing(true);
         handleSearch();
@@ -256,6 +305,7 @@ export default function ReturnedParcelsScreen() {
     }, [modalSearchQuery, entities]);
 
     const allStoresOption: EntityForFilter = { intEntityCode: 0, strEntityName: "كل المتاجر", strEntityCode: "All", strStatus: "" };
+    const allStatusesOption: ReturnStatus = { Disabled: false, Group: null, Selected: true, Text: "جميع الحالات", Value: "" };
 
     return (
         <View style={styles.container}>
@@ -271,6 +321,8 @@ export default function ReturnedParcelsScreen() {
                         <FilterSection
                             selectedEntity={selectedEntity}
                             setEntityModalVisible={setEntityModalVisible}
+                            selectedReturnStatus={selectedReturnStatus}
+                            setStatusModalVisible={setStatusModalVisible}
                             handleSearch={handleSearch}
                             loading={loading && !isRefreshing}
                         />
@@ -336,6 +388,31 @@ export default function ReturnedParcelsScreen() {
                     </View>
                 </TouchableWithoutFeedback>
             </Modal>
+
+            <Modal visible={isStatusModalVisible} animationType="fade" transparent={true} onRequestClose={() => setStatusModalVisible(false)}>
+                <TouchableWithoutFeedback onPress={() => setStatusModalVisible(false)}>
+                    <View style={styles.modalOverlay}>
+                        <TouchableWithoutFeedback>
+                            <SafeAreaView style={styles.modernModalContent}>
+                                <Text style={styles.modalTitle}>اختيار حالة الإرجاع</Text>
+                                <FlatList
+                                    data={[allStatusesOption, ...returnStatuses]}
+                                    keyExtractor={(item) => item.Value.toString()}
+                                    renderItem={({ item }) => (
+                                        <TouchableOpacity style={styles.modernModalItem} onPress={() => { setSelectedReturnStatus(item.Value === "" ? null : item); setStatusModalVisible(false); }} activeOpacity={0.7}>
+                                            <View style={styles.modalItemContent}>
+                                                <Text style={[styles.modernModalItemText, (selectedReturnStatus?.Value === item.Value || (!selectedReturnStatus && item.Value === "")) && styles.modalItemSelected]}>{item.Text}</Text>
+                                            </View>
+                                            {(selectedReturnStatus?.Value === item.Value || (!selectedReturnStatus && item.Value === "")) && (<Check color="#FF6B35" size={20} />)}
+                                        </TouchableOpacity>
+                                    )}
+                                />
+                            </SafeAreaView>
+                        </TouchableWithoutFeedback>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
+
             <CustomAlert isVisible={isAlertVisible} title={alertTitle} message={alertMessage} confirmText="حسنًا" onConfirm={() => setAlertVisible(false)} success={alertSuccess} cancelText={undefined} onCancel={undefined} />
         </View>
     );

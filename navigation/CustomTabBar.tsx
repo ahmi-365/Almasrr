@@ -137,7 +137,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                                 </View>
                             </TouchableOpacity>
                             <View style={styles.badgeContainer}>
-                                <Text style={styles.bubbleLabel}>طلب شحنة عبر الواتساب</Text>
+                                <Text style={styles.bubbleLabel}> طلب تجميع </Text>
                             </View>
                         </View>
                     </Animated.View>
@@ -150,7 +150,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                                 </View>
                             </TouchableOpacity>
                             <View style={styles.badgeContainer}>
-                                <Text style={styles.bubbleLabel}>طلب عن طريق تعبئة النموذج</Text>
+                                <Text style={styles.bubbleLabel}>إدخال طرد جديد </Text>
                             </View>
                         </View>
                     </Animated.View>
