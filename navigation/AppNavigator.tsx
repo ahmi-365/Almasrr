@@ -25,7 +25,7 @@ import PendingApprovalScreen from '../screens/Entity/PendingParcelScreen';
 import AtBranchScreen from '../screens/Entity/AtBranchScreen';
 import OnTheWayScreen from '../screens/Entity/OnTheWayScreen';
 import ReportsDashboard from '../screens/Entity/ReportsDashboard';
-
+import ParcelDetailsScreen from '../components/ParcelDetailsScreen';
 // --- THIS IS THE FIX ---
 // Add all possible screen names, including the new Driver tabs, to the master list.
 export type RootStackParamList = {
@@ -53,6 +53,7 @@ export type RootStackParamList = {
   PendingApprovalScreen: undefined
   AtBranchScreen: undefined
   OnTheWayScreen: undefined
+  ParcelDetailsScreen: undefined
   EntityReports: { entityCode: number }; 
 
 
@@ -81,6 +82,14 @@ const AppContent = () => {
           animation: 'slide_from_right',
         }}
       >
+        <Stack.Screen 
+  name="ParcelDetailsScreen" 
+  component={ParcelDetailsScreen}
+  options={{
+    headerShown: false,
+    presentation: 'card'
+  }}
+/>
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
          <Stack.Screen 

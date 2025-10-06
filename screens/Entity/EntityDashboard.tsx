@@ -17,12 +17,16 @@ import {
   Image,
   TouchableOpacity,
   Easing,
+  TextInput,
 } from "react-native";
 import {
   Wallet,
   HelpCircle,
   BarChart,
   Truck as TruckIconLucide,
+  Search,
+  X,
+  Package,
 } from "lucide-react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -30,13 +34,31 @@ import { useDashboard } from "../../Context/DashboardContext";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import TopBar from "../../components/Entity/TopBar";
 import Svg, { Path } from "react-native-svg";
-
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
-import CustomAlert from '../../components/CustomAlert';
+import CustomAlert from "../../components/CustomAlert";
+import RealTimeSearchDropdown from "../../components/RealTimeSearchDropdown";
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const HEADER_EXPANDED_HEIGHT = 1;
+
+const { width: screenWidth } = Dimensions.get("window");
+const SLIDER_WIDTH = screenWidth - 30;
+
+// Color configuration
+const COLORS = {
+  primary: '#FF6B35',
+  secondary: '#E67E22',
+  background: '#F8F9FA',
+  card: '#FFFFFF',
+  text: '#343A40',
+  textSecondary: '#6C757D',
+  border: '#E9ECEF',
+  success: '#27AE60',
+  warning: '#F39C12',
+  danger: '#E74C3C',
+  info: '#3498DB'
+};
 
 const hexToRgba = (hex, opacity) => {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -45,6 +67,7 @@ const hexToRgba = (hex, opacity) => {
   return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
+// Stat Counter Card Component
 const StatCounterCard = ({ item, onPress }) => (
   <TouchableOpacity
     onPress={onPress}
@@ -86,9 +109,7 @@ const StatCounterCard = ({ item, onPress }) => (
   </TouchableOpacity>
 );
 
-const { width: screenWidth } = Dimensions.get("window");
-const SLIDER_WIDTH = screenWidth - 30;
-
+// Image Banner Data
 const IMAGE_BANNER_DATA = [
   {
     id: "1",
@@ -104,6 +125,7 @@ const IMAGE_BANNER_DATA = [
   },
 ];
 
+// Image Banner Component
 const ImageBanner = ({ item }) => (
   <View style={styles.imageBannerContainer}>
     <Image
@@ -114,6 +136,7 @@ const ImageBanner = ({ item }) => (
   </View>
 );
 
+// Promo Slider Data
 const PROMO_SLIDER_DATA = [
   {
     title: "تتبع شحناتك بسهولة",
@@ -135,6 +158,7 @@ const PROMO_SLIDER_DATA = [
   },
 ];
 
+// Promo Slider Item Component
 const PromoSliderItem = ({ item }) => (
   <View style={[styles.promoSliderItem, { backgroundColor: item.color }]}>
     <item.icon color="#FFF" size={28} style={styles.promoSliderIcon} />
@@ -145,6 +169,7 @@ const PromoSliderItem = ({ item }) => (
   </View>
 );
 
+// Dashboard Skeleton Component
 const DashboardSkeleton = () => {
   const shimmerColors = ["#FDF1EC", "#FEF8F5", "#FDF1EC"];
 
@@ -211,26 +236,41 @@ const DashboardSkeleton = () => {
   );
 };
 
-interface StatCardData {
-  number: string;
-  label: string;
-  icon: any;
-  color: string;
-  progress: number;
-  navigateTo: string;
-}
-
-// --- MODIFICATION 3: Add navigateTo property with screen names ---
+// Card Definitions
 const CARD_DEFINITIONS = [
-  { label: "في انتظار التصديق", icon: require("../../assets/pending.png"), color: "#E67E22", navigateTo: "PendingApprovalScreen" },
-  { label: "في الفرع", icon: require("../../assets/branch.png"), color: "#3498DB", navigateTo: "AtBranchScreen" },
-  { label: "في الطريق", icon: require("../../assets/truck.png"), color: "#F39C12", navigateTo: "OnTheWayScreen" },
-  { label: "التوصيل ناجح", icon: require("../../assets/delivered.png"), color: "#27AE60", navigateTo: "SuccessfulDeliveryScreen" },
-  { label: "الطرود المرتجعة", icon: require("../../assets/returned.png"), color: "#E74C3C", navigateTo: "ReturnedParcelsScreen" },
+  {
+    label: "في انتظار التصديق",
+    icon: require("../../assets/pending.png"),
+    color: "#E67E22",
+    navigateTo: "PendingApprovalScreen",
+  },
+  {
+    label: "في الفرع",
+    icon: require("../../assets/branch.png"),
+    color: "#3498DB",
+    navigateTo: "AtBranchScreen",
+  },
+  {
+    label: "في الطريق",
+    icon: require("../../assets/truck.png"),
+    color: "#F39C12",
+    navigateTo: "OnTheWayScreen",
+  },
+  {
+    label: "التوصيل ناجح",
+    icon: require("../../assets/delivered.png"),
+    color: "#27AE60",
+    navigateTo: "SuccessfulDeliveryScreen",
+  },
+  {
+    label: "الطرود المرتجعة",
+    icon: require("../../assets/returned.png"),
+    color: "#E74C3C",
+    navigateTo: "ReturnedParcelsScreen",
+  },
 ];
 
-
-
+// Animated Balance Background
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 const AnimatedBalanceBackground = () => {
@@ -281,8 +321,8 @@ const AnimatedBalanceBackground = () => {
   );
 };
 
+// Main Dashboard Component
 export default function EntityDashboard() {
-  // --- UPDATED: Destructure 'setUser' from the context ---
   const {
     dashboardData,
     setDashboardData,
@@ -292,39 +332,38 @@ export default function EntityDashboard() {
     setUser,
   } = useDashboard();
 
-  // Show skeleton if dashboard data from context is initially missing.
   const [loading, setLoading] = useState(!dashboardData);
   const [refreshing, setRefreshing] = useState(false);
+  const [allParcels, setAllParcels] = useState([]);
+  const [isAlertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState("");
+  const [alertMessage, setAlertMessage] = useState("");
+  
   const scrollY = useRef(new Animated.Value(0)).current;
   const imageSliderRef = useRef(null);
-  const [isAlertVisible, setAlertVisible] = useState(false);
-  const [alertTitle, setAlertTitle] = useState('');
-  const [alertMessage, setAlertMessage] = useState('');
-  const [alertConfirmColor, setAlertConfirmColor] = useState('#E74C3C');
-
   const navigation = useNavigation();
-  // --- ADDED: Effect to load user into context from AsyncStorage ---
+
+  // Load user data
   useEffect(() => {
     const loadUser = async () => {
       if (!user) {
-        // Only run if the user is not already in the context.
         try {
           const userDataString = await AsyncStorage.getItem("user");
           if (userDataString) {
             setUser(JSON.parse(userDataString));
           } else {
-            // No user in storage, can't fetch data. Stop the loading indicator.
             setLoading(false);
           }
         } catch (error) {
           console.error("Failed to load user from AsyncStorage", error);
-          setLoading(false); // Stop loading if there's an error.
+          setLoading(false);
         }
       }
     };
     loadUser();
-  }, [user, setUser]); // Dependencies ensure this runs only when necessary.
+  }, [user, setUser]);
 
+  // Image slider auto-scroll
   useEffect(() => {
     const interval = setInterval(() => {
       if (imageSliderRef.current) {
@@ -338,69 +377,111 @@ export default function EntityDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  const fetchDashboardData = useCallback(async () => {
-    // This guard now works because the useEffect above populates the 'user'.
-    if (!user?.userId) {
-      setRefreshing(false);
-      return;
-    }
-    const userId = user.userId;
-
-    try {
-      const [dashboardResponse, entitiesResponse] = await Promise.all([
-        axios.get(
-          `https://tanmia-group.com:84/courierApi/entityparcels/DashboardData/${userId}`
-        ),
-        axios.get(
-          `https://tanmia-group.com:84/courierApi/Entity/GetEntities/${userId}`
-        ),
-      ]);
-      if (dashboardResponse.data) {
-        setDashboardData(dashboardResponse.data);
-        setDcBalance(
-          String(dashboardResponse.data?.DCBalance?.toFixed(2) ?? "0.00")
-        );
-        await AsyncStorage.setItem(
-          "dashboard_data",
-          JSON.stringify(dashboardResponse.data)
-        );
-        // console.log(dashboardResponse.data)
+  // Load cached parcels
+  useEffect(() => {
+    const loadCachedParcels = async () => {
+      try {
+        const cachedParcels = await AsyncStorage.getItem("all_parcels");
+        if (cachedParcels) {
+          setAllParcels(JSON.parse(cachedParcels));
+        }
+      } catch (error) {
+        console.error("Failed to load cached parcels:", error);
       }
-      if (entitiesResponse.data) {
-        await AsyncStorage.setItem(
-          "user_entities",
-          JSON.stringify(entitiesResponse.data)
-        );
-      }
-    } catch (err) {
-      console.error("Error fetching data:", err);
-      setAlertTitle('خطأ');
-      setAlertMessage('فشل في جلب بيانات لوحة القيادة.');
-      setAlertConfirmColor('#E74C3C');
-      setAlertVisible(true);
-    } finally {
-      // --- This block is now reachable ---
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [user, setDashboardData, setDcBalance]);
+    };
+    loadCachedParcels();
+  }, []);
 
-  // --- UPDATED: useFocusEffect now depends on 'user' ---
+  // Fetch all parcels
+const fetchAllParcels = useCallback(async () => {
+  if (!user?.userId) {
+    console.log("⚠️ No user ID found, skipping parcel fetch");
+    return;
+  }
+
+  try {
+    const entityCode = user.userId;
+    const url = `https://tanmia-group.com:84/courierApi/parcels/EntityParcels/${entityCode}`;
+    
+    const response = await axios.get(url);
+
+    if (response.data && response.data.Parcels && Array.isArray(response.data.Parcels)) {
+      console.log("✅ Fetched", response.data.Parcels.length, "parcels");
+      setAllParcels(response.data.Parcels);
+      await AsyncStorage.setItem(
+        "all_parcels",
+        JSON.stringify(response.data.Parcels)
+      );
+    } else {
+      console.log("⚠️ No parcels data received");
+      setAllParcels([]);
+    }
+  } catch (error) {
+    console.error("❌ Error fetching parcels:", error.message);
+  }
+}, [user]);
+
+const fetchDashboardData = useCallback(async () => {
+  if (!user?.userId) return;
+
+  const userId = user.userId;
+
+  try {
+    const dashboardResponse = await axios.get(
+      `https://tanmia-group.com:84/courierApi/entityparcels/DashboardData/${userId}`
+    );
+
+    const entitiesResponse = await axios.get(
+      `https://tanmia-group.com:84/courierApi/Entity/GetEntities/${userId}`
+    );
+
+    if (dashboardResponse.data) {
+      setDashboardData(dashboardResponse.data);
+      setDcBalance(
+        String(dashboardResponse.data?.DCBalance?.toFixed(2) ?? "0.00")
+      );
+      await AsyncStorage.setItem(
+        "dashboard_data",
+        JSON.stringify(dashboardResponse.data)
+      );
+    }
+
+    if (entitiesResponse.data) {
+      await AsyncStorage.setItem(
+        "user_entities",
+        JSON.stringify(entitiesResponse.data)
+      );
+    }
+
+    // Don't call fetchAllParcels here anymore
+  } catch (err) {
+    console.error("Error fetching data:", err);
+  } finally {
+    setLoading(false);
+    setRefreshing(false);
+  }
+}, [user, setDashboardData, setDcBalance]);   // Focus effect for data fetching
   useFocusEffect(
     useCallback(() => {
-      // Fetch data if it's missing AND we have a user to fetch it for.
       if (!dashboardData && user) {
         fetchDashboardData();
       }
     }, [dashboardData, user, fetchDashboardData])
-  ); // Added 'user' dependency
+  );
 
+  // Refresh control
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchDashboardData();
   }, [fetchDashboardData]);
-
-  const statsData: StatCardData[] = useMemo(() => {
+// Background parcel fetching (doesn't affect loading state)
+useEffect(() => {
+  if (user?.userId) {
+    fetchAllParcels();
+  }
+}, [user, fetchAllParcels]);
+  // Stats data calculation
+  const statsData = useMemo(() => {
     if (!dashboardData) return [];
     const countKeys = Object.keys(dashboardData)
       .filter((key) => key.startsWith("Count"))
@@ -419,19 +500,24 @@ export default function EntityDashboard() {
         label: `Unknown State ${index + 1}`,
         icon: require("../../assets/pending.png"),
         color: "#95A5A6",
-        navigateTo: '', // Add this empty navigateTo property
+        navigateTo: "",
       };
       return {
         number: String(count),
         label: definition.label,
         icon: definition.icon,
         color: definition.color,
-        navigateTo: definition.navigateTo, // Pass navigateTo property
+        navigateTo: definition.navigateTo,
         progress: totalCount > 0 ? count / totalCount : 0,
-
       };
-    }); CARD_DEFINITIONS
+    });
   }, [dashboardData]);
+
+  // Handle parcel selection from search
+  const handleParcelSelect = (parcel) => {
+    console.log('Selected parcel:', parcel);
+    // You can add additional handling here if needed
+  };
 
   if (loading) {
     return (
@@ -463,10 +549,16 @@ export default function EntityDashboard() {
         }
       >
         <>
-          <TouchableOpacity
-            style={styles.balanceCard}
-            activeOpacity={0.95}
-          >
+          {/* Real-time Search Dropdown */}
+          <View style={styles.searchContainerWrapper}>
+              <RealTimeSearchDropdown
+    allParcels={allParcels}
+    onParcelSelect={() => {}} // 
+  />
+          </View>
+
+          {/* Balance Card */}
+          <TouchableOpacity style={styles.balanceCard} activeOpacity={0.95}>
             <AnimatedBalanceBackground />
             <View style={styles.balanceContent}>
               <View style={styles.balanceHeader}>
@@ -486,6 +578,8 @@ export default function EntityDashboard() {
               </View>
             </View>
           </TouchableOpacity>
+
+          {/* Image Slider */}
           <View style={styles.imageSliderContainer}>
             <FlatList
               ref={imageSliderRef}
@@ -505,6 +599,8 @@ export default function EntityDashboard() {
               })}
             />
           </View>
+
+          {/* Stats Section */}
           <View style={styles.statsSection}>
             <Text style={styles.sectionTitle}>ملخص الطرود</Text>
             <FlatList
@@ -512,15 +608,19 @@ export default function EntityDashboard() {
               renderItem={({ item }) => (
                 <StatCounterCard
                   item={item}
-                  onPress={() => item.navigateTo && navigation.navigate(item.navigateTo as never)}
+                  onPress={() =>
+                    item.navigateTo &&
+                    navigation.navigate(item.navigateTo as never)
+                  }
                 />
               )}
               keyExtractor={(item) => item.label}
               horizontal
               showsHorizontalScrollIndicator={false}
             />
-
           </View>
+
+          {/* Promo Slider */}
           <View style={styles.promoSliderContainer}>
             <FlatList
               data={PROMO_SLIDER_DATA}
@@ -541,6 +641,7 @@ export default function EntityDashboard() {
           </View>
         </>
       </Animated.ScrollView>
+
       {/* Custom Alert */}
       <CustomAlert
         isVisible={isAlertVisible}
@@ -556,11 +657,20 @@ export default function EntityDashboard() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8F9FA" },
+  container: { 
+    flex: 1, 
+    backgroundColor: "#F8F9FA" 
+  },
   scrollContent: {
     paddingHorizontal: 15,
     paddingTop: HEADER_EXPANDED_HEIGHT,
     paddingBottom: 80,
+  },
+  searchContainerWrapper: {
+    marginBottom: 20,
+    marginTop: 10,
+    position: 'relative',
+    zIndex: 1000,
   },
   imageSliderContainer: {
     height: 150,
@@ -591,7 +701,9 @@ const styles = StyleSheet.create({
   promoSliderIcon: {
     marginLeft: 15,
   },
-  promoSliderInfo: { flex: 1 },
+  promoSliderInfo: { 
+    flex: 1 
+  },
   promoSliderTitle: {
     color: "#FFF",
     fontSize: 15,
@@ -605,7 +717,9 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     textAlign: "right",
   },
-  statsSection: { marginBottom: 25 },
+  statsSection: { 
+    marginBottom: 25 
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
