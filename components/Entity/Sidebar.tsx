@@ -138,8 +138,8 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
   const handleProfilePress = () => {
     onClose();
     setTimeout(() => {
-      // navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: 'AccountTab' }] } }] });
-      navigation.navigate('MainTabs', { screen: 'AccountTab' });
+      navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: 'AccountTab' }] } }] });
+      // navigation.navigate('MainTabs', { screen: 'AccountTab' });
 
     }, 250);
   };

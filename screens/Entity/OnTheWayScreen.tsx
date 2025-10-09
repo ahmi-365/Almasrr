@@ -29,9 +29,11 @@ import {
     Truck,
     Box,
     Bell,
+    ChevronLeft, // Import for WebView back button
 } from "lucide-react-native";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
+import { WebView } from "react-native-webview"; // Import WebView
 import { useDashboard } from "../../Context/DashboardContext";
 import CustomAlert from "../../components/CustomAlert";
 import TopBar from "../../components/Entity/TopBarNew";
@@ -91,7 +93,8 @@ const formatDateTime = (isoString: string) => {
     } catch (e) { return isoString; }
 };
 
-const DeliveryCard = ({ item, onNotifyPress }: { item: Parcel, onNotifyPress: (parcel: Parcel) => void }) => (
+// --- MODIFIED DeliveryCard to handle tracking press ---
+const DeliveryCard = ({ item, onNotifyPress, onTrackPress }: { item: Parcel, onNotifyPress: (parcel: Parcel) => void, onTrackPress: (parcel: Parcel) => void }) => (
     <View style={styles.modernTransactionItem}>
         <View style={styles.cardHeader}>
             <View style={styles.headerTopRow}>
@@ -101,12 +104,11 @@ const DeliveryCard = ({ item, onNotifyPress }: { item: Parcel, onNotifyPress: (p
                     <Text style={styles.dateText}>{formatDateTime(item.CreatedAt)}</Text>
                 </View>
             </View>
-            {/* MODIFICATION: Notify button is now on the same row as the Reference No */}
             <View style={styles.headerBottomRow}>
-                <View style={styles.orderIdContainer}>
+                <TouchableOpacity onPress={() => onTrackPress(item)} style={styles.orderIdContainer}>
                     <View style={styles.packageIconBackground}><Package color="#FFF" size={20} /></View>
                     <Text style={styles.orderId}>{item.ReferenceNo}</Text>
-                </View>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.notifyButton} onPress={() => onNotifyPress(item)}>
                     <Bell size={14} color="#FFF" />
                     <Text style={styles.notifyButtonText}>إشعار</Text>
@@ -179,6 +181,10 @@ export default function OnTheWayScreen() {
 
     const [parcelToNotify, setParcelToNotify] = useState<Parcel | null>(null);
     const [isNotifyAlertVisible, setNotifyAlertVisible] = useState(false);
+
+    // --- State for WebView Modal ---
+    const [webViewVisible, setWebViewVisible] = useState(false);
+    const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
 
     useFocusEffect(
         useCallback(() => {
@@ -255,6 +261,12 @@ export default function OnTheWayScreen() {
         setNotifyAlertVisible(true);
     };
 
+    // --- Handler for opening the WebView ---
+    const handleTrackPress = (parcel: Parcel) => {
+        setSelectedParcel(parcel);
+        setWebViewVisible(true);
+    };
+
     const confirmSendNotification = () => {
         console.log(`Sending notification for parcel: ${parcelToNotify?.ReferenceNo}`);
         setNotifyAlertVisible(false);
@@ -292,7 +304,13 @@ export default function OnTheWayScreen() {
             <TopBar title="في الطريق" />
             <FlatList
                 data={filteredParcels}
-                renderItem={({ item }) => <DeliveryCard item={item} onNotifyPress={handleNotifyPress} />}
+                renderItem={({ item }) => (
+                    <DeliveryCard
+                        item={item}
+                        onNotifyPress={handleNotifyPress}
+                        onTrackPress={handleTrackPress}
+                    />
+                )}
                 keyExtractor={(item) => item.intParcelCode.toString()}
                 contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 120 }}
                 refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#FF6B35']} tintColor="#FF6B35" />}
@@ -364,6 +382,36 @@ export default function OnTheWayScreen() {
                     </View>
                 </TouchableWithoutFeedback>
             </Modal>
+
+            {/* --- WebView Modal for Tracking --- */}
+            <Modal visible={webViewVisible} animationType="slide" onRequestClose={() => setWebViewVisible(false)}>
+                <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+                    <View style={styles.modalHeader}>
+                        <TouchableOpacity onPress={() => setWebViewVisible(false)} style={styles.modalBackButton}>
+                            <ChevronLeft size={24} color="#1F2937" />
+                        </TouchableOpacity>
+                        <Text style={styles.modalHeaderTitle} numberOfLines={1}>
+                            {selectedParcel ? `تتبع: ${selectedParcel.ReferenceNo}` : 'تتبع الشحنة'}
+                        </Text>
+                        <View style={{ width: 40 }} />
+                    </View>
+                    {selectedParcel && (
+                        <WebView
+                            source={{ uri: `https://tanmia-group.com:84/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
+                            style={{ flex: 1 }}
+                            startInLoadingState={true}
+                            renderLoading={() => (
+                                <ActivityIndicator
+                                    color="#FF6B35"
+                                    size="large"
+                                    style={{ position: 'absolute', width: '100%', height: '100%' }}
+                                />
+                            )}
+                        />
+                    )}
+                </SafeAreaView>
+            </Modal>
+
             <CustomAlert isVisible={isAlertVisible} title={alertTitle} message={alertMessage} confirmText="حسنًا" onConfirm={() => setAlertVisible(false)} success={alertSuccess} cancelText={undefined} onCancel={undefined} />
             <CustomAlert isVisible={isNotifyAlertVisible} title="تأكيد الإرسال" message="هل تريد إرسال إشعار إلى المندوب؟" confirmText="نعم" cancelText="لا" onConfirm={confirmSendNotification} onCancel={cancelSendNotification} confirmButtonColor="#27AE60" />
         </View>
@@ -381,7 +429,7 @@ const styles = StyleSheet.create({
     modernModalSearchInput: { flex: 1, color: "#1F2937", fontSize: 16, paddingVertical: Platform.OS === "ios" ? 12 : 8, textAlign: "right", },
     searchButton: { backgroundColor: '#FF6B35', padding: 14, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
     searchButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-    sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginTop: 8, },
+    // sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginTop: 8, },
 
     modernTransactionItem: { backgroundColor: "#FFFFFF", borderRadius: 8, marginBottom: 12, borderWidth: 1, borderColor: "#F3F4F6", overflow: "hidden", },
     cardHeader: { backgroundColor: "#FF6B35", padding: 16, },
@@ -400,6 +448,7 @@ const styles = StyleSheet.create({
     section: { marginBottom: 12, },
     sectionHeader: { flexDirection: "row-reverse", alignItems: "center", marginBottom: 8, gap: 6, },
     dot: { width: 6, height: 6, backgroundColor: "#FF6B35", borderRadius: 3, },
+    sectionTitle: { color: "#374151", fontSize: 14, fontWeight: "600", },
     infoBox: { backgroundColor: "#F9FAFB", borderRadius: 8, padding: 12, borderWidth: 1, borderColor: "#F3F4F6", gap: 8, },
     infoRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, },
     recipientText: { color: "#1F2937", fontSize: 16, fontWeight: "600", flex: 1, textAlign: "right", },
@@ -441,4 +490,27 @@ const styles = StyleSheet.create({
     modalItemText: { color: "#1F2937", fontSize: 16, fontWeight: "500", textAlign: "right", marginBottom: 2, },
     modalItemCode: { color: "#6B7280", fontSize: 12, textAlign: "right", },
     modalItemSelected: { color: "#FF6B35", fontWeight: "bold", },
+
+    // --- Styles for WebView Modal Header ---
+    modalHeader: {
+        height: 60,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+        backgroundColor: '#FFFFFF',
+    },
+    modalBackButton: {
+        padding: 10,
+    },
+    modalHeaderTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1F2937',
+        textAlign: 'center',
+        flex: 1,
+        marginHorizontal: 10,
+    },
 });

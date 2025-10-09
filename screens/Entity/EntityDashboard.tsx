@@ -337,7 +337,7 @@ export default function EntityDashboard() {
   const [isAlertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState("");
   const [alertMessage, setAlertMessage] = useState("");
-  
+
   const scrollY = useRef(new Animated.Value(0)).current;
   const imageSliderRef = useRef(null);
   const navigation = useNavigation();
@@ -401,7 +401,7 @@ export default function EntityDashboard() {
     try {
       const entityCode = user.userId;
       const url = `https://tanmia-group.com:84/courierApi/parcels/EntityParcels/${entityCode}`;
-      
+
       const response = await axios.get(url);
 
       if (response.data && response.data.Parcels && Array.isArray(response.data.Parcels)) {
@@ -522,7 +522,7 @@ export default function EntityDashboard() {
   if (loading) {
     return (
       <View style={styles.container}>
-        <TopBar allParcels={allParcels} onParcelSelect={handleParcelSelect} />
+        <TopBar allParcels={allParcels} />
         <DashboardSkeleton />
       </View>
     );
@@ -530,7 +530,7 @@ export default function EntityDashboard() {
 
   return (
     <View style={styles.container}>
-      <TopBar allParcels={allParcels} onParcelSelect={handleParcelSelect} />
+      <TopBar allParcels={allParcels} />
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -649,9 +649,9 @@ export default function EntityDashboard() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: "#F8F9FA" 
+  container: {
+    flex: 1,
+    backgroundColor: "#F8F9FA"
   },
   scrollContent: {
     paddingHorizontal: 15,
@@ -687,8 +687,8 @@ const styles = StyleSheet.create({
   promoSliderIcon: {
     marginLeft: 15,
   },
-  promoSliderInfo: { 
-    flex: 1 
+  promoSliderInfo: {
+    flex: 1
   },
   promoSliderTitle: {
     color: "#FFF",
@@ -703,8 +703,8 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     textAlign: "right",
   },
-  statsSection: { 
-    marginBottom: 25 
+  statsSection: {
+    marginBottom: 25
   },
   sectionTitle: {
     fontSize: 18,

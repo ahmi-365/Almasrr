@@ -26,6 +26,7 @@ import AtBranchScreen from '../screens/Entity/AtBranchScreen';
 import OnTheWayScreen from '../screens/Entity/OnTheWayScreen';
 import ReportsDashboard from '../screens/Entity/ReportsDashboard';
 import ParcelDetailsScreen from '../components/ParcelDetailsScreen';
+import SearchScreen from '../components/SearchScreen';
 // --- THIS IS THE FIX ---
 // Add all possible screen names, including the new Driver tabs, to the master list.
 export type RootStackParamList = {
@@ -54,8 +55,8 @@ export type RootStackParamList = {
   AtBranchScreen: undefined
   OnTheWayScreen: undefined
   ParcelDetailsScreen: undefined
-  EntityReports: { entityCode: number }; 
-
+  EntityReports: { entityCode: number };
+  SearchScreen: { allParcels: any[] };
 
 };
 
@@ -82,21 +83,21 @@ const AppContent = () => {
           animation: 'slide_from_right',
         }}
       >
-        <Stack.Screen 
-  name="ParcelDetailsScreen" 
-  component={ParcelDetailsScreen}
-  options={{
-    headerShown: false,
-    presentation: 'card'
-  }}
-/>
+        <Stack.Screen
+          name="ParcelDetailsScreen"
+          component={ParcelDetailsScreen}
+          options={{
+            headerShown: false,
+            presentation: 'card'
+          }}
+        />
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
-         <Stack.Screen 
-          name="EntityReports" 
-          component={ReportsDashboard} 
-//           options={{ headerShown: true, title: 'تقرير المتجر' }} 
-        />
+        <Stack.Screen
+          name="EntityReports"
+          component={ReportsDashboard}
+        //           options={{ headerShown: true, title: 'تقرير المتجر' }} 
+        />
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="MainTabs" component={MainTabNavigator} />
         <Stack.Screen name="DeliveryTracking" component={DeliveryTracking} />
@@ -114,7 +115,16 @@ const AppContent = () => {
         <Stack.Screen name="AtBranchScreen" component={AtBranchScreen} />
         <Stack.Screen name="OnTheWayScreen" component={OnTheWayScreen} />
 
-
+        {/* 3. REGISTER THE SEARCH SCREEN AND SET ITS PRESENTATION TO MODAL */}
+        <Stack.Screen
+          name="SearchScreen"
+          component={SearchScreen}
+          options={{
+            presentation: 'transparentModal', // Key for custom animations
+            headerShown: false,
+            animation: 'fade', // The screen container will fade in gently
+          }}
+        />
 
         {/* We add DriverDashboard here as well to ensure it's a valid top-level route if needed */}
         <Stack.Screen name="DriverDashboard" component={ParcelsScreen} />

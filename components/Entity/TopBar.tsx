@@ -1,35 +1,35 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
-import { Bell, Menu } from 'lucide-react-native';
+import { Bell, Menu, Search } from 'lucide-react-native';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDashboard } from '../../Context/DashboardContext';
-import RealTimeSearchDropdown from '../RealTimeSearchDropdown';
+import { useNavigation } from '@react-navigation/native';
 
-// Get screen width for SVG path calculations
 const { width } = Dimensions.get('window');
-const HEADER_HEIGHT = 220; // Increased height to accommodate search
+const HEADER_HEIGHT = 220;
 
 interface ModernTopBarProps {
   allParcels?: any[];
-  onParcelSelect?: (parcel: any) => void;
 }
 
-const ModernTopBar: React.FC<ModernTopBarProps> = ({ 
-  allParcels = [], 
-  onParcelSelect = () => {} 
+const ModernTopBar: React.FC<ModernTopBarProps> = ({
+  allParcels = [],
 }) => {
   const insets = useSafeAreaInsets();
   const { toggleSidebar, user } = useDashboard();
+  const navigation = useNavigation();
 
-  // Helper function to translate the user role to Arabic
+  const navigateToSearch = () => {
+    navigation.navigate('SearchScreen' as never, { allParcels } as never);
+  };
+
   const getRoleInArabic = (role: string | undefined): string => {
     if (role === 'Entity') return 'المتجر';
     if (role === 'Driver') return 'المندوب';
     return role || 'مستخدم';
   };
 
-  // The SVG path for the curved background
   const backgroundPath = `
     M 0 0
     L ${width} 0
@@ -40,7 +40,6 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
 
   return (
     <View style={[styles.container, { height: HEADER_HEIGHT + insets.top }]}>
-      {/* SVG Background with Gradient */}
       <View style={StyleSheet.absoluteFillObject}>
         <Svg height="100%" width="100%">
           <Defs>
@@ -53,9 +52,7 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
         </Svg>
       </View>
 
-      {/* Header Content */}
       <View style={[styles.contentContainer, { paddingTop: insets.top }]}>
-        {/* Top row: Icons */}
         <View style={styles.topRow}>
           <TouchableOpacity style={styles.iconButton}>
             <Bell color="#4A5568" size={24} />
@@ -65,7 +62,6 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
           </TouchableOpacity>
         </View>
 
-        {/* Main info row: Greeting, Role Badge, Avatar */}
         <View style={styles.mainInfoRow}>
           <View style={styles.avatarContainer}>
             <Image
@@ -75,8 +71,6 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
           </View>
           <View style={styles.greetingContainer}>
             <Text style={styles.greetingText}>{user?.strEntityName || 'أهلاً بك'}</Text>
-
-            {/* Role Badge - renders only if the user object exists */}
             {user && (
               <View style={styles.roleBadge}>
                 <Text style={styles.roleBadgeText}>{getRoleInArabic(user.roleName)}</Text>
@@ -85,12 +79,15 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
           </View>
         </View>
 
-        {/* Search Container */}
         <View style={styles.searchContainerWrapper}>
-          <RealTimeSearchDropdown
-            allParcels={allParcels}
-            onParcelSelect={onParcelSelect}
-          />
+          <TouchableOpacity
+            style={styles.searchButton}
+            onPress={navigateToSearch}
+            activeOpacity={0.8}
+          >
+            <Search size={20} color="#FF6B35" />
+            <Text style={styles.searchButtonText}>ابحث برقم الطرد، اسم المستلم...</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -163,8 +160,28 @@ const styles = StyleSheet.create({
   searchContainerWrapper: {
     marginTop: 15,
     marginBottom: 10,
-    position: 'relative',
-    zIndex: 1000,
+  },
+  searchButton: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 14,
+    borderWidth: 2,
+    borderColor: '#E9ECEF',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  searchButtonText: {
+    flex: 1,
+    textAlign: 'right',
+    fontSize: 16,
+    color: '#6C757D',
+    marginHorizontal: 10,
   },
 });
 

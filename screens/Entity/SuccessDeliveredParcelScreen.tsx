@@ -28,16 +28,17 @@ import {
     ChevronDown,
     Check,
     Store as StoreIcon,
+    ChevronLeft, // Import for WebView back button
 } from "lucide-react-native";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
+import { WebView } from "react-native-webview"; // Import WebView
 import { useDashboard } from "../../Context/DashboardContext";
 import CustomAlert from "../../components/CustomAlert";
 import TopBar from "../../components/Entity/TopBarNew";
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 
-// Helper function from ReportsDashboard
 const hexToRgba = (hex: string, opacity: number) => {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
@@ -45,7 +46,6 @@ const hexToRgba = (hex: string, opacity: number) => {
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
 
-// Skeleton for the list items
 const ParcelsSkeleton = () => {
     const shimmerColors = ["#FDF1EC", "#FEF8F5", "#FDF1EC"];
     return (
@@ -57,7 +57,6 @@ const ParcelsSkeleton = () => {
     );
 };
 
-// Interfaces
 interface EntityForFilter {
     intEntityCode: number;
     strEntityName: string;
@@ -80,7 +79,6 @@ interface Parcel {
     strDriverRemarks: string;
 }
 
-// Helper function to format date and time
 const formatDateTime = (isoString: string) => {
     if (!isoString) return '';
     try {
@@ -94,19 +92,21 @@ const formatDateTime = (isoString: string) => {
     } catch (e) { return isoString; }
 };
 
-// Reusable Parcel Card Component
-const ParcelCard = ({ item }: { item: Parcel }) => (
+// --- MODIFIED ParcelCard to handle tracking press ---
+const ParcelCard = ({ item, onTrackPress }: { item: Parcel, onTrackPress: (parcel: Parcel) => void }) => (
     <View style={styles.modernTransactionItem}>
-        <View style={styles.transactionHeader}>
-            <View style={styles.parcelHeaderContent}>
-                <View style={styles.parcelIconBackground}><Package color="#fff" size={20} /></View>
-                <View style={styles.parcelNameContainer}>
-                    <Text style={styles.transactionDate} numberOfLines={1}>{item.ReferenceNo}</Text>
-                    <Text style={styles.runningTotalLabel}>{item.CityName}</Text>
+        <TouchableOpacity onPress={() => onTrackPress(item)} activeOpacity={0.7}>
+            <View style={styles.transactionHeader}>
+                <View style={styles.parcelHeaderContent}>
+                    <View style={styles.parcelIconBackground}><Package color="#fff" size={20} /></View>
+                    <View style={styles.parcelNameContainer}>
+                        <Text style={styles.transactionDate} numberOfLines={1}>{item.ReferenceNo}</Text>
+                        <Text style={styles.runningTotalLabel}>{item.CityName}</Text>
+                    </View>
                 </View>
+                <Text style={styles.parcelTotal}>{item.Total.toFixed(2)} د.ل</Text>
             </View>
-            <Text style={styles.parcelTotal}>{item.Total.toFixed(2)} د.ل</Text>
-        </View>
+        </TouchableOpacity>
         <View style={styles.parcelDetailsRow}>
             <View style={styles.parcelColumn}>
                 {item.RecipientName && (
@@ -124,14 +124,9 @@ const ParcelCard = ({ item }: { item: Parcel }) => (
     </View>
 );
 
-// Filter Section Component
 const FilterSection = ({ selectedEntity, setEntityModalVisible, handleSearch, loading }) => (
     <View style={styles.modernFilterSection}>
-        <TouchableOpacity
-            style={styles.modernDropdown}
-            onPress={() => setEntityModalVisible(true)}
-            activeOpacity={0.7}
-        >
+        <TouchableOpacity style={styles.modernDropdown} onPress={() => setEntityModalVisible(true)} activeOpacity={0.7}>
             <View style={styles.modernDropdownContent}>
                 <View style={styles.modernDropdownIcon}><StoreIcon color="#FF6B35" size={20} /></View>
                 <View style={styles.modernDropdownText}>
@@ -143,12 +138,7 @@ const FilterSection = ({ selectedEntity, setEntityModalVisible, handleSearch, lo
                 <ChevronDown color="#9CA3AF" size={20} />
             </View>
         </TouchableOpacity>
-        <TouchableOpacity
-            style={styles.modernSearchButton}
-            onPress={handleSearch}
-            disabled={loading}
-            activeOpacity={0.8}
-        >
+        <TouchableOpacity style={styles.modernSearchButton} onPress={handleSearch} disabled={loading} activeOpacity={0.8}>
             {loading ? (
                 <ActivityIndicator color="#FFF" size="small" />
             ) : (
@@ -160,7 +150,6 @@ const FilterSection = ({ selectedEntity, setEntityModalVisible, handleSearch, lo
         </TouchableOpacity>
     </View>
 );
-
 
 export default function SuccessfulDeliveryScreen() {
     const [loading, setLoading] = useState(false);
@@ -178,6 +167,10 @@ export default function SuccessfulDeliveryScreen() {
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
     const [alertSuccess, setAlertSuccess] = useState(false);
+
+    // --- State for WebView Modal ---
+    const [webViewVisible, setWebViewVisible] = useState(false);
+    const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
 
     useFocusEffect(
         useCallback(() => {
@@ -203,7 +196,6 @@ export default function SuccessfulDeliveryScreen() {
                     setAlertVisible(true);
                 }
             };
-
             fetchFilterEntities();
         }, [user])
     );
@@ -232,15 +224,8 @@ export default function SuccessfulDeliveryScreen() {
             const statusId = sortedStatusIds[3];
             const targetId = selectedEntity ? selectedEntity.intEntityCode : parsedUser.userId;
 
-            const response = await axios.get(
-                `https://tanmia-group.com:84/courierApi/parcels/details/${targetId}/${statusId}`
-            );
-
-            if (response.data && response.data.Parcels) {
-                setAllParcels(response.data.Parcels);
-            } else {
-                setAllParcels([]);
-            }
+            const response = await axios.get(`https://tanmia-group.com:84/courierApi/parcels/details/${targetId}/${statusId}`);
+            setAllParcels(response.data?.Parcels || []);
         } catch (error) {
             console.error("Failed to load successful delivery parcels:", error);
             setAlertTitle("خطأ");
@@ -257,13 +242,18 @@ export default function SuccessfulDeliveryScreen() {
         handleSearch();
     }, [handleSearch]);
 
+    // --- Handler for opening the WebView ---
+    const handleTrackPress = (parcel: Parcel) => {
+        setSelectedParcel(parcel);
+        setWebViewVisible(true);
+    };
+
     const filteredParcels = useMemo(() => {
         if (!parcelSearchQuery) return allParcels;
-        return allParcels.filter(
-            (parcel) =>
-                parcel.ReferenceNo.toLowerCase().includes(parcelSearchQuery.toLowerCase()) ||
-                parcel.RecipientPhone.includes(parcelSearchQuery) ||
-                parcel.CityName.toLowerCase().includes(parcelSearchQuery.toLowerCase())
+        return allParcels.filter(p =>
+            p.ReferenceNo.toLowerCase().includes(parcelSearchQuery.toLowerCase()) ||
+            p.RecipientPhone.includes(parcelSearchQuery) ||
+            p.CityName.toLowerCase().includes(parcelSearchQuery.toLowerCase())
         );
     }, [allParcels, parcelSearchQuery]);
 
@@ -279,12 +269,10 @@ export default function SuccessfulDeliveryScreen() {
             <TopBar title="التوصيل ناجح" />
             <FlatList
                 data={filteredParcels}
-                renderItem={({ item }) => <ParcelCard item={item} />}
+                renderItem={({ item }) => <ParcelCard item={item} onTrackPress={handleTrackPress} />}
                 keyExtractor={(item) => item.intParcelCode.toString()}
                 contentContainerStyle={styles.listContentContainer}
-                refreshControl={
-                    <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#FF6B35']} tintColor="#FF6B35" />
-                }
+                refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#FF6B35']} tintColor="#FF6B35" />}
                 ListHeaderComponent={
                     <>
                         <FilterSection
@@ -293,12 +281,9 @@ export default function SuccessfulDeliveryScreen() {
                             handleSearch={handleSearch}
                             loading={loading && !isRefreshing}
                         />
-
                         {allParcels.length > 0 && !loading && (
                             <View style={styles.resultsHeader}>
-                                <Text style={styles.sectionTitle}>
-                                    الطرود الناجحة ({filteredParcels.length})
-                                </Text>
+                                <Text style={styles.sectionTitle}>الطرود الناجحة ({filteredParcels.length})</Text>
                                 <View style={styles.parcelSearchContainer}>
                                     <Search color="#9CA3AF" size={20} style={styles.modalSearchIcon} />
                                     <TextInput
@@ -314,17 +299,11 @@ export default function SuccessfulDeliveryScreen() {
                     </>
                 }
                 ListEmptyComponent={
-                    loading ? (
-                        <ParcelsSkeleton />
-                    ) : (
+                    loading ? <ParcelsSkeleton /> : (
                         <View style={styles.emptyContainer}>
                             <Image source={require("../../assets/images/empty-reports.png")} style={styles.emptyImage} />
-                            <Text style={styles.emptyText}>
-                                {allParcels.length === 0 ? "لا توجد طرود لعرضها" : ""}
-                            </Text>
-                            <Text style={styles.emptySubText}>
-                                يرجى تحديد فلتر والضغط على بحث
-                            </Text>
+                            <Text style={styles.emptyText}>{allParcels.length === 0 ? "لا توجد طرود لعرضها" : ""}</Text>
+                            <Text style={styles.emptySubText}>يرجى تحديد فلتر والضغط على بحث</Text>
                         </View>
                     )
                 }
@@ -367,6 +346,35 @@ export default function SuccessfulDeliveryScreen() {
                 </TouchableWithoutFeedback>
             </Modal>
 
+            {/* --- WebView Modal for Tracking --- */}
+            <Modal visible={webViewVisible} animationType="slide" onRequestClose={() => setWebViewVisible(false)}>
+                <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+                    <View style={styles.modalHeader}>
+                        <TouchableOpacity onPress={() => setWebViewVisible(false)} style={styles.modalBackButton}>
+                            <ChevronLeft size={24} color="#1F2937" />
+                        </TouchableOpacity>
+                        <Text style={styles.modalHeaderTitle} numberOfLines={1}>
+                            {selectedParcel ? `تتبع: ${selectedParcel.ReferenceNo}` : 'تتبع الشحنة'}
+                        </Text>
+                        <View style={{ width: 40 }} />
+                    </View>
+                    {selectedParcel && (
+                        <WebView
+                            source={{ uri: `https://tanmia-group.com:84/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
+                            style={{ flex: 1 }}
+                            startInLoadingState={true}
+                            renderLoading={() => (
+                                <ActivityIndicator
+                                    color="#27AE60" // Match the screen's theme color
+                                    size="large"
+                                    style={{ position: 'absolute', width: '100%', height: '100%' }}
+                                />
+                            )}
+                        />
+                    )}
+                </SafeAreaView>
+            </Modal>
+
             <CustomAlert isVisible={isAlertVisible} title={alertTitle} message={alertMessage} confirmText="حسنًا" onConfirm={() => setAlertVisible(false)} success={alertSuccess} cancelText={undefined} onCancel={undefined} />
         </View>
     );
@@ -389,6 +397,7 @@ const styles = StyleSheet.create({
     resultsHeader: { marginBottom: 10 },
     sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", marginBottom: 16, textAlign: "right" },
     parcelSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: "#E5E7EB" },
+    modernModalSearchInput: { flex: 1, color: "#1F2937", fontSize: 16, paddingVertical: Platform.OS === "ios" ? 12 : 8, textAlign: "right" },
 
     modernTransactionItem: { backgroundColor: "#FFFFFF", borderRadius: 8, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: "#F3F4F6" },
     transactionHeader: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
@@ -417,10 +426,32 @@ const styles = StyleSheet.create({
     modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginBottom: 16 },
     modernModalSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 8, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: "#E5E7EB" },
     modalSearchIcon: { marginLeft: 8 },
-    modernModalSearchInput: { flex: 1, color: "#1F2937", fontSize: 16, paddingVertical: Platform.OS === "ios" ? 12 : 8, textAlign: "right" },
     modernModalItem: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 16, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
     modalItemContent: { flex: 1 },
     modernModalItemText: { color: "#1F2937", fontSize: 16, fontWeight: "500", textAlign: "right", marginBottom: 2 },
     modalItemCode: { color: "#6B7280", fontSize: 12, textAlign: "right" },
     modalItemSelected: { color: "#FF6B35", fontWeight: "bold" },
+
+    // --- Styles for WebView Modal Header ---
+    modalHeader: {
+        height: 60,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+        backgroundColor: '#FFFFFF',
+    },
+    modalBackButton: {
+        padding: 10,
+    },
+    modalHeaderTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1F2937',
+        textAlign: 'center',
+        flex: 1,
+        marginHorizontal: 10,
+    },
 });

@@ -28,9 +28,11 @@ import {
     ChevronDown,
     Check,
     Store as StoreIcon,
+    ChevronLeft, // Import ChevronLeft for the back button
 } from "lucide-react-native";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
+import { WebView } from "react-native-webview"; // Import WebView
 import { useDashboard } from "../../Context/DashboardContext";
 import CustomAlert from "../../components/CustomAlert";
 import TopBar from "../../components/Entity/TopBarNew";
@@ -91,13 +93,15 @@ const formatDateTime = (isoString: string) => {
 };
 
 // --- FINAL Premium Parcel Card Component ---
-const ParcelCard = ({ item }: { item: Parcel }) => (
+const ParcelCard = ({ item, onIconPress }: { item: Parcel, onIconPress: (parcel: Parcel) => void }) => (
     <View style={styles.premiumCard}>
         <View style={[styles.premiumCardHeader, { backgroundColor: '#FF6B35' }]}>
             <View style={styles.premiumHeaderLeft}>
-                <View style={styles.premiumIconBackground}>
-                    <Package size={18} color="#FFF" />
-                </View>
+                <TouchableOpacity onPress={() => onIconPress(item)}>
+                    <View style={styles.premiumIconBackground}>
+                        <Package size={18} color="#FFF" />
+                    </View>
+                </TouchableOpacity>
                 <View>
                     <Text style={styles.premiumReferenceNo}>{item.ReferenceNo}</Text>
                     <View style={styles.premiumDateContainer}>
@@ -156,8 +160,6 @@ const ParcelCard = ({ item }: { item: Parcel }) => (
                 <Text style={[styles.premiumTotalValue, { color: '#3498DB' }]}>{item.Total.toFixed(2)} د.ل</Text>
             </View>
         </View>
-
-
     </View>
 );
 
@@ -195,6 +197,10 @@ export default function PendingApprovalScreen() {
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
     const [alertSuccess, setAlertSuccess] = useState(false);
+
+    // State for WebView Modal
+    const [webViewVisible, setWebViewVisible] = useState(false);
+    const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
 
     useFocusEffect(
         useCallback(() => {
@@ -260,6 +266,12 @@ export default function PendingApprovalScreen() {
         }
     }, [user, setUser, selectedEntity]);
 
+    // Handler for opening the WebView
+    const handleIconPress = (parcel: Parcel) => {
+        setSelectedParcel(parcel);
+        setWebViewVisible(true);
+    };
+
     const onRefresh = useCallback(() => {
         setIsRefreshing(true);
         handleSearch();
@@ -286,7 +298,7 @@ export default function PendingApprovalScreen() {
             <TopBar title="في انتظار التصديق" />
             <FlatList
                 data={filteredParcels}
-                renderItem={({ item }) => <ParcelCard item={item} />}
+                renderItem={({ item }) => <ParcelCard item={item} onIconPress={handleIconPress} />}
                 keyExtractor={(item) => item.intParcelCode.toString()}
                 contentContainerStyle={styles.listContentContainer}
                 refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#FF6B35']} tintColor="#FF6B35" />}
@@ -315,6 +327,7 @@ export default function PendingApprovalScreen() {
                 }
             />
 
+            {/* Entity Filter Modal */}
             <Modal visible={entityModalVisible} animationType="fade" transparent={true} onRequestClose={() => setEntityModalVisible(false)}>
                 <TouchableWithoutFeedback onPress={() => setEntityModalVisible(false)}>
                     <View style={styles.modalOverlay}>
@@ -343,10 +356,41 @@ export default function PendingApprovalScreen() {
                     </View>
                 </TouchableWithoutFeedback>
             </Modal>
+
+            {/* WebView Modal for Tracking */}
+            <Modal visible={webViewVisible} animationType="slide" onRequestClose={() => setWebViewVisible(false)}>
+                <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+                    <View style={styles.modalHeader}>
+                        <TouchableOpacity onPress={() => setWebViewVisible(false)} style={styles.modalBackButton}>
+                            <ChevronLeft size={24} color="#1F2937" />
+                        </TouchableOpacity>
+                        <Text style={styles.modalHeaderTitle} numberOfLines={1}>
+                            {selectedParcel ? `تتبع: ${selectedParcel.ReferenceNo}` : 'تتبع الشحنة'}
+                        </Text>
+                        <View style={{ width: 40 }} />
+                    </View>
+                    {selectedParcel && (
+                        <WebView
+                            source={{ uri: `https://tanmia-group.com:84/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
+                            style={{ flex: 1 }}
+                            startInLoadingState={true}
+                            renderLoading={() => (
+                                <ActivityIndicator
+                                    color="#FF6B35"
+                                    size="large"
+                                    style={{ position: 'absolute', width: '100%', height: '100%' }}
+                                />
+                            )}
+                        />
+                    )}
+                </SafeAreaView>
+            </Modal>
+
             <CustomAlert isVisible={isAlertVisible} title={alertTitle} message={alertMessage} confirmText="حسنًا" onConfirm={() => setAlertVisible(false)} success={alertSuccess} cancelText={undefined} onCancel={undefined} />
         </View>
     );
 }
+
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#F8F9FA" },
@@ -365,30 +409,33 @@ const styles = StyleSheet.create({
     resultsHeader: { marginBottom: 10, marginTop: 12 },
     sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", marginBottom: 16, textAlign: "right" },
     parcelSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: "#E5E7EB" },
+
+    // Premium Card Styles
     premiumCard: {
         backgroundColor: "#FFFFFF",
-        borderRadius: 8,
+        borderRadius: 12,
         marginBottom: 12,
         overflow: "hidden",
+        borderWidth: 1,
+        borderColor: '#E5E7EB'
     },
-
-    premiumCardHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderTopLeftRadius: 12, borderTopRightRadius: 12, },
+    premiumCardHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', padding: 16, },
     premiumHeaderLeft: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12, },
-    premiumIconBackground: { width: 36, height: 36, borderRadius: 8, backgroundColor: '#3498DB', justifyContent: 'center', alignItems: 'center' },
+    premiumIconBackground: { width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center' },
     premiumReferenceNo: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' },
     premiumDateContainer: { flexDirection: 'row-reverse', alignItems: 'center', gap: 4, marginTop: 4 },
     premiumDateText: { color: '#FFFFFF', fontSize: 12, opacity: 0.9 },
     premiumStatusBadge: { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
     premiumStatusText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
     premiumCardBody: { padding: 16, gap: 12 },
-    premiumSection: { paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+    premiumSection: { paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', },
     premiumSectionTitle: { color: '#9CA3AF', fontSize: 12, fontWeight: '600', textAlign: 'right', marginBottom: 8 },
     premiumInfoRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
     premiumInfoLabel: { color: '#6B7280', fontSize: 14 },
     premiumInfoValue: { color: '#1F2937', fontSize: 14, fontWeight: '500', flex: 1, textAlign: 'left' },
     premiumRemarksContainer: { backgroundColor: '#F9FAFB', borderRadius: 8, padding: 12 },
     premiumRemarksText: { color: '#4B5563', fontSize: 14, textAlign: 'right', lineHeight: 20 },
-    premiumCardFooter: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#F9FAFB', borderBottomLeftRadius: 12, borderBottomRightRadius: 12, },
+    premiumCardFooter: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, marginTop: -1, }, // Simplified footer
     premiumTotalLabel: { color: '#1F2937', fontSize: 16, fontWeight: '600' },
     premiumTotalValue: { fontSize: 20, fontWeight: 'bold' },
 
@@ -411,4 +458,27 @@ const styles = StyleSheet.create({
     modernModalItemText: { color: "#1F2937", fontSize: 16, fontWeight: "500", textAlign: "right", marginBottom: 2 },
     modalItemCode: { color: "#6B7280", fontSize: 12, textAlign: "right" },
     modalItemSelected: { color: "#FF6B35", fontWeight: "bold" },
+
+    // WebView Modal Header Styles
+    modalHeader: {
+        height: 60,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+        backgroundColor: '#FFFFFF',
+    },
+    modalBackButton: {
+        padding: 10,
+    },
+    modalHeaderTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1F2937',
+        textAlign: 'center',
+        flex: 1,
+        marginHorizontal: 10,
+    },
 });

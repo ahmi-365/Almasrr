@@ -28,9 +28,11 @@ import {
     ChevronDown,
     Check,
     Store as StoreIcon,
+    ChevronLeft, // Import for WebView back button
 } from "lucide-react-native";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
+import { WebView } from "react-native-webview"; // Import WebView
 import { useDashboard } from "../../Context/DashboardContext";
 import CustomAlert from "../../components/CustomAlert";
 import TopBar from "../../components/Entity/TopBarNew";
@@ -75,13 +77,15 @@ interface Parcel {
     Remarks: string;
     Total: number;
     strDriverRemarks: string;
+    // Add intStatusCode to the interface to match the data structure
+    intStatusCode: number;
 }
 interface ReturnStatus {
-  Disabled: boolean;
-  Group: any;
-  Selected: boolean;
-  Text: string;
-  Value: string;
+    Disabled: boolean;
+    Group: any;
+    Selected: boolean;
+    Text: string;
+    Value: string;
 }
 const formatDateTime = (isoString: string) => {
     if (!isoString) return '';
@@ -96,21 +100,23 @@ const formatDateTime = (isoString: string) => {
     } catch (e) { return isoString; }
 };
 
-// Themed Parcel Card for Returned status
-const ParcelCard = ({ item }: { item: Parcel }) => (
+// --- MODIFIED ParcelCard to handle tracking press ---
+const ParcelCard = ({ item, onTrackPress }: { item: Parcel, onTrackPress: (parcel: Parcel) => void }) => (
     <View style={styles.modernTransactionItem}>
-        <View style={styles.transactionHeader}>
-            <View style={styles.parcelHeaderContent}>
-                <View style={[styles.parcelIconBackground, { backgroundColor: '#F59E0B' }]}>
-                    <PackageX color="#fff" size={20} />
+        <TouchableOpacity onPress={() => onTrackPress(item)} activeOpacity={0.7}>
+            <View style={styles.transactionHeader}>
+                <View style={styles.parcelHeaderContent}>
+                    <View style={[styles.parcelIconBackground, { backgroundColor: '#F59E0B' }]}>
+                        <PackageX color="#fff" size={20} />
+                    </View>
+                    <View style={styles.parcelNameContainer}>
+                        <Text style={styles.transactionDate} numberOfLines={1}>{item.ReferenceNo}</Text>
+                        <Text style={styles.runningTotalLabel}>{item.CityName}</Text>
+                    </View>
                 </View>
-                <View style={styles.parcelNameContainer}>
-                    <Text style={styles.transactionDate} numberOfLines={1}>{item.ReferenceNo}</Text>
-                    <Text style={styles.runningTotalLabel}>{item.CityName}</Text>
-                </View>
+                <Text style={[styles.parcelTotal, { color: '#E74C3C' }]}>{item.Total.toFixed(2)} د.ل</Text>
             </View>
-            <Text style={[styles.parcelTotal, { color: '#E74C3C' }]}>{item.Total.toFixed(2)} د.ل</Text>
-        </View>
+        </TouchableOpacity>
         <View style={styles.parcelDetailsRow}>
             <View style={styles.parcelColumn}>
                 {item.RecipientName && (
@@ -183,21 +189,21 @@ export default function ReturnedParcelsScreen() {
     const [alertMessage, setAlertMessage] = useState('');
     const [alertSuccess, setAlertSuccess] = useState(false);
 
-    useEffect(() => {
-       const fetchReturnStatuses = async () => {
-  try {
-    const response = await axios.get(`https://tanmia-group.com:84/courierApi/parcels/GetSelectedStatuses`);
-    // response.data khud object hai, array andar "Statuses" key me hai
-    const fetchedStatuses = Array.isArray(response.data?.Statuses)
-      ? response.data.Statuses
-      : [];
-    setReturnStatuses(fetchedStatuses);
-  } catch (error) {
-    console.error("Error fetching return statuses:", error);
-    setReturnStatuses([]); // fallback
-  }
-};
+    // --- State for WebView Modal ---
+    const [webViewVisible, setWebViewVisible] = useState(false);
+    const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
 
+    useEffect(() => {
+        const fetchReturnStatuses = async () => {
+            try {
+                const response = await axios.get(`https://tanmia-group.com:84/courierApi/parcels/GetSelectedStatuses`);
+                const fetchedStatuses = Array.isArray(response.data?.Statuses) ? response.data.Statuses : [];
+                setReturnStatuses(fetchedStatuses);
+            } catch (error) {
+                console.error("Error fetching return statuses:", error);
+                setReturnStatuses([]);
+            }
+        };
         fetchReturnStatuses();
     }, []);
 
@@ -212,10 +218,9 @@ export default function ReturnedParcelsScreen() {
 
                     const countKeys = Object.keys(dashboardData).filter(key => key.startsWith('Count'));
                     const sortedStatusIds = countKeys.map(key => parseInt(key.slice(5), 10)).filter(num => !isNaN(num)).sort((a, b) => a - b);
-
                     if (sortedStatusIds.length < 5) throw new Error("بيانات غير كافية لتحديد الحالة");
 
-                    const statusIdForFilter = sortedStatusIds[4]; // 5th item
+                    const statusIdForFilter = sortedStatusIds[4];
 
                     const response = await axios.get(`https://tanmia-group.com:84/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
                     setEntities(response.data || []);
@@ -230,7 +235,7 @@ export default function ReturnedParcelsScreen() {
         }, [user])
     );
 
-   const handleSearch = useCallback(async () => {
+    const handleSearch = useCallback(async () => {
         setLoading(true);
         setParcelSearchQuery("");
         setAllParcels([]);
@@ -249,31 +254,18 @@ export default function ReturnedParcelsScreen() {
 
             const countKeys = Object.keys(dashboardData).filter(key => key.startsWith('Count'));
             const sortedStatusIds = countKeys.map(key => parseInt(key.slice(5), 10)).filter(num => !isNaN(num)).sort((a, b) => a - b);
-
             if (sortedStatusIds.length < 5) throw new Error("بيانات لوحة التحكم غير كافية");
 
-            const statusId = sortedStatusIds[4]; // 5th item
+            const statusId = sortedStatusIds[4];
             const targetId = selectedEntity ? selectedEntity.intEntityCode : parsedUser.userId;
 
-            const response = await axios.get(
-                `https://tanmia-group.com:84/courierApi/parcels/details/${targetId}/${statusId}`
-            );
+            const response = await axios.get(`https://tanmia-group.com:84/courierApi/parcels/details/${targetId}/${statusId}`);
 
-            if (response.data && response.data.Parcels) {
-                let parcels = response.data.Parcels;
-                
-                // Filter by selected return status if one is selected
-                if (selectedReturnStatus && selectedReturnStatus.Value) {
-                    parcels = parcels.filter(parcel => 
-                        parcel.intStatusCode.toString() === selectedReturnStatus.Value
-                    );
-                }
-                
-                setAllParcels(parcels);
-            } else {
-                setAllParcels([]);
+            let parcels = response.data?.Parcels || [];
+            if (selectedReturnStatus?.Value) {
+                parcels = parcels.filter(parcel => parcel.intStatusCode.toString() === selectedReturnStatus.Value);
             }
-            console.log("Fetched returned parcels:", response.data?.Parcels || []);
+            setAllParcels(parcels);
         } catch (error) {
             console.error("Failed to load returned parcels:", error);
             setAlertTitle("خطأ");
@@ -284,18 +276,24 @@ export default function ReturnedParcelsScreen() {
             setIsRefreshing(false);
         }
     }, [user, setUser, selectedEntity, selectedReturnStatus]);
+
     const onRefresh = useCallback(() => {
         setIsRefreshing(true);
         handleSearch();
     }, [handleSearch]);
 
+    // --- Handler for opening the WebView ---
+    const handleTrackPress = (parcel: Parcel) => {
+        setSelectedParcel(parcel);
+        setWebViewVisible(true);
+    };
+
     const filteredParcels = useMemo(() => {
         if (!parcelSearchQuery) return allParcels;
-        return allParcels.filter(
-            (parcel) =>
-                parcel.ReferenceNo.toLowerCase().includes(parcelSearchQuery.toLowerCase()) ||
-                parcel.RecipientPhone.includes(parcelSearchQuery) ||
-                parcel.CityName.toLowerCase().includes(parcelSearchQuery.toLowerCase())
+        return allParcels.filter(p =>
+            p.ReferenceNo.toLowerCase().includes(parcelSearchQuery.toLowerCase()) ||
+            p.RecipientPhone.includes(parcelSearchQuery) ||
+            p.CityName.toLowerCase().includes(parcelSearchQuery.toLowerCase())
         );
     }, [allParcels, parcelSearchQuery]);
 
@@ -312,7 +310,7 @@ export default function ReturnedParcelsScreen() {
             <TopBar title="الطرود المرتجعة" />
             <FlatList
                 data={filteredParcels}
-                renderItem={({ item }) => <ParcelCard item={item} />}
+                renderItem={({ item }) => <ParcelCard item={item} onTrackPress={handleTrackPress} />}
                 keyExtractor={(item) => item.intParcelCode.toString()}
                 contentContainerStyle={styles.listContentContainer}
                 refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#FF6B35']} tintColor="#FF6B35" />}
@@ -328,9 +326,7 @@ export default function ReturnedParcelsScreen() {
                         />
                         {allParcels.length > 0 && !loading && (
                             <View style={styles.resultsHeader}>
-                                <Text style={styles.sectionTitle}>
-                                    الطرود المرتجعة ({filteredParcels.length})
-                                </Text>
+                                <Text style={styles.sectionTitle}>الطرود المرتجعة ({filteredParcels.length})</Text>
                                 <View style={styles.parcelSearchContainer}>
                                     <Search color="#9CA3AF" size={20} style={styles.modalSearchIcon} />
                                     <TextInput
@@ -349,12 +345,8 @@ export default function ReturnedParcelsScreen() {
                     loading ? <ParcelsSkeleton /> : (
                         <View style={styles.emptyContainer}>
                             <Image source={require("../../assets/images/empty-reports.png")} style={styles.emptyImage} />
-                            <Text style={styles.emptyText}>
-                                {allParcels.length === 0 ? "لا توجد طرود مرتجعة لعرضها" : ""}
-                            </Text>
-                            <Text style={styles.emptySubText}>
-                                يرجى تحديد فلتر والضغط على بحث
-                            </Text>
+                            <Text style={styles.emptyText}>{allParcels.length === 0 ? "لا توجد طرود مرتجعة لعرضها" : ""}</Text>
+                            <Text style={styles.emptySubText}>يرجى تحديد فلتر والضغط على بحث</Text>
                         </View>
                     )
                 }
@@ -413,6 +405,35 @@ export default function ReturnedParcelsScreen() {
                 </TouchableWithoutFeedback>
             </Modal>
 
+            {/* --- WebView Modal for Tracking --- */}
+            <Modal visible={webViewVisible} animationType="slide" onRequestClose={() => setWebViewVisible(false)}>
+                <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+                    <View style={styles.modalHeader}>
+                        <TouchableOpacity onPress={() => setWebViewVisible(false)} style={styles.modalBackButton}>
+                            <ChevronLeft size={24} color="#1F2937" />
+                        </TouchableOpacity>
+                        <Text style={styles.modalHeaderTitle} numberOfLines={1}>
+                            {selectedParcel ? `تتبع: ${selectedParcel.ReferenceNo}` : 'تتبع الشحنة'}
+                        </Text>
+                        <View style={{ width: 40 }} />
+                    </View>
+                    {selectedParcel && (
+                        <WebView
+                            source={{ uri: `https://tanmia-group.com:84/admin/tracking/DirectReturnParcel?trackingNumber=${selectedParcel.ReferenceNo}` }}
+                            style={{ flex: 1 }}
+                            startInLoadingState={true}
+                            renderLoading={() => (
+                                <ActivityIndicator
+                                    color="#F59E0B" // Match the screen's theme color
+                                    size="large"
+                                    style={{ position: 'absolute', width: '100%', height: '100%' }}
+                                />
+                            )}
+                        />
+                    )}
+                </SafeAreaView>
+            </Modal>
+
             <CustomAlert isVisible={isAlertVisible} title={alertTitle} message={alertMessage} confirmText="حسنًا" onConfirm={() => setAlertVisible(false)} success={alertSuccess} cancelText={undefined} onCancel={undefined} />
         </View>
     );
@@ -435,6 +456,7 @@ const styles = StyleSheet.create({
     resultsHeader: { marginBottom: 10 },
     sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", marginBottom: 16, textAlign: "right" },
     parcelSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: "#E5E7EB" },
+    modernModalSearchInput: { flex: 1, color: "#1F2937", fontSize: 16, paddingVertical: Platform.OS === "ios" ? 12 : 8, textAlign: "right" },
 
     modernTransactionItem: { backgroundColor: "#FFFFFF", borderRadius: 8, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: "#F3F4F6" },
     transactionHeader: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
@@ -463,10 +485,32 @@ const styles = StyleSheet.create({
     modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginBottom: 16 },
     modernModalSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 8, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: "#E5E7EB" },
     modalSearchIcon: { marginLeft: 8 },
-    modernModalSearchInput: { flex: 1, color: "#1F2937", fontSize: 16, paddingVertical: Platform.OS === "ios" ? 12 : 8, textAlign: "right" },
     modernModalItem: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 16, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
     modalItemContent: { flex: 1 },
     modernModalItemText: { color: "#1F2937", fontSize: 16, fontWeight: "500", textAlign: "right", marginBottom: 2 },
     modalItemCode: { color: "#6B7280", fontSize: 12, textAlign: "right" },
     modalItemSelected: { color: "#FF6B35", fontWeight: "bold" },
+
+    // --- Styles for WebView Modal Header ---
+    modalHeader: {
+        height: 60,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+        backgroundColor: '#FFFFFF',
+    },
+    modalBackButton: {
+        padding: 10,
+    },
+    modalHeaderTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1F2937',
+        textAlign: 'center',
+        flex: 1,
+        marginHorizontal: 10,
+    },
 });

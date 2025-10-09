@@ -28,9 +28,11 @@ import {
     ChevronDown,
     Check,
     Store as StoreIcon,
+    ChevronLeft, // Import for WebView back button
 } from "lucide-react-native";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
+import { WebView } from "react-native-webview"; // Import WebView
 import { useDashboard } from "../../Context/DashboardContext";
 import CustomAlert from "../../components/CustomAlert";
 import TopBar from "../../components/Entity/TopBarNew";
@@ -90,14 +92,16 @@ const formatDateTime = (isoString: string) => {
     } catch (e) { return isoString; }
 };
 
-const ParcelCard = ({ item }: { item: Parcel }) => (
+// --- MODIFIED ParcelCard to handle tracking press ---
+const ParcelCard = ({ item, onTrackPress }: { item: Parcel, onTrackPress: (parcel: Parcel) => void }) => (
     <View style={styles.premiumCard}>
-        {/* MODIFICATION: Themed for "At Branch" status */}
         <View style={[styles.premiumCardHeader, { backgroundColor: '#E67E22' }]}>
             <View style={styles.premiumHeaderLeft}>
-                <View style={styles.premiumIconBackground}>
-                    <Package size={18} color="#FFF" />
-                </View>
+                <TouchableOpacity onPress={() => onTrackPress(item)}>
+                    <View style={styles.premiumIconBackground}>
+                        <Package size={18} color="#FFF" />
+                    </View>
+                </TouchableOpacity>
                 <View>
                     <Text style={styles.premiumReferenceNo}>{item.ReferenceNo}</Text>
                     <View style={styles.premiumDateContainer}>
@@ -153,7 +157,6 @@ const ParcelCard = ({ item }: { item: Parcel }) => (
             )}
             <View style={styles.premiumCardFooter}>
                 <Text style={styles.premiumTotalLabel}>الإجمالي</Text>
-                {/* MODIFICATION: Themed for "At Branch" status */}
                 <Text style={[styles.premiumTotalValue, { color: '#E67E22' }]}>{item.Total.toFixed(2)} د.ل</Text>
             </View>
         </View>
@@ -195,6 +198,10 @@ export default function AtBranchScreen() {
     const [alertMessage, setAlertMessage] = useState('');
     const [alertSuccess, setAlertSuccess] = useState(false);
 
+    // --- State for WebView Modal ---
+    const [webViewVisible, setWebViewVisible] = useState(false);
+    const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
+
     useFocusEffect(
         useCallback(() => {
             const fetchFilterEntities = async () => {
@@ -206,10 +213,8 @@ export default function AtBranchScreen() {
 
                     const countKeys = Object.keys(dashboardData).filter(key => key.startsWith('Count'));
                     const sortedStatusIds = countKeys.map(key => parseInt(key.slice(5), 10)).filter(num => !isNaN(num)).sort((a, b) => a - b);
-                    // MODIFICATION: Check for the 2nd count
                     if (sortedStatusIds.length < 2) throw new Error("بيانات غير كافية لتحديد الحالة");
 
-                    // MODIFICATION: Use the 2nd count for the filter API
                     const statusIdForFilter = sortedStatusIds[1];
 
                     const response = await axios.get(`https://tanmia-group.com:84/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
@@ -244,10 +249,8 @@ export default function AtBranchScreen() {
 
             const countKeys = Object.keys(dashboardData).filter(key => key.startsWith('Count'));
             const sortedStatusIds = countKeys.map(key => parseInt(key.slice(5), 10)).filter(num => !isNaN(num)).sort((a, b) => a - b);
-            // MODIFICATION: Check for the 2nd count
             if (sortedStatusIds.length < 2) throw new Error("بيانات لوحة التحكم غير كافية");
 
-            // MODIFICATION: Use the 2nd count (e.g., 1)
             const statusId = sortedStatusIds[1];
             const targetId = selectedEntity ? selectedEntity.intEntityCode : parsedUser.userId;
 
@@ -269,6 +272,12 @@ export default function AtBranchScreen() {
         handleSearch();
     }, [handleSearch]);
 
+    // --- Handler for opening the WebView ---
+    const handleTrackPress = (parcel: Parcel) => {
+        setSelectedParcel(parcel);
+        setWebViewVisible(true);
+    };
+
     const filteredParcels = useMemo(() => {
         if (!parcelSearchQuery) return allParcels;
         return allParcels.filter(p =>
@@ -287,11 +296,10 @@ export default function AtBranchScreen() {
 
     return (
         <View style={styles.container}>
-            {/* MODIFICATION: Updated Title */}
             <TopBar title="في الفرع" />
             <FlatList
                 data={filteredParcels}
-                renderItem={({ item }) => <ParcelCard item={item} />}
+                renderItem={({ item }) => <ParcelCard item={item} onTrackPress={handleTrackPress} />}
                 keyExtractor={(item) => item.intParcelCode.toString()}
                 contentContainerStyle={styles.listContentContainer}
                 refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#FF6B35']} tintColor="#FF6B35" />}
@@ -300,7 +308,6 @@ export default function AtBranchScreen() {
                         <FilterSection selectedEntity={selectedEntity} setEntityModalVisible={setEntityModalVisible} handleSearch={handleSearch} loading={loading && !isRefreshing} />
                         {allParcels.length > 0 && !loading && (
                             <View style={styles.resultsHeader}>
-                                {/* MODIFICATION: Updated Section Title */}
                                 <Text style={styles.sectionTitle}>الطرود في الفرع ({filteredParcels.length})</Text>
                                 <View style={styles.parcelSearchContainer}>
                                     <Search color="#9CA3AF" size={20} style={styles.modalSearchIcon} />
@@ -314,7 +321,6 @@ export default function AtBranchScreen() {
                     loading ? <ParcelsSkeleton /> : (
                         <View style={styles.emptyContainer}>
                             <Image source={require("../../assets/images/empty-reports.png")} style={styles.emptyImage} />
-                            {/* MODIFICATION: Updated Empty State Text */}
                             <Text style={styles.emptyText}>{allParcels.length === 0 ? "لا توجد طرود في الفرع لعرضها" : ""}</Text>
                             <Text style={styles.emptySubText}>يرجى تحديد فلتر والضغط على بحث</Text>
                         </View>
@@ -350,6 +356,36 @@ export default function AtBranchScreen() {
                     </View>
                 </TouchableWithoutFeedback>
             </Modal>
+
+            {/* --- WebView Modal for Tracking --- */}
+            <Modal visible={webViewVisible} animationType="slide" onRequestClose={() => setWebViewVisible(false)}>
+                <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
+                    <View style={styles.modalHeader}>
+                        <TouchableOpacity onPress={() => setWebViewVisible(false)} style={styles.modalBackButton}>
+                            <ChevronLeft size={24} color="#1F2937" />
+                        </TouchableOpacity>
+                        <Text style={styles.modalHeaderTitle} numberOfLines={1}>
+                            {selectedParcel ? `تتبع: ${selectedParcel.ReferenceNo}` : 'تتبع الشحنة'}
+                        </Text>
+                        <View style={{ width: 40 }} />
+                    </View>
+                    {selectedParcel && (
+                        <WebView
+                            source={{ uri: `https://tanmia-group.com:84/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
+                            style={{ flex: 1 }}
+                            startInLoadingState={true}
+                            renderLoading={() => (
+                                <ActivityIndicator
+                                    color="#E67E22" // Match the screen's theme color
+                                    size="large"
+                                    style={{ position: 'absolute', width: '100%', height: '100%' }}
+                                />
+                            )}
+                        />
+                    )}
+                </SafeAreaView>
+            </Modal>
+
             <CustomAlert isVisible={isAlertVisible} title={alertTitle} message={alertMessage} confirmText="حسنًا" onConfirm={() => setAlertVisible(false)} success={alertSuccess} cancelText={undefined} onCancel={undefined} />
         </View>
     );
@@ -371,8 +407,9 @@ const styles = StyleSheet.create({
     resultsHeader: { marginBottom: 10 },
     sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", marginBottom: 16, textAlign: "right" },
     parcelSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: "#E5E7EB" },
+    modernModalSearchInput: { flex: 1, color: "#1F2937", fontSize: 16, paddingVertical: Platform.OS === "ios" ? 12 : 8, textAlign: "right" },
 
-    premiumCard: { backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: '#F3F4F6', marginBottom: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2, },
+    premiumCard: { backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: '#F3F4F6', marginBottom: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2, overflow: 'hidden' },
     premiumCardHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderTopLeftRadius: 12, borderTopRightRadius: 12, },
     premiumHeaderLeft: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12, },
     premiumIconBackground: { width: 36, height: 36, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
@@ -404,10 +441,32 @@ const styles = StyleSheet.create({
     modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginBottom: 16 },
     modernModalSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 8, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: "#E5E7EB" },
     modalSearchIcon: { marginLeft: 8 },
-    modernModalSearchInput: { flex: 1, color: "#1F2937", fontSize: 16, paddingVertical: Platform.OS === "ios" ? 12 : 8, textAlign: "right" },
     modernModalItem: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 16, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
     modalItemContent: { flex: 1 },
     modernModalItemText: { color: "#1F2937", fontSize: 16, fontWeight: "500", textAlign: "right", marginBottom: 2 },
     modalItemCode: { color: "#6B7280", fontSize: 12, textAlign: "right" },
     modalItemSelected: { color: "#FF6B35", fontWeight: "bold" },
+
+    // --- Styles for WebView Modal Header ---
+    modalHeader: {
+        height: 60,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+        backgroundColor: '#FFFFFF',
+    },
+    modalBackButton: {
+        padding: 10,
+    },
+    modalHeaderTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1F2937',
+        textAlign: 'center',
+        flex: 1,
+        marginHorizontal: 10,
+    },
 });

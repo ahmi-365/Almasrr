@@ -19,7 +19,7 @@ import AssignedParcelScreen from '../screens/Driver/AssignedParcelScreen';
 export type TabParamList = {
   EntityDashboard: undefined;
   DriverDashboard: undefined;
-  ReportsTab: { entityCode?: number }; 
+  ReportsTab: { entityCode?: number };
   StoresTab: undefined;
   AccountTab: undefined;
   AddTab: undefined;
@@ -99,6 +99,7 @@ const MainTabNavigator = () => {
       initialRouteName={initialRouteName}
       screenOptions={{
         headerShown: false,
+        tabBarHideOnKeyboard: true,
       }}
     >
       {userRole === 'Entity' ? (
