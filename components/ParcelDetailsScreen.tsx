@@ -12,6 +12,9 @@ import {
   Modal,
   SafeAreaView,
   TouchableWithoutFeedback,
+  ActivityIndicator,
+  TextInput,
+  Platform,
 } from "react-native";
 import {
   ArrowLeft,
@@ -30,9 +33,16 @@ import {
   Bell,
   Download,
   FileText,
+  XCircle,
+  MessageSquare,
+  CheckCircle2,
+  X,
 } from "lucide-react-native";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import CustomAlert from "./CustomAlert";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+
 
 const { width, height } = Dimensions.get("window");
 type ParcelDetailsRouteParams = {
@@ -109,11 +119,23 @@ const STATUS_CONFIG = {
   مؤكد: { color: "#2ECC71", lightColor: "#82E0AA", icon: CheckCircle },
 };
 
+// MODIFICATION: Added hexToRgba helper function from AssignedParcelScreen
+const hexToRgba = (hex: string, opacity: number) => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+};
+
+
 const ParcelDetailsScreen = () => {
   const navigation = useNavigation();
   const route =
     useRoute<RouteProp<Record<string, ParcelDetailsRouteParams>, "ParcelDetails">>();
   const { parcel } = route.params;
+
+  const [roleName, setRoleName] = useState<string | null>(null);
+
   const [isFetchingInvoices, setIsFetchingInvoices] = useState(false);
   const [isNotifyAlertVisible, setNotifyAlertVisible] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
@@ -124,6 +146,15 @@ const ParcelDetailsScreen = () => {
   // Modal State
   const [isInvoiceModalVisible, setInvoiceModalVisible] = useState(false);
   const [invoiceData, setInvoiceData] = useState([]);
+
+  // MODIFICATION: Added states from AssignedParcelScreen
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showRemarksModal, setShowRemarksModal] = useState(false);
+  const [showCustomRemarkInput, setShowCustomRemarkInput] = useState(false);
+  const [customRemark, setCustomRemark] = useState("");
+  const [selectedRemarkOption, setSelectedRemarkOption] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -141,7 +172,22 @@ const ParcelDetailsScreen = () => {
   });
 
   useEffect(() => {
-    // Start animations when component mounts
+    const fetchUserData = async () => {
+      try {
+        const userDataString = await AsyncStorage.getItem('user');
+        if (userDataString) {
+          const userData = JSON.parse(userDataString);
+          setRoleName(userData.roleName);
+        }
+      } catch (e) {
+        console.error("Failed to fetch user data from storage", e);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -162,6 +208,103 @@ const ParcelDetailsScreen = () => {
       }),
     ]).start();
   }, []);
+
+  // MODIFICATION START: API Handlers from AssignedParcelScreen
+  const handleCompleteParcel = async () => {
+    if (!parcel) return;
+
+    setIsProcessing(true);
+    try {
+      await axios.post(
+        `https://tanmia-group.com:84/courierApi/Parcel/Driver/UpdateStatus/${parcel.intParcelCode}/${parcel.intStatusCode}`
+      );
+
+      setAlertTitle("نجاح");
+      setAlertMessage("تم تحديث حالة الطرد بنجاح");
+      setAlertSuccess(true);
+      setAlertVisible(true);
+      setShowCompleteModal(false);
+      navigation.goBack(); // Navigate back after success
+    } catch (error) {
+      setAlertTitle("خطأ");
+      setAlertMessage("فشل في تحديث حالة الطرد");
+      setAlertSuccess(false);
+      setAlertVisible(true);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleReturnParcel = async () => {
+    if (!parcel) return;
+
+    setIsProcessing(true);
+    try {
+      await axios.post(
+        `https://tanmia-group.com:84/courierApi/Parcel/Driver/ReturnOnTheWay/${parcel.intParcelCode}`
+      );
+
+      setAlertTitle("نجاح");
+      setAlertMessage("تم إرجاع الطرد بنجاح");
+      setAlertSuccess(true);
+      setAlertVisible(true);
+      setShowReturnModal(false);
+      navigation.goBack(); // Navigate back after success
+    } catch (error) {
+      setAlertTitle("خطأ");
+      setAlertMessage("فشل في إرجاع الطرد");
+      setAlertSuccess(false);
+      setAlertVisible(true);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleAddRemarks = async (remark: string) => {
+    if (!parcel || !remark.trim()) return;
+
+    setIsProcessing(true);
+    try {
+      await axios.post(
+        `https://tanmia-group.com:84/courierApi/Parcel/Driver/AddRemarks/${parcel.intParcelCode}/${encodeURIComponent(remark)}`
+      );
+
+      setAlertTitle("نجاح");
+      setAlertMessage("تم إضافة الملاحظات بنجاح");
+      setAlertSuccess(true);
+      setAlertVisible(true);
+      setShowRemarksModal(false);
+      setShowCustomRemarkInput(false);
+      setCustomRemark("");
+      setSelectedRemarkOption("");
+      // Instead of reloading data, we go back as the purpose is completed
+      navigation.goBack();
+    } catch (error) {
+      setAlertTitle("خطأ");
+      setAlertMessage("فشل في إضافة الملاحظات");
+      setAlertSuccess(false);
+      setAlertVisible(true);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRemarkOptionSelect = (option: string) => {
+    setSelectedRemarkOption(option);
+    if (option === "العميل لا يرد على الهاتف") {
+      handleAddRemarks(option);
+    } else if (option === "الاخرون") {
+      setShowCustomRemarkInput(true);
+    }
+  };
+
+  const handleSaveCustomRemark = () => {
+    if (customRemark.trim()) {
+      handleAddRemarks(customRemark);
+    }
+  };
+  // MODIFICATION END: API Handlers
+
 
   const handleFetchInvoices = async () => {
     if (isFetchingInvoices) return;
@@ -296,9 +439,13 @@ const ParcelDetailsScreen = () => {
   };
 
   const showNotifyButton =
-    parcel.intStatusCode === 4 || parcel.StatusName === "في الطريق";
+    (parcel.intStatusCode === 4 && roleName === "Entity") || parcel.StatusName === "في الطريق";
   const showConfirmButton = false;
-  const showDeliveredButtons = parcel.intStatusCode === 10;
+  const showDeliveredButtons = (parcel.intStatusCode === 10 && roleName === "Entity");
+  // MODIFICATION: Condition to show the new action buttons
+  const showDriverActionButtons = parcel.intStatusCode === 4 && roleName === "Driver";
+
+
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
@@ -464,6 +611,33 @@ const ParcelDetailsScreen = () => {
             </View>
           </View>
         </Animated.View>
+
+        {/* MODIFICATION: Added Driver Action Buttons */}
+        {showDriverActionButtons && (
+          <View style={styles.transactionFooter}>
+            <TouchableOpacity
+              style={styles.actionButtonReturn}
+              onPress={() => setShowReturnModal(true)}
+            >
+              <XCircle color="#E74C3C" size={16} />
+              <Text style={styles.actionButtonTextReturn}>إرجاع</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButtonRemarks}
+              onPress={() => setShowRemarksModal(true)}
+            >
+              <MessageSquare color="#3498DB" size={16} />
+              <Text style={styles.actionButtonTextRemarks}>ملاحظات</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionButtonComplete}
+              onPress={() => setShowCompleteModal(true)}
+            >
+              <CheckCircle2 color="#27AE60" size={16} />
+              <Text style={styles.actionButtonTextComplete}>اكتمل</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Sections */}
         <Animated.View
@@ -705,6 +879,163 @@ const ParcelDetailsScreen = () => {
         </TouchableWithoutFeedback>
       </Modal>
 
+      {/* MODIFICATION START: Added Modals from AssignedParcelScreen */}
+      {/* Complete Confirmation Modal */}
+      <Modal
+        visible={showCompleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCompleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.confirmationModal}>
+            <Text style={styles.confirmationTitle}>تأكيد الإكتمال</Text>
+            <Text style={styles.confirmationMessage}>
+              متأكد/ة إنك بدك تأكد الطرد؟
+            </Text>
+            <View style={styles.confirmationButtons}>
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.confirmButtonYes]}
+                onPress={handleCompleteParcel}
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.confirmButtonText}>نعم</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.confirmButtonNo]}
+                onPress={() => setShowCompleteModal(false)}
+                disabled={isProcessing}
+              >
+                <Text style={styles.confirmButtonTextNo}>لا</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Return Confirmation Modal */}
+      <Modal
+        visible={showReturnModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowReturnModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.confirmationModal}>
+            <Text style={styles.confirmationTitle}>تأكيد الحذف</Text>
+            <Text style={styles.confirmationMessage}>
+              متأكد/ة إنك بدك ترجع الطرد؟
+            </Text>
+            <View style={styles.confirmationButtons}>
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.confirmButtonYes]}
+                onPress={handleReturnParcel}
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.confirmButtonText}>نعم</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.confirmButtonNo]}
+                onPress={() => setShowReturnModal(false)}
+                disabled={isProcessing}
+              >
+                <Text style={styles.confirmButtonTextNo}>لا</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Remarks Modal */}
+      <Modal
+        visible={showRemarksModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          setShowRemarksModal(false);
+          setShowCustomRemarkInput(false);
+          setCustomRemark("");
+          setSelectedRemarkOption("");
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.remarksModal}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => {
+                setShowRemarksModal(false);
+                setShowCustomRemarkInput(false);
+                setCustomRemark("");
+                setSelectedRemarkOption("");
+              }}
+            >
+              <X color="#fff" size={24} />
+            </TouchableOpacity>
+
+            <Text style={styles.remarksTitle}>اضف ملاحظات المندوب</Text>
+
+            {!showCustomRemarkInput ? (
+              <>
+                <TouchableOpacity
+                  style={[
+                    styles.remarkOption,
+                    selectedRemarkOption === "العميل لا يرد على الهاتف" && styles.remarkOptionSelected
+                  ]}
+                  onPress={() => handleRemarkOptionSelect("العميل لا يرد على الهاتف")}
+                  disabled={isProcessing}
+                >
+                  <Text style={styles.remarkOptionText}>العميل لا يرد على الهاتف</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.remarkOption,
+                    selectedRemarkOption === "الاخرون" && styles.remarkOptionSelected
+                  ]}
+                  onPress={() => handleRemarkOptionSelect("الاخرون")}
+                  disabled={isProcessing}
+                >
+                  <Text style={styles.remarkOptionText}>الاخرون</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <TextInput
+                  style={styles.customRemarkInput}
+                  placeholder="ملاحظات المندوب"
+                  placeholderTextColor="#9CA3AF"
+                  value={customRemark}
+                  onChangeText={setCustomRemark}
+                  multiline
+                  textAlign="right"
+                />
+                <TouchableOpacity
+                  style={styles.saveRemarkButton}
+                  onPress={handleSaveCustomRemark}
+                  disabled={isProcessing || !customRemark.trim()}
+                >
+                  {isProcessing ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.saveRemarkButtonText}>احفظ</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+      {/* MODIFICATION END: Added Modals */}
+
+
       {/* Custom Alerts */}
       <CustomAlert
         isVisible={isNotifyAlertVisible}
@@ -728,7 +1059,9 @@ const ParcelDetailsScreen = () => {
   );
 };
 
+
 const styles = StyleSheet.create({
+  //... (Existing styles from ParcelDetailsScreen)
   inlineHeader: {
     flexDirection: "row-reverse",
     alignItems: "center",
@@ -1001,13 +1334,192 @@ const styles = StyleSheet.create({
   bottomSpacer: {
     height: 30,
   },
-  // Modal Styles
-  modalOverlay: {
+
+  // MODIFICATION START: Added Styles from AssignedParcelScreen
+  transactionFooter: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    marginTop: -10,
+    marginBottom: 16,
+    gap: 8,
+    backgroundColor: COLORS.card,
+    borderRadius: 16,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  actionButtonReturn: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    backgroundColor: hexToRgba("#E74C3C", 0.1),
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
     flex: 1,
     justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(56, 56, 56, 0.6)",
   },
+  actionButtonTextReturn: {
+    color: "#E74C3C",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  actionButtonRemarks: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    backgroundColor: hexToRgba("#3498DB", 0.1),
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+    flex: 1,
+    justifyContent: "center",
+  },
+  actionButtonTextRemarks: {
+    color: "#3498DB",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  actionButtonComplete: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    backgroundColor: hexToRgba("#27AE60", 0.1),
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+    flex: 1,
+    justifyContent: "center",
+  },
+  actionButtonTextComplete: {
+    color: "#27AE60",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  confirmationModal: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+  },
+  confirmationTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1F2937",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  confirmationMessage: {
+    fontSize: 16,
+    color: "#6B7280",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  confirmationButtons: {
+    flexDirection: "row-reverse",
+    gap: 12,
+  },
+  confirmButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  confirmButtonYes: {
+    backgroundColor: "#27AE60",
+  },
+  confirmButtonNo: {
+    backgroundColor: "#F3F4F6",
+  },
+  confirmButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  confirmButtonTextNo: {
+    color: "#1F2937",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  remarksModal: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    position: "relative",
+  },
+  closeButton: {
+    position: "absolute",
+    top: 12,
+    left: 12,
+    backgroundColor: "#FF6B35",
+    borderRadius: 20,
+    padding: 6,
+    zIndex: 1,
+  },
+  remarksTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1F2937",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  remarkOption: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  remarkOptionSelected: {
+    backgroundColor: hexToRgba("#FF6B35", 0.1),
+    borderColor: "#FF6B35",
+  },
+  remarkOptionText: {
+    fontSize: 16,
+    color: "#1F2937",
+    textAlign: "center",
+  },
+  customRemarkInput: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    fontSize: 16,
+    color: "#1F2937",
+    minHeight: 100,
+    textAlignVertical: "top",
+  },
+  saveRemarkButton: {
+    backgroundColor: "#FF6B35",
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  saveRemarkButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  // MODIFICATION END: Added Styles
+
+  // Modal Styles (for invoices)
   modalContent: {
     width: width * 0.9,
     maxHeight: height * 0.7,
@@ -1074,5 +1586,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
+
 
 export default ParcelDetailsScreen;
