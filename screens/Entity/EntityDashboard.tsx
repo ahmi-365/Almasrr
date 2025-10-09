@@ -37,7 +37,6 @@ import Svg, { Path } from "react-native-svg";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomAlert from "../../components/CustomAlert";
-import RealTimeSearchDropdown from "../../components/RealTimeSearchDropdown";
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const HEADER_EXPANDED_HEIGHT = 1;
@@ -393,74 +392,74 @@ export default function EntityDashboard() {
   }, []);
 
   // Fetch all parcels
-const fetchAllParcels = useCallback(async () => {
-  if (!user?.userId) {
-    console.log("⚠️ No user ID found, skipping parcel fetch");
-    return;
-  }
-
-  try {
-    const entityCode = user.userId;
-    const url = `https://tanmia-group.com:84/courierApi/parcels/EntityParcels/${entityCode}`;
-    
-    const response = await axios.get(url);
-
-    if (response.data && response.data.Parcels && Array.isArray(response.data.Parcels)) {
-      console.log("✅ Fetched", response.data.Parcels.length, "parcels");
-      setAllParcels(response.data.Parcels);
-      await AsyncStorage.setItem(
-        "all_parcels",
-        JSON.stringify(response.data.Parcels)
-      );
-    } else {
-      console.log("⚠️ No parcels data received");
-      setAllParcels([]);
-    }
-  } catch (error) {
-    console.error("❌ Error fetching parcels:", error.message);
-  }
-}, [user]);
-
-const fetchDashboardData = useCallback(async () => {
-  if (!user?.userId) return;
-
-  const userId = user.userId;
-
-  try {
-    const dashboardResponse = await axios.get(
-      `https://tanmia-group.com:84/courierApi/entityparcels/DashboardData/${userId}`
-    );
-
-    const entitiesResponse = await axios.get(
-      `https://tanmia-group.com:84/courierApi/Entity/GetEntities/${userId}`
-    );
-
-    if (dashboardResponse.data) {
-      setDashboardData(dashboardResponse.data);
-      setDcBalance(
-        String(dashboardResponse.data?.DCBalance?.toFixed(2) ?? "0.00")
-      );
-      await AsyncStorage.setItem(
-        "dashboard_data",
-        JSON.stringify(dashboardResponse.data)
-      );
+  const fetchAllParcels = useCallback(async () => {
+    if (!user?.userId) {
+      console.log("⚠️ No user ID found, skipping parcel fetch");
+      return;
     }
 
-    if (entitiesResponse.data) {
-      await AsyncStorage.setItem(
-        "user_entities",
-        JSON.stringify(entitiesResponse.data)
-      );
-    }
+    try {
+      const entityCode = user.userId;
+      const url = `https://tanmia-group.com:84/courierApi/parcels/EntityParcels/${entityCode}`;
+      
+      const response = await axios.get(url);
 
-    // Don't call fetchAllParcels here anymore
-  } catch (err) {
-    console.error("Error fetching data:", err);
-  } finally {
-    setLoading(false);
-    setRefreshing(false);
-  }
-}, [user, setDashboardData, setDcBalance]);   // Focus effect for data fetching
+      if (response.data && response.data.Parcels && Array.isArray(response.data.Parcels)) {
+        console.log("✅ Fetched", response.data.Parcels.length, "parcels");
+        setAllParcels(response.data.Parcels);
+        await AsyncStorage.setItem(
+          "all_parcels",
+          JSON.stringify(response.data.Parcels)
+        );
+      } else {
+        console.log("⚠️ No parcels data received");
+        setAllParcels([]);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching parcels:", error.message);
+    }
+  }, [user]);
+
+  const fetchDashboardData = useCallback(async () => {
+    if (!user?.userId) return;
+
+    const userId = user.userId;
+
+    try {
+      const dashboardResponse = await axios.get(
+        `https://tanmia-group.com:84/courierApi/entityparcels/DashboardData/${userId}`
+      );
+
+      const entitiesResponse = await axios.get(
+        `https://tanmia-group.com:84/courierApi/Entity/GetEntities/${userId}`
+      );
+
+      if (dashboardResponse.data) {
+        setDashboardData(dashboardResponse.data);
+        setDcBalance(
+          String(dashboardResponse.data?.DCBalance?.toFixed(2) ?? "0.00")
+        );
+        await AsyncStorage.setItem(
+          "dashboard_data",
+          JSON.stringify(dashboardResponse.data)
+        );
+      }
+
+      if (entitiesResponse.data) {
+        await AsyncStorage.setItem(
+          "user_entities",
+          JSON.stringify(entitiesResponse.data)
+        );
+      }
+    } catch (err) {
+      console.error("Error fetching data:", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [user, setDashboardData, setDcBalance]);
+
+  // Focus effect for data fetching
   useFocusEffect(
     useCallback(() => {
       if (!dashboardData && user) {
@@ -474,12 +473,14 @@ const fetchDashboardData = useCallback(async () => {
     setRefreshing(true);
     fetchDashboardData();
   }, [fetchDashboardData]);
-// Background parcel fetching (doesn't affect loading state)
-useEffect(() => {
-  if (user?.userId) {
-    fetchAllParcels();
-  }
-}, [user, fetchAllParcels]);
+
+  // Background parcel fetching
+  useEffect(() => {
+    if (user?.userId) {
+      fetchAllParcels();
+    }
+  }, [user, fetchAllParcels]);
+
   // Stats data calculation
   const statsData = useMemo(() => {
     if (!dashboardData) return [];
@@ -516,13 +517,12 @@ useEffect(() => {
   // Handle parcel selection from search
   const handleParcelSelect = (parcel) => {
     console.log('Selected parcel:', parcel);
-    // You can add additional handling here if needed
   };
 
   if (loading) {
     return (
       <View style={styles.container}>
-        <TopBar />
+        <TopBar allParcels={allParcels} onParcelSelect={handleParcelSelect} />
         <DashboardSkeleton />
       </View>
     );
@@ -530,7 +530,7 @@ useEffect(() => {
 
   return (
     <View style={styles.container}>
-      <TopBar />
+      <TopBar allParcels={allParcels} onParcelSelect={handleParcelSelect} />
       <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -549,14 +549,6 @@ useEffect(() => {
         }
       >
         <>
-          {/* Real-time Search Dropdown */}
-          <View style={styles.searchContainerWrapper}>
-              <RealTimeSearchDropdown
-    allParcels={allParcels}
-    onParcelSelect={() => {}} // 
-  />
-          </View>
-
           {/* Balance Card */}
           <TouchableOpacity style={styles.balanceCard} activeOpacity={0.95}>
             <AnimatedBalanceBackground />
@@ -665,12 +657,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingTop: HEADER_EXPANDED_HEIGHT,
     paddingBottom: 80,
-  },
-  searchContainerWrapper: {
-    marginBottom: 20,
-    marginTop: 10,
-    position: 'relative',
-    zIndex: 1000,
   },
   imageSliderContainer: {
     height: 150,

@@ -4,20 +4,29 @@ import { Bell, Menu } from 'lucide-react-native';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDashboard } from '../../Context/DashboardContext';
+import RealTimeSearchDropdown from '../RealTimeSearchDropdown';
 
 // Get screen width for SVG path calculations
 const { width } = Dimensions.get('window');
-const HEADER_HEIGHT = 160; // The total height of the header area
+const HEADER_HEIGHT = 220; // Increased height to accommodate search
 
-const ModernTopBar: React.FC = () => {
+interface ModernTopBarProps {
+  allParcels?: any[];
+  onParcelSelect?: (parcel: any) => void;
+}
+
+const ModernTopBar: React.FC<ModernTopBarProps> = ({ 
+  allParcels = [], 
+  onParcelSelect = () => {} 
+}) => {
   const insets = useSafeAreaInsets();
   const { toggleSidebar, user } = useDashboard();
 
-  // --- NEW: Helper function to translate the user role to Arabic ---
+  // Helper function to translate the user role to Arabic
   const getRoleInArabic = (role: string | undefined): string => {
     if (role === 'Entity') return 'المتجر';
     if (role === 'Driver') return 'المندوب';
-    return role || 'مستخدم'; // Provides a fallback if role is null, undefined, or a different value
+    return role || 'مستخدم';
   };
 
   // The SVG path for the curved background
@@ -70,11 +79,18 @@ const ModernTopBar: React.FC = () => {
             {/* Role Badge - renders only if the user object exists */}
             {user && (
               <View style={styles.roleBadge}>
-                {/* --- UPDATED: Use the getRoleInArabic function --- */}
                 <Text style={styles.roleBadgeText}>{getRoleInArabic(user.roleName)}</Text>
               </View>
             )}
           </View>
+        </View>
+
+        {/* Search Container */}
+        <View style={styles.searchContainerWrapper}>
+          <RealTimeSearchDropdown
+            allParcels={allParcels}
+            onParcelSelect={onParcelSelect}
+          />
         </View>
       </View>
     </View>
@@ -84,7 +100,7 @@ const ModernTopBar: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    backgroundColor: '#FFFFFF', // Fallback color
+    backgroundColor: '#FFFFFF',
   },
   contentContainer: {
     flex: 1,
@@ -143,6 +159,12 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     borderWidth: 2,
     borderColor: '#FFFFFF',
+  },
+  searchContainerWrapper: {
+    marginTop: 15,
+    marginBottom: 10,
+    position: 'relative',
+    zIndex: 1000,
   },
 });
 
