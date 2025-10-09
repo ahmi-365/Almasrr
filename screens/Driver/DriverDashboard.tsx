@@ -170,10 +170,23 @@ export default function DriverDashboard() {
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const [alertConfirmColor, setAlertConfirmColor] = useState('#E67E22');
-
+const [allParcels, setAllParcels] = useState([]);
   // --- MODIFICATION 2: Get navigation object ---
   const navigation = useNavigation();
-
+// Load cached parcels
+useEffect(() => {
+  const loadCachedParcels = async () => {
+    try {
+      const cachedParcels = await AsyncStorage.getItem("all_parcels_driver");
+      if (cachedParcels) {
+        setAllParcels(JSON.parse(cachedParcels));
+      }
+    } catch (error) {
+      console.error("Failed to load cached parcels:", error);
+    }
+  };
+  loadCachedParcels();
+}, []);
   useEffect(() => {
     const loadUser = async () => {
       if (!user) {
@@ -192,7 +205,34 @@ export default function DriverDashboard() {
     };
     loadUser();
   }, [user, setUser]);
+// Fetch all parcels
+const fetchAllParcels = useCallback(async () => {
+  if (!user?.userId) {
+    console.log("⚠️ No user ID found, skipping parcel fetch");
+    return;
+  }
 
+  try {
+    const intSenderEntityCode = user.userId;
+    const url = `https://tanmia-group.com:84/courierApi/parcels/DriverParcels/${intSenderEntityCode}`;
+
+    const response = await axios.get(url);
+
+    if (response.data && response.data.Parcels && Array.isArray(response.data.Parcels)) {
+      console.log("✅ Fetched", response.data.Parcels.length, "parcels");
+      setAllParcels(response.data.Parcels);
+      await AsyncStorage.setItem(
+        "all_parcels",
+        JSON.stringify(response.data.Parcels)
+      );
+    } else {
+      console.log("⚠️ No parcels data received");
+      setAllParcels([]);
+    }
+  } catch (error) {
+    console.error("❌ Error fetching parcels:", error.message);
+  }
+}, [user]);
   useEffect(() => {
     const interval = setInterval(() => {
       if (imageSliderRef.current) {
@@ -243,7 +283,12 @@ export default function DriverDashboard() {
     setRefreshing(true);
     fetchDashboardData();
   }, [fetchDashboardData]);
-
+// Background parcel fetching
+useEffect(() => {
+  if (user?.userId) {
+    fetchAllParcels();
+  }
+}, [user, fetchAllParcels]);
   const statsData: StatCardData[] = useMemo(() => {
     if (!dashboardData) return [];
     const countKeys = Object.keys(dashboardData)
@@ -277,8 +322,8 @@ export default function DriverDashboard() {
 
   return (
     <View style={styles.container}>
-      <TopBar />
-      <Animated.ScrollView
+<TopBar allParcels={allParcels} />     
+ <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
