@@ -109,24 +109,26 @@ const STATUS_CONFIG = {
   مؤكد: { color: "#2ECC71", lightColor: "#82E0AA", icon: CheckCircle },
 };
 
-
-
-
 const ParcelDetailsScreen = () => {
   const navigation = useNavigation();
-const route = useRoute<RouteProp<Record<string, ParcelDetailsRouteParams>, 'ParcelDetails'>>();
-const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] = useState(false);
+  const route =
+    useRoute<RouteProp<Record<string, ParcelDetailsRouteParams>, "ParcelDetails">>();
+  const { parcel } = route.params;
+  const [isFetchingInvoices, setIsFetchingInvoices] = useState(false);
   const [isNotifyAlertVisible, setNotifyAlertVisible] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState("");
   const [alertMessage, setAlertMessage] = useState("");
   const [alertSuccess, setAlertSuccess] = useState(false);
 
+  // Modal State
+  const [isInvoiceModalVisible, setInvoiceModalVisible] = useState(false);
+  const [invoiceData, setInvoiceData] = useState([]);
+
   // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const headerHeight = useRef(new Animated.Value(140)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
   const [expandedSections, setExpandedSections] = useState({
     basic: true,
@@ -136,19 +138,6 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
     dates: true,
     remarks: true,
     driverRemarks: true,
-  });
-
-  // Parallax and header animation
-  const headerTranslateY = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [0, -50],
-    extrapolate: "clamp",
-  });
-
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 80],
-    outputRange: [1, 0.9],
-    extrapolate: "clamp",
   });
 
   useEffect(() => {
@@ -173,37 +162,40 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
       }),
     ]).start();
   }, []);
-  const handleDownloadPdf = async () => {
+
+  const handleFetchInvoices = async () => {
+    if (isFetchingInvoices) return;
+
+    setIsFetchingInvoices(true);
     try {
-      setIsPdfDownloading(true);
-      console.log(`Downloading PDF for parcel: ${parcel.ReferenceNo}`);
+      const response = await fetch(
+        `https://tanmia-group.com:84/courierApi/parcels/GetAssignedInvoicesByParcel/${parcel.intParcelCode}`
+      );
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
 
-      // Here you would implement your actual PDF download logic
-      // For example, making an API call to get PDF URL
-
-      // Simulating API call
-      setTimeout(() => {
-        setIsPdfDownloading(false);
-        setAlertTitle("نجاح");
-        setAlertMessage("تم تحميل ملف PDF بنجاح.");
+      if (data && data.length > 0) {
+        setInvoiceData(data);
+        setInvoiceModalVisible(true);
+      } else {
+        setAlertTitle("لا توجد فواتير");
+        setAlertMessage("لا توجد فواتير مرتبطة بهذا الطرد.");
         setAlertSuccess(true);
         setAlertVisible(true);
-      }, 1000);
-
-      // Real implementation would look like:
-      /*
-    const response = await fetch(`YOUR_API_URL/parcel/${parcel.intParcelCode}/pdf`);
-    const pdfBlob = await response.blob();
-    // Use react-native-fs or similar library to save the file
-    */
+      }
     } catch (error) {
-      setIsPdfDownloading(false);
+      console.error("Failed to fetch invoices:", error);
       setAlertTitle("خطأ");
-      setAlertMessage("فشل تحميل ملف PDF. يرجى المحاولة مرة أخرى.");
+      setAlertMessage("فشل في جلب الفواتير. يرجى المحاولة مرة أخرى.");
       setAlertSuccess(false);
       setAlertVisible(true);
+    } finally {
+      setIsFetchingInvoices(false);
     }
   };
+
   const formatCurrency = (amount) => {
     return `${parseFloat(amount || 0).toFixed(2)} د.ل`;
   };
@@ -216,6 +208,19 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
     }
   };
 
+  const formatInvoiceDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}-${month}-${year}`;
+    } catch {
+      return dateString.split(' ')[0] || dateString;
+    }
+  };
+
+
   const statusConfig =
     STATUS_CONFIG[parcel.StatusName] || STATUS_CONFIG["غير مؤكد"];
   const StatusIcon = statusConfig.icon;
@@ -227,9 +232,6 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
   const confirmSendNotification = () => {
     console.log(`Sending notification for parcel: ${parcel.ReferenceNo}`);
     setNotifyAlertVisible(false);
-
-    // Here you would typically make an API call to send the notification
-    // For now, we'll simulate success
     setAlertTitle("نجاح");
     setAlertMessage("تم إرسال الإشعار بنجاح.");
     setAlertSuccess(true);
@@ -293,23 +295,15 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
     );
   };
 
-  // Determine which button to show based on status
-  // Show notify button for "في الطريق" status (status code 4)
   const showNotifyButton =
     parcel.intStatusCode === 4 || parcel.StatusName === "في الطريق";
-  const showConfirmButton = false; // We'll show different buttons for status 10
+  const showConfirmButton = false;
   const showDeliveredButtons = parcel.intStatusCode === 10;
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
 
-      {/* Animated Header */}
-      <Animated.View
-        style={[
-          styles.header,
-         
-        ]}
-      >
+      <Animated.View style={[styles.header]}>
         <View style={styles.headerBackground} />
         <View style={styles.headerContent}>
           <AnimatedTouchableOpacity
@@ -353,7 +347,6 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
         </View>
       </Animated.View>
 
-      {/* Content */}
       <Animated.ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
@@ -363,7 +356,6 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
         )}
         scrollEventThrottle={16}
       >
-        {/* Status Card with Animation */}
         <Animated.View
           style={[
             styles.statusCard,
@@ -386,65 +378,59 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
             </Animated.View>
             <View style={styles.statusTextContainer}>
               <View style={styles.inlineHeader}>
-                {/* Title on right */}
                 <Text style={styles.statusTitle}>حالة الطرد</Text>
-
-                {/* Icons (Invoice + Tick) on left */}
                 {showDeliveredButtons && (
                   <View style={styles.inlineIcons}>
-                    {/* Invoice Button */}
                     <TouchableOpacity
                       style={[
                         styles.invoiceButton,
-                        isPdfDownloading && styles.invoiceButtonDisabled,
+                        isFetchingInvoices && styles.invoiceButtonDisabled,
                       ]}
-                      onPressIn={handleDownloadPdf}
+                      onPressIn={handleFetchInvoices}
                       activeOpacity={0.8}
-                      disabled={isPdfDownloading}
+                      disabled={isFetchingInvoices}
                     >
                       <FileText size={16} color="#fff" />
                       <Text style={styles.invoiceButtonText}>
-                        {isPdfDownloading ? "جاري التحميل..." : "فاتورة"}
+                        {isFetchingInvoices
+                          ? "جاري التحميل..."
+                          : "عرض الفواتير"}
                       </Text>
                     </TouchableOpacity>
 
-                    {/* Green Tick Icon */}
                     <View style={styles.greenTickContainer}>
                       <CheckCircle size={22} color="#7bc89bff" />
                     </View>
                   </View>
                 )}
-                   {(showNotifyButton || showConfirmButton || showDeliveredButtons) && (
-            <View style={styles.actionButtonContainer}>
-              {/* Notify Button for status 4 */}
-            {showNotifyButton && (
-  <TouchableOpacity
-    style={styles.notifyActionButton}
-    onPressIn={handleNotifyPress}
-    activeOpacity={0.7}
-  >
-    <Bell size={20} color="#FFF" />
-    <Text style={styles.notifyButtonText}>إشعار</Text>
-  </TouchableOpacity>
-)}
-
-
-              {/* Confirm Button for other statuses */}
-              {showConfirmButton && (
-                <TouchableOpacity
-                  style={styles.confirmActionButton}
-                  onPressIn={handleConfirmDelivery}
-                  activeOpacity={0.7}
-                >
-                  <CheckCircle size={20} color="#FFF" />
-                  <Text style={styles.actionButtonText}>تأكيد التسليم</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
+                {(showNotifyButton || showConfirmButton) && (
+                  <View>
+                    {showNotifyButton && (
+                      <TouchableOpacity
+                        style={styles.notifyActionButton}
+                        onPressIn={handleNotifyPress}
+                        activeOpacity={0.7}
+                      >
+                        <Bell size={20} color="#FFF" />
+                        <Text style={styles.notifyButtonText}>إشعار</Text>
+                      </TouchableOpacity>
+                    )}
+                    {showConfirmButton && (
+                      <TouchableOpacity
+                        style={styles.confirmActionButton}
+                        onPressIn={handleConfirmDelivery}
+                        activeOpacity={0.7}
+                      >
+                        <CheckCircle size={20} color="#FFF" />
+                        <Text style={styles.actionButtonText}>
+                          تأكيد التسليم
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
               </View>
 
-              {/* Status Badge */}
               <View
                 style={[
                   styles.statusBadge,
@@ -456,7 +442,6 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
             </View>
           </View>
 
-          {/* Status Progress Bar */}
           <View style={styles.progressContainer}>
             <View style={styles.progressBackground}>
               <Animated.View
@@ -478,11 +463,9 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
               <Text style={styles.progressLabel}>تم التسليم</Text>
             </View>
           </View>
-
-       
         </Animated.View>
 
-        {/* Basic Information */}
+        {/* Sections */}
         <Animated.View
           style={[
             styles.section,
@@ -508,7 +491,6 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
           )}
         </Animated.View>
 
-        {/* Location Information */}
         <Animated.View
           style={[
             styles.section,
@@ -530,7 +512,6 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
           )}
         </Animated.View>
 
-        {/* Recipient Information */}
         <Animated.View
           style={[
             styles.section,
@@ -564,7 +545,6 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
             )}
         </Animated.View>
 
-        {/* Financial Information */}
         <Animated.View
           style={[
             styles.section,
@@ -591,7 +571,6 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
           )}
         </Animated.View>
 
-        {/* Dates */}
         <Animated.View
           style={[
             styles.section,
@@ -613,7 +592,6 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
           )}
         </Animated.View>
 
-        {/* Remarks */}
         <Animated.View
           style={[
             styles.section,
@@ -631,7 +609,6 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
           )}
         </Animated.View>
 
-        {/* Driver Remarks */}
         <Animated.View
           style={[
             styles.section,
@@ -653,13 +630,92 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
           )}
         </Animated.View>
 
-        {/* Bottom Spacer */}
         <View style={styles.bottomSpacer} />
       </Animated.ScrollView>
 
-      {/* Custom Alerts */}
-                 <CustomAlert isVisible={isNotifyAlertVisible} title="تأكيد الإرسال" message="هل تريد إرسال إشعار إلى المندوب؟" confirmText="نعم" cancelText="لا" onConfirm={confirmSendNotification} onCancel={cancelSendNotification} confirmButtonColor="#27AE60" />
+      {/* Invoice Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={isInvoiceModalVisible}
+        onRequestClose={() => {
+          setInvoiceModalVisible(!isInvoiceModalVisible);
+        }}
+      >
+        <TouchableWithoutFeedback onPress={() => setInvoiceModalVisible(false)}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>الفواتير المرتبطة</Text>
+                <View style={styles.tableHeader}>
+                  <Text style={[styles.tableHeaderText, { flex: 0.5 }]}>#</Text>
+                  <Text style={[styles.tableHeaderText, { flex: 2 }]}>
+                    رقم الفاتورة
+                  </Text>
+                  <Text style={[styles.tableHeaderText, { flex: 2 }]}>
+                    اسم المتجر
+                  </Text>
+                  <Text
+                    style={[
+                      styles.tableHeaderText,
+                      { flex: 1.5, textAlign: "left" },
+                    ]}
+                  >
+                    التاريخ
+                  </Text>
+                </View>
+                <ScrollView>
+                  {invoiceData.length > 0 ? (
+                    invoiceData.map((invoice, index) => (
+                      <View key={index} style={styles.tableRow}>
+                        <Text style={[styles.tableCellText, { flex: 0.5 }]}>
+                          {index + 1}
+                        </Text>
+                        <Text style={[styles.tableCellText, { flex: 2 }]}>
+                          {invoice.InvoiceNumber}
+                        </Text>
+                        <Text style={[styles.tableCellText, { flex: 2 }]}>
+                          {invoice.strEntityName}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.tableCellText,
+                            { flex: 1.5, textAlign: "left" },
+                          ]}
+                        >
+                          {formatInvoiceDate(invoice.CreatedAt)}
+                        </Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.noInvoicesText}>
+                      لا توجد فواتير متاحة.
+                    </Text>
+                  )}
+                </ScrollView>
+                <TouchableOpacity
+                  style={styles.closeModalButton}
+                  onPress={() => setInvoiceModalVisible(false)}
+                >
+                  <Text style={styles.closeModalButtonText}>إغلاق</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
 
+      {/* Custom Alerts */}
+      <CustomAlert
+        isVisible={isNotifyAlertVisible}
+        title="تأكيد الإرسال"
+        message="هل تريد إرسال إشعار إلى المندوب؟"
+        confirmText="نعم"
+        cancelText="لا"
+        onConfirm={confirmSendNotification}
+        onCancel={cancelSendNotification}
+        confirmButtonColor="#27AE60"
+      />
 
       <CustomAlert
         isVisible={alertVisible}
@@ -667,34 +723,27 @@ const { parcel } = route.params;  const [isPdfDownloading, setIsPdfDownloading] 
         message={alertMessage}
         confirmText="حسنًا"
         onConfirm={() => setAlertVisible(false)}
-        success={alertSuccess}
-      />
+        success={alertSuccess} cancelText={undefined} onCancel={undefined} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   inlineHeader: {
-    flexDirection: "row-reverse", // RTL layout
+    flexDirection: "row-reverse",
     alignItems: "center",
     justifyContent: "space-between",
   },
-// DELETE THIS:
-actionButtonContainer: {
-  marginTop: 20,
-  gap: 12,
-},
   inlineIcons: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     marginBottom: 10,
   },
-
   invoiceButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#27AE60", // beautiful blue
+    backgroundColor: "#3498DB",
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 20,
@@ -702,77 +751,26 @@ actionButtonContainer: {
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 3,
-    elevation: 3, // for Android shadow
+    elevation: 3,
   },
-
   invoiceButtonText: {
     color: "#fff",
     fontSize: 13,
     fontWeight: "600",
     marginLeft: 5,
   },
-
   invoiceButtonDisabled: {
     opacity: 0.6,
   },
-
   greenTickContainer: {
     backgroundColor: "#E8F5E9",
     borderRadius: 50,
     padding: 5,
   },
-
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  deliveredTickButton: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#27AE60",
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    gap: 8,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    opacity: 0.9,
-  },
-  deliveredButtonsContainer: {
-    marginTop: 20,
-  },
-  inlineButtonsContainer: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-
-  downloadPdfButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14, // Smaller font size
-    fontWeight: "bold",
-  },
-  downloadPdfButton: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#E74C3C",
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    gap: 8,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-
   header: {
     backgroundColor: COLORS.primary,
     paddingTop: 60,
@@ -783,7 +781,7 @@ actionButtonContainer: {
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 1000,
+    zIndex: 1,
   },
   headerBackground: {
     position: "absolute",
@@ -899,10 +897,10 @@ actionButtonContainer: {
     fontSize: 12,
     color: COLORS.textSecondary,
   },
-
-notifyActionButton: {  flexDirection: "row",
+  notifyActionButton: {
+    flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#27AE60", // beautiful blue
+    backgroundColor: "#27AE60",
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 20,
@@ -910,14 +908,14 @@ notifyActionButton: {  flexDirection: "row",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 3,
-    elevation: 3, // for Android shadow
+    elevation: 3,
     marginBottom: 10,
-},
-notifyButtonText: {
-  color: '#FFF',
-  fontSize: 14,
-  fontWeight: '600',
-},
+  },
+  notifyButtonText: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
   confirmActionButton: {
     flexDirection: "row-reverse",
     alignItems: "center",
@@ -1002,6 +1000,78 @@ notifyButtonText: {
   },
   bottomSpacer: {
     height: 30,
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(56, 56, 56, 0.6)",
+  },
+  modalContent: {
+    width: width * 0.9,
+    maxHeight: height * 0.7,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: COLORS.text,
+    textAlign: "right",
+    marginBottom: 20,
+  },
+  tableHeader: {
+    flexDirection: "row-reverse",
+    borderBottomWidth: 2,
+    borderBottomColor: COLORS.border,
+    paddingBottom: 10,
+    marginBottom: 10,
+  },
+  tableHeaderText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: COLORS.textSecondary,
+    textAlign: "right",
+  },
+  tableRow: {
+    flexDirection: "row-reverse",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    alignItems: "center",
+  },
+  tableCellText: {
+    fontSize: 12,
+    color: COLORS.text,
+    textAlign: "right",
+  },
+  noInvoicesText: {
+    textAlign: "center",
+    marginTop: 20,
+    fontSize: 16,
+    color: COLORS.textSecondary,
+  },
+  closeModalButton: {
+    marginTop: 20,
+    backgroundColor: COLORS.primary,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  closeModalButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
 
