@@ -13,6 +13,7 @@ import {
     FlatList,
     RefreshControl,
     Image,
+    ScrollView,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -100,39 +101,80 @@ const formatDateTime = (isoString: string) => {
     } catch (e) { return isoString; }
 };
 
-// --- MODIFIED ParcelCard to handle tracking press ---
-const ParcelCard = ({ item, onTrackPress }: { item: Parcel, onTrackPress: (parcel: Parcel) => void }) => (
-    <View style={styles.modernTransactionItem}>
-        <TouchableOpacity onPress={() => onTrackPress(item)} activeOpacity={0.7}>
-            <View style={styles.transactionHeader}>
-                <View style={styles.parcelHeaderContent}>
-                    <View style={[styles.parcelIconBackground, { backgroundColor: '#F59E0B' }]}>
-                        <PackageX color="#fff" size={20} />
+const ParcelCard = ({ 
+    item, 
+    onTrackPress, 
+    onInvoicePress, 
+    fetchingInvoiceParcelId 
+}: { 
+    item: Parcel, 
+    onTrackPress: (parcel: Parcel) => void,
+    onInvoicePress: (parcel: Parcel) => void,
+    fetchingInvoiceParcelId: number | null
+}) => {
+    const showDeliveredButtons = item.intStatusCode === 10;
+    
+    return (
+        <View style={styles.modernTransactionItem}>
+            <TouchableOpacity onPress={() => onTrackPress(item)} activeOpacity={0.7}>
+                <View style={styles.transactionHeader}>
+                    <View style={styles.parcelHeaderContent}>
+                        <View style={[styles.parcelIconBackground, { backgroundColor: '#F59E0B' }]}>
+                            <PackageX color="#fff" size={20} />
+                        </View>
+                        <View style={styles.parcelNameContainer}>
+                            <Text style={styles.transactionDate} numberOfLines={1}>{item.ReferenceNo}</Text>
+                            <Text style={styles.runningTotalLabel}>{item.CityName}</Text>
+                        </View>
                     </View>
-                    <View style={styles.parcelNameContainer}>
-                        <Text style={styles.transactionDate} numberOfLines={1}>{item.ReferenceNo}</Text>
-                        <Text style={styles.runningTotalLabel}>{item.CityName}</Text>
+                    <View style={styles.parcelHeaderRight}>
+                        {showDeliveredButtons && (
+                            <View style={styles.inlineIcons}>
+                              <TouchableOpacity
+    style={[
+        styles.invoiceButton,
+        fetchingInvoiceParcelId === item.intParcelCode && styles.invoiceButtonDisabled,
+    ]}
+    onPress={(e) => {
+        e.stopPropagation();
+        onInvoicePress(item);
+    }}
+    activeOpacity={0.8}
+    disabled={fetchingInvoiceParcelId === item.intParcelCode}
+>
+    <FileText size={14} color="#fff" />
+    <Text style={styles.invoiceButtonText}>
+        {fetchingInvoiceParcelId === item.intParcelCode ? "..." : "فواتير"}
+    </Text>
+</TouchableOpacity>
+                                <View style={styles.greenTickContainer}>
+                                    <Check size={18} color="#27AE60" />
+                                </View>
+                            </View>
+                        )}
+                                                <Text style={[styles.parcelTotal, { color: '#E74C3C' }]}>{item.Total.toFixed(2)} د.ل</Text>
+
                     </View>
                 </View>
-                <Text style={[styles.parcelTotal, { color: '#E74C3C' }]}>{item.Total.toFixed(2)} د.ل</Text>
+            </TouchableOpacity>
+            {/* Rest of the card content remains the same */}
+            <View style={styles.parcelDetailsRow}>
+                <View style={styles.parcelColumn}>
+                    {item.RecipientName && (
+                        <View style={styles.parcelInfoRow}><User size={14} color="#6B7280" /><Text style={styles.parcelInfoText}>{item.RecipientName}</Text></View>
+                    )}
+                    <View style={styles.parcelInfoRow}><Phone size={14} color="#6B7280" /><Text style={styles.parcelInfoText}>{item.RecipientPhone}</Text></View>
+                    <View style={styles.parcelInfoRow}><Box size={14} color="#6B7280" /><Text style={styles.parcelInfoText}>الكمية: {item.Quantity}</Text></View>
+                </View>
+                <View style={styles.parcelColumn}>
+                    <View style={styles.parcelInfoRow}><FileText size={14} color="#6B7280" /><Text style={styles.parcelInfoText} numberOfLines={2}>{item.Remarks || 'لا توجد ملاحظات'}</Text></View>
+                    {item.strDriverRemarks && (<Text style={styles.transactionRemarks} numberOfLines={2}>ملاحظات المندوب: {item.strDriverRemarks}</Text>)}
+                </View>
             </View>
-        </TouchableOpacity>
-        <View style={styles.parcelDetailsRow}>
-            <View style={styles.parcelColumn}>
-                {item.RecipientName && (
-                    <View style={styles.parcelInfoRow}><User size={14} color="#6B7280" /><Text style={styles.parcelInfoText}>{item.RecipientName}</Text></View>
-                )}
-                <View style={styles.parcelInfoRow}><Phone size={14} color="#6B7280" /><Text style={styles.parcelInfoText}>{item.RecipientPhone}</Text></View>
-                <View style={styles.parcelInfoRow}><Box size={14} color="#6B7280" /><Text style={styles.parcelInfoText}>الكمية: {item.Quantity}</Text></View>
-            </View>
-            <View style={styles.parcelColumn}>
-                <View style={styles.parcelInfoRow}><FileText size={14} color="#6B7280" /><Text style={styles.parcelInfoText} numberOfLines={2}>{item.Remarks || 'لا توجد ملاحظات'}</Text></View>
-                {item.strDriverRemarks && (<Text style={styles.transactionRemarks} numberOfLines={2}>ملاحظات المندوب: {item.strDriverRemarks}</Text>)}
-            </View>
+            <View style={styles.dateFooter}><Calendar size={12} color="#9CA3AF" /><Text style={styles.dateFooterText}>{formatDateTime(item.CreatedAt)}</Text></View>
         </View>
-        <View style={styles.dateFooter}><Calendar size={12} color="#9CA3AF" /><Text style={styles.dateFooterText}>{formatDateTime(item.CreatedAt)}</Text></View>
-    </View>
-);
+    );
+};
 
 const FilterSection = ({ selectedEntity, setEntityModalVisible, selectedReturnStatus, setStatusModalVisible, handleSearch, loading }) => (
     <View style={styles.modernFilterSection}>
@@ -175,7 +217,10 @@ export default function ReturnedParcelsScreen() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [allParcels, setAllParcels] = useState<Parcel[]>([]);
     const { user, setUser } = useDashboard();
-
+const [fetchingInvoiceParcelId, setFetchingInvoiceParcelId] = useState<number | null>(null);
+const [isInvoiceModalVisible, setInvoiceModalVisible] = useState(false);
+const [invoiceData, setInvoiceData] = useState([]);
+const [selectedParcelForInvoice, setSelectedParcelForInvoice] = useState<Parcel | null>(null);
     const [entities, setEntities] = useState<EntityForFilter[]>([]);
     const [selectedEntity, setSelectedEntity] = useState<EntityForFilter | null>(null);
     const [entityModalVisible, setEntityModalVisible] = useState(false);
@@ -199,6 +244,7 @@ export default function ReturnedParcelsScreen() {
                 const response = await axios.get(`https://tanmia-group.com:84/courierApi/parcels/GetSelectedStatuses`);
                 const fetchedStatuses = Array.isArray(response.data?.Statuses) ? response.data.Statuses : [];
                 setReturnStatuses(fetchedStatuses);
+                // console.log("Fetched return statuses:", fetchedStatuses);
             } catch (error) {
                 console.error("Error fetching return statuses:", error);
                 setReturnStatuses([]);
@@ -206,7 +252,36 @@ export default function ReturnedParcelsScreen() {
         };
         fetchReturnStatuses();
     }, []);
+const handleFetchInvoices = async (parcel: Parcel) => {
+    // Prevent multiple clicks on the same parcel
+    if (fetchingInvoiceParcelId === parcel.intParcelCode) return;
 
+    setFetchingInvoiceParcelId(parcel.intParcelCode); // Set the specific parcel ID
+    setSelectedParcelForInvoice(parcel);
+    
+    try {
+        const response = await axios.get(
+            `https://tanmia-group.com:84/courierApi/parcels/GetAssignedInvoicesByParcel/${parcel.intParcelCode}`
+        );
+        
+        if (response.data && response.data.length > 0) {
+            setInvoiceData(response.data);
+            setInvoiceModalVisible(true);
+        } else {
+            setAlertTitle("لا توجد فواتير");
+            setAlertMessage("لا توجد فواتير مرتبطة بهذا الطرد.");
+            setAlertVisible(true);
+        }
+    } catch (error) {
+        console.error("Failed to fetch invoices:", error);
+        setAlertTitle("خطأ");
+        setAlertMessage("فشل في جلب الفواتير. يرجى المحاولة مرة أخرى.");
+        setAlertSuccess(false);
+        setAlertVisible(true);
+    } finally {
+        setFetchingInvoiceParcelId(null); // Clear the loading state
+    }
+};
     useFocusEffect(
         useCallback(() => {
             const fetchFilterEntities = async () => {
@@ -224,6 +299,7 @@ export default function ReturnedParcelsScreen() {
 
                     const response = await axios.get(`https://tanmia-group.com:84/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
                     setEntities(response.data || []);
+                    // console.log("Fetched filter entities:", response.data);
                 } catch (error) {
                     console.error("Failed to fetch filter entities:", error);
                     setAlertTitle("خطأ");
@@ -234,7 +310,17 @@ export default function ReturnedParcelsScreen() {
             fetchFilterEntities();
         }, [user])
     );
-
+const formatInvoiceDate = (dateString: string) => {
+    try {
+        const date = new Date(dateString);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}-${month}-${year}`;
+    } catch {
+        return dateString.split(' ')[0] || dateString;
+    }
+};
     const handleSearch = useCallback(async () => {
         setLoading(true);
         setParcelSearchQuery("");
@@ -260,12 +346,13 @@ export default function ReturnedParcelsScreen() {
             const targetId = selectedEntity ? selectedEntity.intEntityCode : parsedUser.userId;
 
             const response = await axios.get(`https://tanmia-group.com:84/courierApi/parcels/details/${targetId}/${statusId}`);
-
+// console.log("api generated url", `https://tanmia-group.com:84/courierApi/parcels/details/${targetId}/${statusId}`);
             let parcels = response.data?.Parcels || [];
             if (selectedReturnStatus?.Value) {
                 parcels = parcels.filter(parcel => parcel.intStatusCode.toString() === selectedReturnStatus.Value);
             }
             setAllParcels(parcels);
+            // console.log("Fetched returned parcels:", parcels);
         } catch (error) {
             console.error("Failed to load returned parcels:", error);
             setAlertTitle("خطأ");
@@ -310,8 +397,14 @@ export default function ReturnedParcelsScreen() {
             <TopBar title="الطرود المرتجعة" />
             <FlatList
                 data={filteredParcels}
-                renderItem={({ item }) => <ParcelCard item={item} onTrackPress={handleTrackPress} />}
-                keyExtractor={(item) => item.intParcelCode.toString()}
+renderItem={({ item }) => (
+    <ParcelCard 
+        item={item} 
+        onTrackPress={handleTrackPress}
+        onInvoicePress={handleFetchInvoices}
+        fetchingInvoiceParcelId={fetchingInvoiceParcelId}
+    />
+)}               keyExtractor={(item) => item.intParcelCode.toString()}
                 contentContainerStyle={styles.listContentContainer}
                 refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#FF6B35']} tintColor="#FF6B35" />}
                 ListHeaderComponent={
@@ -433,7 +526,51 @@ export default function ReturnedParcelsScreen() {
                     )}
                 </SafeAreaView>
             </Modal>
-
+{/* Invoice Modal */}
+<Modal
+    animationType="slide"
+    transparent={true}
+    visible={isInvoiceModalVisible}
+    onRequestClose={() => setInvoiceModalVisible(false)}
+>
+    <TouchableWithoutFeedback onPress={() => setInvoiceModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+                <SafeAreaView style={styles.invoiceModalContent}>
+                    <Text style={styles.invoiceModalTitle}>الفواتير المرتبطة</Text>
+                    <View style={styles.tableHeader}>
+                        <Text style={[styles.tableHeaderText, { flex: 0.5 }]}>#</Text>
+                        <Text style={[styles.tableHeaderText, { flex: 2 }]}>رقم الفاتورة</Text>
+                        <Text style={[styles.tableHeaderText, { flex: 2 }]}>اسم المتجر</Text>
+                        <Text style={[styles.tableHeaderText, { flex: 1.5, textAlign: "left" }]}>التاريخ</Text>
+                    </View>
+                    <ScrollView>
+                        {invoiceData.length > 0 ? (
+                            invoiceData.map((invoice, index) => (
+                                <View key={index} style={styles.tableRow}>
+                                    <Text style={[styles.tableCellText, { flex: 0.5 }]}>{index + 1}</Text>
+                                    <Text style={[styles.tableCellText, { flex: 2 }]}>{invoice.InvoiceNumber}</Text>
+                                    <Text style={[styles.tableCellText, { flex: 2 }]}>{invoice.strEntityName}</Text>
+                                    <Text style={[styles.tableCellText, { flex: 1.5, textAlign: "left" }]}>
+                                        {formatInvoiceDate(invoice.CreatedAt)}
+                                    </Text>
+                                </View>
+                            ))
+                        ) : (
+                            <Text style={styles.noInvoicesText}>لا توجد فواتير متاحة.</Text>
+                        )}
+                    </ScrollView>
+                    <TouchableOpacity
+                        style={styles.closeInvoiceModalButton}
+                        onPress={() => setInvoiceModalVisible(false)}
+                    >
+                        <Text style={styles.closeModalButtonText}>إغلاق</Text>
+                    </TouchableOpacity>
+                </SafeAreaView>
+            </TouchableWithoutFeedback>
+        </View>
+    </TouchableWithoutFeedback>
+</Modal>
             <CustomAlert isVisible={isAlertVisible} title={alertTitle} message={alertMessage} confirmText="حسنًا" onConfirm={() => setAlertVisible(false)} success={alertSuccess} cancelText={undefined} onCancel={undefined} />
         </View>
     );
@@ -490,7 +627,95 @@ const styles = StyleSheet.create({
     modernModalItemText: { color: "#1F2937", fontSize: 16, fontWeight: "500", textAlign: "right", marginBottom: 2 },
     modalItemCode: { color: "#6B7280", fontSize: 12, textAlign: "right" },
     modalItemSelected: { color: "#FF6B35", fontWeight: "bold" },
-
+parcelHeaderRight: {
+    alignItems: 'flex-end',
+    gap: 8,
+},
+inlineIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+},
+invoiceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3498DB',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    gap: 4,
+},
+invoiceButtonText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+},
+invoiceButtonDisabled: {
+    opacity: 0.6,
+},
+greenTickContainer: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: 50,
+    padding: 4,
+},
+invoiceModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    width: '90%',
+    maxHeight: '70%',
+    padding: 20,
+},
+invoiceModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    textAlign: 'right',
+    marginBottom: 16,
+},
+tableHeader: {
+    flexDirection: 'row-reverse',
+    borderBottomWidth: 2,
+    borderBottomColor: '#E5E7EB',
+    paddingBottom: 10,
+    marginBottom: 10,
+},
+tableHeaderText: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#6B7280',
+    textAlign: 'right',
+},
+tableRow: {
+    flexDirection: 'row-reverse',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    alignItems: 'center',
+},
+tableCellText: {
+    fontSize: 12,
+    color: '#1F2937',
+    textAlign: 'right',
+},
+noInvoicesText: {
+    textAlign: 'center',
+    marginTop: 20,
+    fontSize: 14,
+    color: '#9CA3AF',
+},
+closeInvoiceModalButton: {
+    marginTop: 16,
+    backgroundColor: '#FF6B35',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+},
+closeModalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+},
     // --- Styles for WebView Modal Header ---
     modalHeader: {
         height: 60,

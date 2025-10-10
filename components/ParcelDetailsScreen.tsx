@@ -37,6 +37,9 @@ import {
   MessageSquare,
   CheckCircle2,
   X,
+  CreditCard,
+  PiggyBank,
+  Wallet,
 } from "lucide-react-native";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import CustomAlert from "./CustomAlert";
@@ -766,12 +769,12 @@ const ParcelDetailsScreen = () => {
           {expandedSections.financial && (
             <View style={styles.sectionContent}>
               {renderDetailRow(
-                <DollarSign size={20} color={COLORS.success} />,
+                <Wallet size={20} color={COLORS.success} />,
                 "الرسوم:",
                 formatCurrency(parcel.dcFee)
               )}
               {renderDetailRow(
-                <DollarSign size={20} color={COLORS.primary} />,
+                <Wallet  size={20} color={COLORS.primary} />,
                 "المجموع:",
                 formatCurrency(parcel.Total)
               )}
