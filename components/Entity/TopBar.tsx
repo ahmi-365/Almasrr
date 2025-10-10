@@ -7,7 +7,7 @@ import { useDashboard } from '../../Context/DashboardContext';
 import { useNavigation } from '@react-navigation/native';
 
 const { width } = Dimensions.get('window');
-const HEADER_HEIGHT = 220;
+const HEADER_HEIGHT = 210;
 
 interface ModernTopBarProps {
   allParcels?: any[];

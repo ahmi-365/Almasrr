@@ -198,13 +198,13 @@ export default function AssignedParcelScreen() {
     // API Handlers
     const handleCompleteParcel = async () => {
         if (!selectedParcel || !statusId) return;
-        
+
         setIsProcessing(true);
         try {
             await axios.post(
                 `https://tanmia-group.com:84/courierApi/Parcel/Driver/UpdateStatus/${selectedParcel.intParcelCode}/${statusId}`
             );
-            
+
             setAlertTitle("نجاح");
             setAlertMessage("تم تحديث حالة الطرد بنجاح");
             setAlertSuccess(true);
@@ -224,13 +224,13 @@ export default function AssignedParcelScreen() {
 
     const handleReturnParcel = async () => {
         if (!selectedParcel) return;
-        
+
         setIsProcessing(true);
         try {
             await axios.post(
                 `https://tanmia-group.com:84/courierApi/Parcel/Driver/ReturnOnTheWay/${selectedParcel.intParcelCode}`
             );
-            
+
             setAlertTitle("نجاح");
             setAlertMessage("تم إرجاع الطرد بنجاح");
             setAlertSuccess(true);
@@ -250,13 +250,13 @@ export default function AssignedParcelScreen() {
 
     const handleAddRemarks = async (remark: string) => {
         if (!selectedParcel || !remark.trim()) return;
-        
+
         setIsProcessing(true);
         try {
             await axios.post(
                 `https://tanmia-group.com:84/courierApi/Parcel/Driver/AddRemarks/${selectedParcel.intParcelCode}/${encodeURIComponent(remark)}`
             );
-            
+
             setAlertTitle("نجاح");
             setAlertMessage("تم إضافة الملاحظات بنجاح");
             setAlertSuccess(true);
@@ -364,7 +364,7 @@ export default function AssignedParcelScreen() {
             </View>
 
             <View style={styles.transactionFooter}>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.actionButtonReturn}
                     onPress={() => {
                         setSelectedParcel(item);
@@ -374,7 +374,7 @@ export default function AssignedParcelScreen() {
                     <XCircle color="#E74C3C" size={16} />
                     <Text style={styles.actionButtonTextReturn}>إرجاع</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.actionButtonRemarks}
                     onPress={() => {
                         setSelectedParcel(item);
@@ -384,7 +384,7 @@ export default function AssignedParcelScreen() {
                     <MessageSquare color="#3498DB" size={16} />
                     <Text style={styles.actionButtonTextRemarks}>ملاحظات</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.actionButtonComplete}
                     onPress={() => {
                         setSelectedParcel(item);
@@ -566,9 +566,9 @@ export default function AssignedParcelScreen() {
                         >
                             <X color="#fff" size={24} />
                         </TouchableOpacity>
-                        
+
                         <Text style={styles.remarksTitle}>اضف ملاحظات المندوب</Text>
-                        
+
                         {!showCustomRemarkInput ? (
                             <>
                                 <TouchableOpacity
@@ -581,7 +581,7 @@ export default function AssignedParcelScreen() {
                                 >
                                     <Text style={styles.remarkOptionText}>العميل لا يرد على الهاتف</Text>
                                 </TouchableOpacity>
-                                
+
                                 <TouchableOpacity
                                     style={[
                                         styles.remarkOption,
@@ -872,6 +872,7 @@ const styles = StyleSheet.create({
         height: 200,
         borderRadius: 8,
         marginBottom: 12,
+        width: 'auto'
     },
     modalOverlay: {
         flex: 1,

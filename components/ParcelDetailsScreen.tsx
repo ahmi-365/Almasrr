@@ -119,7 +119,6 @@ const STATUS_CONFIG = {
   مؤكد: { color: "#2ECC71", lightColor: "#82E0AA", icon: CheckCircle },
 };
 
-// MODIFICATION: Added hexToRgba helper function from AssignedParcelScreen
 const hexToRgba = (hex: string, opacity: number) => {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -132,8 +131,12 @@ const ParcelDetailsScreen = () => {
   const navigation = useNavigation();
   const route =
     useRoute<RouteProp<Record<string, ParcelDetailsRouteParams>, "ParcelDetails">>();
-  const { parcel } = route.params;
 
+  const { parcel: initialParcel } = route.params;
+  const [parcel, setParcel] = useState(initialParcel);
+
+  // MODIFICATION: Add state for the full user object
+  const [user, setUser] = useState<any | null>(null);
   const [roleName, setRoleName] = useState<string | null>(null);
 
   const [isFetchingInvoices, setIsFetchingInvoices] = useState(false);
@@ -143,11 +146,9 @@ const ParcelDetailsScreen = () => {
   const [alertMessage, setAlertMessage] = useState("");
   const [alertSuccess, setAlertSuccess] = useState(false);
 
-  // Modal State
   const [isInvoiceModalVisible, setInvoiceModalVisible] = useState(false);
   const [invoiceData, setInvoiceData] = useState([]);
 
-  // MODIFICATION: Added states from AssignedParcelScreen
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [showRemarksModal, setShowRemarksModal] = useState(false);
@@ -156,7 +157,6 @@ const ParcelDetailsScreen = () => {
   const [selectedRemarkOption, setSelectedRemarkOption] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Animation values
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
@@ -171,12 +171,14 @@ const ParcelDetailsScreen = () => {
     driverRemarks: true,
   });
 
+  // MODIFICATION: Update useEffect to get the full user object
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         const userDataString = await AsyncStorage.getItem('user');
         if (userDataString) {
           const userData = JSON.parse(userDataString);
+          setUser(userData); // Set the full user object
           setRoleName(userData.roleName);
         }
       } catch (e) {
@@ -192,24 +194,60 @@ const ParcelDetailsScreen = () => {
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 600,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
         duration: 600,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
       Animated.timing(scaleAnim, {
         toValue: 1,
         duration: 600,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
     ]).start();
   }, []);
 
-  // MODIFICATION START: API Handlers from AssignedParcelScreen
+  // MODIFICATION: Replace refreshParcelData to use the fetchAllParcels logic
+  const refreshParcelData = async () => {
+    if (!user?.userId) {
+      console.error("User ID not found, cannot refresh parcel data.");
+      // Do not show an alert here, as the user will be notified by the calling function on failure
+      return;
+    }
+
+    console.log("Refreshing parcel data by fetching all driver parcels...");
+    try {
+      const response = await axios.get(
+        `https://tanmia-group.com:84/courierApi/parcels/DriverParcels/${user.userId}`
+      );
+
+      if (response.data && response.data.Parcels && Array.isArray(response.data.Parcels)) {
+        const allParcels = response.data.Parcels;
+        const updatedParcel = allParcels.find(p => p.intParcelCode === parcel.intParcelCode);
+
+        if (updatedParcel) {
+          setParcel(updatedParcel); // Update the local state with the new data
+          console.log("Parcel data refreshed successfully from the list.");
+        } else {
+          console.warn(`Parcel with code ${parcel.intParcelCode} not found in the refreshed list. This may be expected if its status changed.`);
+          // If the parcel is not found, it means it's no longer in the driver's active lists.
+          // The success message from the action handler (e.g., handleCompleteParcel) will suffice.
+          // The component will continue to show the last available data until the user navigates away.
+        }
+      } else {
+        console.error("Invalid data structure received from server while refreshing parcels.");
+      }
+    } catch (error) {
+      console.error("Failed to refresh parcel data by fetching all parcels:", error);
+      // Let the handler's error alert take precedence if it's an API action failure.
+    }
+  };
+
+
   const handleCompleteParcel = async () => {
     if (!parcel) return;
 
@@ -224,7 +262,7 @@ const ParcelDetailsScreen = () => {
       setAlertSuccess(true);
       setAlertVisible(true);
       setShowCompleteModal(false);
-      navigation.goBack(); // Navigate back after success
+      await refreshParcelData();
     } catch (error) {
       setAlertTitle("خطأ");
       setAlertMessage("فشل في تحديث حالة الطرد");
@@ -249,7 +287,7 @@ const ParcelDetailsScreen = () => {
       setAlertSuccess(true);
       setAlertVisible(true);
       setShowReturnModal(false);
-      navigation.goBack(); // Navigate back after success
+      await refreshParcelData();
     } catch (error) {
       setAlertTitle("خطأ");
       setAlertMessage("فشل في إرجاع الطرد");
@@ -277,8 +315,7 @@ const ParcelDetailsScreen = () => {
       setShowCustomRemarkInput(false);
       setCustomRemark("");
       setSelectedRemarkOption("");
-      // Instead of reloading data, we go back as the purpose is completed
-      navigation.goBack();
+      await refreshParcelData();
     } catch (error) {
       setAlertTitle("خطأ");
       setAlertMessage("فشل في إضافة الملاحظات");
@@ -303,7 +340,6 @@ const ParcelDetailsScreen = () => {
       handleAddRemarks(customRemark);
     }
   };
-  // MODIFICATION END: API Handlers
 
 
   const handleFetchInvoices = async () => {
@@ -442,7 +478,6 @@ const ParcelDetailsScreen = () => {
     (parcel.intStatusCode === 4 && roleName === "Entity") || parcel.StatusName === "في الطريق";
   const showConfirmButton = false;
   const showDeliveredButtons = (parcel.intStatusCode === 10 && roleName === "Entity");
-  // MODIFICATION: Condition to show the new action buttons
   const showDriverActionButtons = parcel.intStatusCode === 4 && roleName === "Driver";
 
 
@@ -612,7 +647,6 @@ const ParcelDetailsScreen = () => {
           </View>
         </Animated.View>
 
-        {/* MODIFICATION: Added Driver Action Buttons */}
         {showDriverActionButtons && (
           <View style={styles.transactionFooter}>
             <TouchableOpacity
@@ -879,7 +913,6 @@ const ParcelDetailsScreen = () => {
         </TouchableWithoutFeedback>
       </Modal>
 
-      {/* MODIFICATION START: Added Modals from AssignedParcelScreen */}
       {/* Complete Confirmation Modal */}
       <Modal
         visible={showCompleteModal}
@@ -1033,7 +1066,6 @@ const ParcelDetailsScreen = () => {
           </View>
         </View>
       </Modal>
-      {/* MODIFICATION END: Added Modals */}
 
 
       {/* Custom Alerts */}
@@ -1061,7 +1093,6 @@ const ParcelDetailsScreen = () => {
 
 
 const styles = StyleSheet.create({
-  //... (Existing styles from ParcelDetailsScreen)
   inlineHeader: {
     flexDirection: "row-reverse",
     alignItems: "center",
@@ -1334,8 +1365,6 @@ const styles = StyleSheet.create({
   bottomSpacer: {
     height: 30,
   },
-
-  // MODIFICATION START: Added Styles from AssignedParcelScreen
   transactionFooter: {
     flexDirection: "row-reverse",
     justifyContent: "space-between",
@@ -1517,9 +1546,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  // MODIFICATION END: Added Styles
-
-  // Modal Styles (for invoices)
   modalContent: {
     width: width * 0.9,
     maxHeight: height * 0.7,

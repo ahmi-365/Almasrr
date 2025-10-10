@@ -44,12 +44,7 @@ import { LinearGradient } from "expo-linear-gradient";
 
 const ShimmerPlaceholder = createShimmerPlaceholder(LinearGradient);
 
-if (
-  Platform.OS === "android" &&
-  UIManager.setLayoutAnimationEnabledExperimental
-) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+
 
 // --- Type Definitions ---
 interface Entity {
@@ -198,7 +193,7 @@ const SelectionModal = ({
     visible={visible}
     animationType="fade"
     transparent={true}
-    onRequestClose={() => {}} // Handle closing via the overlay touch
+    onRequestClose={() => { }} // Handle closing via the overlay touch
   >
     <TouchableWithoutFeedback onPress={() => onSelect(selectedValue)}>
       <View style={styles.modalOverlay}>
@@ -308,7 +303,7 @@ export default function CreateParcelScreen() {
     message: "",
     confirmText: "حسناً",
     success: false,
-    onConfirmAction: () => {},
+    onConfirmAction: () => { },
   });
 
   const showAlert = (config) => {
@@ -317,7 +312,7 @@ export default function CreateParcelScreen() {
       title: config.title,
       message: config.message,
       confirmText: config.confirmText || "حسناً",
-      onConfirmAction: config.onConfirm || (() => {}),
+      onConfirmAction: config.onConfirm || (() => { }),
       success: config.success || false, // Default to false (error state)
     });
   };
@@ -346,12 +341,12 @@ export default function CreateParcelScreen() {
           ),
           userCityCode
             ? axios.get(
-                `https://tanmia-group.com:84/courierApi/City/GetCityPrices/${userCityCode}`
-              )
+              `https://tanmia-group.com:84/courierApi/City/GetCityPrices/${userCityCode}`
+            )
             : Promise.resolve({ data: [] }),
-            axios.get( // New API call for delivery types
-              "https://tanmia-group.com:84/courierApi/parcels/GetDeliveryTypes"
-            ),
+          axios.get( // New API call for delivery types
+            "https://tanmia-group.com:84/courierApi/parcels/GetDeliveryTypes"
+          ),
         ]).then(([parcelTypesResponse, storesResponse, cityPricesResponse, deliveryTypesResponse]) => {
           if (parcelTypesResponse.data?.ParcelTypes)
             setParcelTypes(parcelTypesResponse.data.ParcelTypes);
@@ -361,11 +356,11 @@ export default function CreateParcelScreen() {
           if (deliveryTypesResponse.data?.DeliveryTypes) { // Handle delivery types
             setDeliveryTypes(deliveryTypesResponse.data.DeliveryTypes);
             // Optionally pre-select 'سريع' if it exists and there's no other default logic
-// Re-select 'سريع' if it was the default behavior
-const fastDelivery = deliveryTypes.find(dt => dt.Value === "سريع");
-if (fastDelivery) {
-  setSelectedDeliveryType(fastDelivery);
-}            if (fastDelivery) {
+            // Re-select 'سريع' if it was the default behavior
+            const fastDelivery = deliveryTypes.find(dt => dt.Value === "سريع");
+            if (fastDelivery) {
+              setSelectedDeliveryType(fastDelivery);
+            } if (fastDelivery) {
               setSelectedDeliveryType(fastDelivery);
             }
           }
@@ -419,11 +414,11 @@ if (fastDelivery) {
     [citySearchQuery, allCityPrices]
   );
 
- const handleSetParcelType = (parcelTypeObject: ParcelType) => { // <-- Change parameter type
-  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-  setSelectedParcelType(parcelTypeObject); // <-- Set the object directly
-  setParcelTypeModalVisible(false);
-};
+  const handleSetParcelType = (parcelTypeObject: ParcelType) => { // <-- Change parameter type
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setSelectedParcelType(parcelTypeObject); // <-- Set the object directly
+    setParcelTypeModalVisible(false);
+  };
   const handleSetDeliveryType = (deliveryTypeObject: DeliveryType) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setSelectedDeliveryType(deliveryTypeObject);
@@ -567,11 +562,11 @@ if (fastDelivery) {
       strCityPriceName: selectedShippingType
         ? strCityPriceNameMap[selectedShippingType]
         : "",
-      strDeliveryType: selectedDeliveryType?.Value || "", 
+      strDeliveryType: selectedDeliveryType?.Value || "",
     };
 
     try {
-     console.log("Payload:", payload); // Log the payload for debugging
+      console.log("Payload:", payload); // Log the payload for debugging
     } catch (error) {
       console.error(
         "Save parcel error:",
@@ -586,11 +581,11 @@ if (fastDelivery) {
       setIsSaving(false);
     }
   };
-useEffect(() => {
-  if (parseInt(quantity, 10) <= 1) {
-    setSelectedDeliveryType(null);
-  }
-}, [quantity]);
+  useEffect(() => {
+    if (parseInt(quantity, 10) <= 1) {
+      setSelectedDeliveryType(null);
+    }
+  }, [quantity]);
   const isLargeParcel = selectedParcelType?.Text === "طرد كبير";
 
   return (
@@ -757,19 +752,19 @@ useEffect(() => {
               disabled={isSaving}
               required
             />
-           {/* Delivery Type Picker - Only show when quantity > 1 */}
-{/* Delivery Type Picker - Show when quantity >= 1 */}
-{parseInt(quantity, 10) >= 1 && (
-  <FormPicker
-    label="نوع التسليم"
-    icon={Package}
-    value={selectedDeliveryType?.Text}
-    onPress={() => setDeliveryTypeModalVisible(true)}
-    placeholder="اختر نوع التسليم"
-    disabled={isSaving}
-    required={parseInt(quantity, 10) >= 1} // true if >=1 else false
-  />
-)}
+            {/* Delivery Type Picker - Only show when quantity > 1 */}
+            {/* Delivery Type Picker - Show when quantity >= 1 */}
+            {parseInt(quantity, 10) >= 1 && (
+              <FormPicker
+                label="نوع التسليم"
+                icon={Package}
+                value={selectedDeliveryType?.Text}
+                onPress={() => setDeliveryTypeModalVisible(true)}
+                placeholder="اختر نوع التسليم"
+                disabled={isSaving}
+                required={parseInt(quantity, 10) >= 1} // true if >=1 else false
+              />
+            )}
 
             <FormInput
               label="ملاحظات"
@@ -875,7 +870,7 @@ useEffect(() => {
                           style={[
                             styles.modernModalItemText,
                             selectedStore?.intEntityCode ===
-                              item.intEntityCode && styles.modalItemSelected,
+                            item.intEntityCode && styles.modalItemSelected,
                           ]}
                         >
                           {item.strEntityName}
@@ -936,7 +931,7 @@ useEffect(() => {
                         style={[
                           styles.modernModalItemText,
                           selectedCityData?.intCityCode === item.intCityCode &&
-                            styles.modalItemSelected,
+                          styles.modalItemSelected,
                         ]}
                       >
                         {item.strCityName}
@@ -952,13 +947,13 @@ useEffect(() => {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
-    <SelectionModal
-  visible={isParcelTypeModalVisible}
-  title="اختر نوع الطرد"
-  options={parcelTypes} // Pass full objects
-  selectedValue={selectedParcelType} // <-- Change to pass the object
-  onSelect={handleSetParcelType}
-/>
+      <SelectionModal
+        visible={isParcelTypeModalVisible}
+        title="اختر نوع الطرد"
+        options={parcelTypes} // Pass full objects
+        selectedValue={selectedParcelType} // <-- Change to pass the object
+        onSelect={handleSetParcelType}
+      />
       <SelectionModal
         visible={isPaymentModalVisible}
         title="اختر طريقة الدفع"
@@ -970,12 +965,12 @@ useEffect(() => {
         }}
       />
       <SelectionModal
-  visible={isDeliveryTypeModalVisible}
-  title="اختر نوع التسليم"
-  options={deliveryTypes} // Pass the array of DeliveryType objects
-  selectedValue={selectedDeliveryType} // Pass the selected DeliveryType object
-  onSelect={handleSetDeliveryType} // Pass the handler
-/>
+        visible={isDeliveryTypeModalVisible}
+        title="اختر نوع التسليم"
+        options={deliveryTypes} // Pass the array of DeliveryType objects
+        selectedValue={selectedDeliveryType} // Pass the selected DeliveryType object
+        onSelect={handleSetDeliveryType} // Pass the handler
+      />
     </View>
   );
 }
