@@ -38,6 +38,7 @@ import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomAlert from "../../components/CustomAlert";
 import { navigate } from "../../navigation/NavigationService";
+import { useNotifications } from '../../Context/NotificationContext';
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const HEADER_EXPANDED_HEIGHT = 1;
@@ -338,19 +339,26 @@ export default function EntityDashboard() {
   const [isAlertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState("");
   const [alertMessage, setAlertMessage] = useState("");
+  const { fetchNotifications, unreadCount } = useNotifications();
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const imageSliderRef = useRef(null);
   const navigation = useNavigation();
-  const { setCurrentRoute } = useDashboard(); // Get the setter function
+  const { setCurrentRoute } = useDashboard(); // Get the setter 
+// ✅ REPLACE WITH THIS SINGLE HOOK
 
-  useFocusEffect(
-    React.useCallback(() => {
-      // Announce that this is now the current route
-      setCurrentRoute('EntityDashboard');
-    }, [setCurrentRoute])
-  );
-
+useFocusEffect(
+  React.useCallback(() => {
+    // Set current route
+    setCurrentRoute('EntityDashboard');
+    
+    // Fetch notifications only when dashboard comes into focus
+    if (user?.userId) {
+      console.log('🔔 Dashboard focused - refreshing notifications');
+      fetchNotifications();
+    }
+  }, [setCurrentRoute, user, fetchNotifications])
+);
 
   // Load user data
   useEffect(() => {
@@ -358,6 +366,7 @@ export default function EntityDashboard() {
       if (!user) {
         try {
           const userDataString = await AsyncStorage.getItem("user");
+          // console.log("Loaded user from AsyncStorage:", userDataString);
           if (userDataString) {
             setUser(JSON.parse(userDataString));
           } else {

@@ -5,6 +5,7 @@ import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDashboard } from '../../Context/DashboardContext';
 import { useNavigation } from '@react-navigation/native';
+import { useNotifications } from '../../Context/NotificationContext';
 
 const { width } = Dimensions.get('window');
 const HEADER_HEIGHT = 210;
@@ -19,10 +20,16 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
   const insets = useSafeAreaInsets();
   const { toggleSidebar, user } = useDashboard();
   const navigation = useNavigation();
+const { unreadCount } = useNotifications();
 
   const navigateToSearch = () => {
     navigation.navigate('SearchScreen' as never, { allParcels } as never);
   };
+
+ const navigateToNotifications = () => {
+  // Just navigate - marking as read will happen in NotificationsScreen
+  navigation.navigate('NotificationsScreen' as never);
+};
 
   const getRoleInArabic = (role: string | undefined): string => {
     if (role === 'Entity') return 'المتجر';
@@ -54,8 +61,18 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
 
       <View style={[styles.contentContainer, { paddingTop: insets.top }]}>
         <View style={styles.topRow}>
-          <TouchableOpacity style={styles.iconButton}>
+          <TouchableOpacity 
+            style={styles.iconButton} 
+            onPress={navigateToNotifications}
+          >
             <Bell color="#4A5568" size={24} />
+            {unreadCount > 0 && (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={toggleSidebar}>
             <Menu color="#4A5568" size={28} />
@@ -111,6 +128,26 @@ const styles = StyleSheet.create({
   },
   iconButton: {
     padding: 8,
+    position: 'relative',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#E74C3C',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  notificationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   mainInfoRow: {
     flexDirection: 'row-reverse',

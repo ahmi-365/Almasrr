@@ -29,6 +29,7 @@ import SearchScreen from '../components/SearchScreen';
 import EntityDashboard from '../screens/Entity/EntityDashboard';
 import ParcelsScreen from '../screens/Driver/ParcelsScreen';
 import AssignedParcelScreen from '../screens/Driver/AssignedParcelScreen';
+import NotificationsScreen from '../components/Entity/NotificationsScreen';
 // --- THIS IS THE FIX ---
 // Add all possible screen names, including the new Driver tabs, to the master list.
 export type RootStackParamList = {
@@ -57,7 +58,8 @@ export type RootStackParamList = {
   PendingApprovalScreen: undefined
   AtBranchScreen: undefined
   OnTheWayScreen: undefined
-  ParcelDetailsScreen: undefined
+  ParcelDetailsScreen: undefined,
+  NotificationsScreen: undefined
   EntityReports: { entityCode: number };
   SearchScreen: { allParcels: any[] };
 
@@ -94,6 +96,11 @@ const AppContent = () => {
             presentation: 'card'
           }}
         />
+        <Stack.Screen 
+  name="NotificationsScreen" 
+  component={NotificationsScreen}
+  options={{ headerShown: false }}
+/>
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen

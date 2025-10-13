@@ -28,6 +28,7 @@ import CustomAlert from '../../components/CustomAlert';
 import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
 import { LinearGradient } from 'expo-linear-gradient';
 import { navigate } from '../../navigation/NavigationService';
+import { useNotifications } from '../../Context/NotificationContext';
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const HEADER_EXPANDED_HEIGHT = 1;
@@ -172,9 +173,22 @@ export default function DriverDashboard() {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertConfirmColor, setAlertConfirmColor] = useState('#E67E22');
   const [allParcels, setAllParcels] = useState([]);
-  // --- MODIFICATION 2: Get navigation object ---
+  const { fetchNotifications, unreadCount } = useNotifications();
+  // const { setCurrentRoute } = useDashboard();
+
   const navigation = useNavigation();
   const { setCurrentRoute } = useDashboard(); // Get the setter function
+  useFocusEffect(
+    React.useCallback(() => {
+      setCurrentRoute('DriverDashboard');
+      
+      // Refresh notifications when returning to dashboard
+      if (user?.userId) {
+        // console.log('🔔 Driver Dashboard focused - refreshing notifications');
+        fetchNotifications();
+      }
+    }, [setCurrentRoute, user, fetchNotifications])
+  );
 
   useFocusEffect(
     React.useCallback(() => {
@@ -202,6 +216,7 @@ export default function DriverDashboard() {
       if (!user) {
         try {
           const userDataString = await AsyncStorage.getItem('user');
+          // console.log('Loaded user from AsyncStorage:', userDataString);``
           if (userDataString) {
             setUser(JSON.parse(userDataString));
           } else {
@@ -218,7 +233,7 @@ export default function DriverDashboard() {
   // Fetch all parcels
   const fetchAllParcels = useCallback(async () => {
     if (!user?.userId) {
-      console.log("⚠️ No user ID found, skipping parcel fetch");
+      // console.log("⚠️ No user ID found, skipping parcel fetch");
       return;
     }
 
@@ -229,7 +244,7 @@ export default function DriverDashboard() {
       const response = await axios.get(url);
 
       if (response.data && response.data.Parcels && Array.isArray(response.data.Parcels)) {
-        console.log("✅ Fetched", response.data.Parcels.length, "parcels");
+        // console.log("✅ Fetched", response.data.Parcels.length, "parcels");
         setAllParcels(response.data.Parcels);
         await AsyncStorage.setItem(
           "all_parcels",
@@ -312,7 +327,7 @@ export default function DriverDashboard() {
         const parcelCode = await AsyncStorage.getItem('pending_notification_parcel_code');
 
         if (parcelCode) {
-          console.log('Pending notification found for parcel code:', parcelCode);
+          // console.log('Pending notification found for parcel code:', parcelCode);
           // IMPORTANT: Remove the item immediately to prevent re-triggering
           await AsyncStorage.removeItem('pending_notification_parcel_code');
 
@@ -321,7 +336,7 @@ export default function DriverDashboard() {
           );
 
           if (targetParcel) {
-            console.log('Found parcel in dashboard state. Navigating...');
+            // console.log('Found parcel in dashboard state. Navigating...');
             // navigation.navigate('ParcelDetailsScreen', { parcel: targetParcel });
             navigate('ParcelDetailsScreen', { parcel: targetParcel });
           } else {
