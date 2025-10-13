@@ -1,5 +1,10 @@
-package com.anonymous.Almasr
+package com.ALMASAR.ALMASAR
 import expo.modules.splashscreen.SplashScreenManager
+
+// ✅ 1. ADD THESE IMPORTS FOR NOTIFICATION CHANNELS
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
 
 import android.os.Build
 import android.os.Bundle
@@ -21,6 +26,20 @@ class MainActivity : ReactActivity() {
     SplashScreenManager.registerOnActivity(this)
     // @generated end expo-splashscreen
     super.onCreate(null)
+
+    // ✅ 2. ADD THIS CODE BLOCK TO CREATE THE NOTIFICATION CHANNEL
+    // This is required for notifications to appear on Android 8.0+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val channelId = "default-channel-id"
+        val channelName = "Default Channel"
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channel = NotificationChannel(
+            channelId,
+            channelName,
+            NotificationManager.IMPORTANCE_HIGH // Use HIGH to ensure notifications pop up
+        )
+        notificationManager.createNotificationChannel(channel)
+    }
   }
 
   /**

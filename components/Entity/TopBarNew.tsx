@@ -21,9 +21,10 @@ const TopBar = ({ title, showBackButton = true }) => {
     : "EntityDashboard";
 
   const handleBackPress = () => {
-    navigation.navigate("MainTabs", {
-      screen: dashboardRoute,
-    });
+    // navigation.navigate("MainTabs", {
+    //   screen: dashboardRoute,
+    // });
+    navigation.pop();
   };
 
   return (

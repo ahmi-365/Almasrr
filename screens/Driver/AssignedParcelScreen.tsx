@@ -38,6 +38,7 @@ import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
 import { useDashboard } from "../..//Context/DashboardContext";
 import CustomAlert from "../../components/CustomAlert";
+import { useFocusEffect } from "@react-navigation/native";
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const { width } = Dimensions.get("window");
@@ -133,6 +134,18 @@ export default function AssignedParcelScreen() {
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
     const [alertSuccess, setAlertSuccess] = useState(false);
+
+
+    const { setCurrentRoute } = useDashboard(); // Get the setter function
+
+
+
+    useFocusEffect(
+        React.useCallback(() => {
+            // Announce that this is now the current route
+            setCurrentRoute('ParcelsTab');
+        }, [setCurrentRoute])
+    );
 
     const loadData = useCallback(async () => {
         setIsRefreshing(false);

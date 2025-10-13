@@ -27,6 +27,7 @@ import { useDashboard } from '../../Context/DashboardContext';
 import CustomAlert from '../../components/CustomAlert';
 import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
 import { LinearGradient } from 'expo-linear-gradient';
+import { navigate } from '../../navigation/NavigationService';
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const HEADER_EXPANDED_HEIGHT = 1;
@@ -170,23 +171,32 @@ export default function DriverDashboard() {
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const [alertConfirmColor, setAlertConfirmColor] = useState('#E67E22');
-const [allParcels, setAllParcels] = useState([]);
+  const [allParcels, setAllParcels] = useState([]);
   // --- MODIFICATION 2: Get navigation object ---
   const navigation = useNavigation();
-// Load cached parcels
-useEffect(() => {
-  const loadCachedParcels = async () => {
-    try {
-      const cachedParcels = await AsyncStorage.getItem("all_parcels_driver");
-      if (cachedParcels) {
-        setAllParcels(JSON.parse(cachedParcels));
+  const { setCurrentRoute } = useDashboard(); // Get the setter function
+
+  useFocusEffect(
+    React.useCallback(() => {
+      // Announce that this is now the current route
+      setCurrentRoute('DriverDashboard');
+    }, [setCurrentRoute])
+  );
+
+  // Load cached parcels
+  useEffect(() => {
+    const loadCachedParcels = async () => {
+      try {
+        const cachedParcels = await AsyncStorage.getItem("all_parcels_driver");
+        if (cachedParcels) {
+          setAllParcels(JSON.parse(cachedParcels));
+        }
+      } catch (error) {
+        console.error("Failed to load cached parcels:", error);
       }
-    } catch (error) {
-      console.error("Failed to load cached parcels:", error);
-    }
-  };
-  loadCachedParcels();
-}, []);
+    };
+    loadCachedParcels();
+  }, []);
   useEffect(() => {
     const loadUser = async () => {
       if (!user) {
@@ -205,34 +215,34 @@ useEffect(() => {
     };
     loadUser();
   }, [user, setUser]);
-// Fetch all parcels
-const fetchAllParcels = useCallback(async () => {
-  if (!user?.userId) {
-    console.log("⚠️ No user ID found, skipping parcel fetch");
-    return;
-  }
-
-  try {
-    const intSenderEntityCode = user.userId;
-    const url = `https://tanmia-group.com:84/courierApi/parcels/DriverParcels/${intSenderEntityCode}`;
-
-    const response = await axios.get(url);
-
-    if (response.data && response.data.Parcels && Array.isArray(response.data.Parcels)) {
-      console.log("✅ Fetched", response.data.Parcels.length, "parcels");
-      setAllParcels(response.data.Parcels);
-      await AsyncStorage.setItem(
-        "all_parcels",
-        JSON.stringify(response.data.Parcels)
-      );
-    } else {
-      console.log("⚠️ No parcels data received");
-      setAllParcels([]);
+  // Fetch all parcels
+  const fetchAllParcels = useCallback(async () => {
+    if (!user?.userId) {
+      console.log("⚠️ No user ID found, skipping parcel fetch");
+      return;
     }
-  } catch (error) {
-    console.error("❌ Error fetching parcels:", error.message);
-  }
-}, [user]);
+
+    try {
+      const intSenderEntityCode = user.userId;
+      const url = `https://tanmia-group.com:84/courierApi/parcels/DriverParcels/${intSenderEntityCode}`;
+
+      const response = await axios.get(url);
+
+      if (response.data && response.data.Parcels && Array.isArray(response.data.Parcels)) {
+        console.log("✅ Fetched", response.data.Parcels.length, "parcels");
+        setAllParcels(response.data.Parcels);
+        await AsyncStorage.setItem(
+          "all_parcels",
+          JSON.stringify(response.data.Parcels)
+        );
+      } else {
+        console.log("⚠️ No parcels data received");
+        setAllParcels([]);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching parcels:", error.message);
+    }
+  }, [user]);
   useEffect(() => {
     const interval = setInterval(() => {
       if (imageSliderRef.current) {
@@ -281,14 +291,53 @@ const fetchAllParcels = useCallback(async () => {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    fetchAllParcels();
     fetchDashboardData();
   }, [fetchDashboardData]);
-// Background parcel fetching
-useEffect(() => {
-  if (user?.userId) {
-    fetchAllParcels();
-  }
-}, [user, fetchAllParcels]);
+  // Background parcel fetching
+  useEffect(() => {
+    if (user?.userId) {
+      fetchAllParcels();
+    }
+  }, [user, fetchAllParcels]);
+
+  useEffect(() => {
+    const checkPendingNotification = async () => {
+      // We only proceed if the parcel list is loaded.
+      if (allParcels.length === 0) {
+        return;
+      }
+
+      try {
+        const parcelCode = await AsyncStorage.getItem('pending_notification_parcel_code');
+
+        if (parcelCode) {
+          console.log('Pending notification found for parcel code:', parcelCode);
+          // IMPORTANT: Remove the item immediately to prevent re-triggering
+          await AsyncStorage.removeItem('pending_notification_parcel_code');
+
+          const targetParcel = allParcels.find(
+            (p) => p.intParcelCode.toString() === parcelCode.toString()
+          );
+
+          if (targetParcel) {
+            console.log('Found parcel in dashboard state. Navigating...');
+            // navigation.navigate('ParcelDetailsScreen', { parcel: targetParcel });
+            navigate('ParcelDetailsScreen', { parcel: targetParcel });
+          } else {
+            console.warn('Parcel from notification not found in the loaded list.');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to handle pending notification:', error);
+      }
+    };
+
+    checkPendingNotification();
+
+  }, [allParcels, navigation]); // Dependency array ensures this runs when parcels are loaded
+
+
   const statsData: StatCardData[] = useMemo(() => {
     if (!dashboardData) return [];
     const countKeys = Object.keys(dashboardData)
@@ -322,8 +371,8 @@ useEffect(() => {
 
   return (
     <View style={styles.container}>
-<TopBar allParcels={allParcels} />     
- <Animated.ScrollView
+      <TopBar allParcels={allParcels} />
+      <Animated.ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}

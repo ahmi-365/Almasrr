@@ -45,6 +45,7 @@ import { useDashboard } from "../Context/DashboardContext";
 
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
+import { useFocusEffect } from "@react-navigation/native";
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const { width } = Dimensions.get("window");
@@ -377,7 +378,14 @@ export default function StoresScreen() {
   const [alertMessage, setAlertMessage] = useState('');
   const [alertConfirmColor, setAlertConfirmColor] = useState('#FF6B35');
 
-  const { user, setUser } = useDashboard();
+  const { user, setUser, setCurrentRoute } = useDashboard(); // Get the setter function
+
+  useFocusEffect(
+    React.useCallback(() => {
+      // Announce that this is now the current route
+      setCurrentRoute('StoresTab');
+    }, [setCurrentRoute])
+  );
 
   const loadData = useCallback(async () => {
     try {

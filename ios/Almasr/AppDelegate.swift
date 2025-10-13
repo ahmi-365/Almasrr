@@ -1,9 +1,12 @@
 import Expo
 import React
 import ReactAppDependencyProvider
+import Firebase // ✅ 1. IMPORT FIREBASE
+import UserNotifications // ✅ 2. IMPORT USERNOTIFICATIONS
 
 @UIApplicationMain
-public class AppDelegate: ExpoAppDelegate {
+// ✅ 3. CONFORM TO THE NOTIFICATION DELEGATE PROTOCOL
+public class AppDelegate: ExpoAppDelegate, UNUserNotificationCenterDelegate {
   var window: UIWindow?
 
   var reactNativeDelegate: ExpoReactNativeFactoryDelegate?
@@ -13,6 +16,12 @@ public class AppDelegate: ExpoAppDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    // ✅ 4. INITIALIZE FIREBASE
+    FirebaseApp.configure()
+    
+    // ✅ 5. SET THE DELEGATE FOR FOREGROUND NOTIFICATIONS
+    UNUserNotificationCenter.current().delegate = self
+
     let delegate = ReactNativeDelegate()
     let factory = ExpoReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
@@ -30,6 +39,17 @@ public class AppDelegate: ExpoAppDelegate {
 #endif
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  // ✅ 6. ADD THIS METHOD TO HANDLE FOREGROUND NOTIFICATIONS
+  // This function is called when a notification is received while the app is open.
+  public func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    completionHandler: @escaping (UNNotificationPresentationOptions) -> Void)
+  {
+    // This tells iOS to show the notification banner, play a sound, and update the badge.
+    completionHandler([.alert, .sound, .badge])
   }
 
   // Linking API

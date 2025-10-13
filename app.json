@@ -4,7 +4,10 @@
     "slug": "Almasr",
     "version": "1.0.0",
     "android": {
-      "package": "com.anonymous.Almasr"
+      "package": "com.ALMASAR.ALMASAR",
+      "extraMavenRepos": [
+        "../../node_modules/@notifee/react-native/android/libs"
+      ]
     }
   }
 }

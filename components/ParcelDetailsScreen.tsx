@@ -774,7 +774,7 @@ const ParcelDetailsScreen = () => {
                 formatCurrency(parcel.dcFee)
               )}
               {renderDetailRow(
-                <Wallet  size={20} color={COLORS.primary} />,
+                <Wallet size={20} color={COLORS.primary} />,
                 "المجموع:",
                 formatCurrency(parcel.Total)
               )}

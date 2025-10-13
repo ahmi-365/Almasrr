@@ -110,6 +110,7 @@ const SearchScreen = () => {
     }, [searchQuery, allParcels]);
 
     const handleParcelSelect = (parcel: Parcel) => {
+        console.log(parcel)
         handleClose(() => {
             navigation.navigate('ParcelDetailsScreen' as never, { parcel } as never);
         });

@@ -18,7 +18,6 @@ import EntitiesBalanceScreen from '../screens/Entity/Balance';
 import AddParcelWhatsappScreen from '../screens/Entity/AddParcelWhatsapp';
 import DeliverdParcelScreen from '../screens/Driver/DeliveredParcelScreen';
 import ReturnedParcelScreen from '../screens/Driver/ReturnedParcelScreen';
-import ParcelsScreen from '../screens/Driver/ParcelsScreen';
 import SuccessfulDeliveryScreen from '../screens/Entity/SuccessDeliveredParcelScreen';
 import ReturnedParcelsScreen from '../screens/Entity/EntityReturnedParcelScreen';
 import PendingApprovalScreen from '../screens/Entity/PendingParcelScreen';
@@ -27,6 +26,9 @@ import OnTheWayScreen from '../screens/Entity/OnTheWayScreen';
 import ReportsDashboard from '../screens/Entity/ReportsDashboard';
 import ParcelDetailsScreen from '../components/ParcelDetailsScreen';
 import SearchScreen from '../components/SearchScreen';
+import EntityDashboard from '../screens/Entity/EntityDashboard';
+import ParcelsScreen from '../screens/Driver/ParcelsScreen';
+import AssignedParcelScreen from '../screens/Driver/AssignedParcelScreen';
 // --- THIS IS THE FIX ---
 // Add all possible screen names, including the new Driver tabs, to the master list.
 export type RootStackParamList = {
@@ -49,6 +51,7 @@ export type RootStackParamList = {
   DeliverdParcel: undefined
   ReturnedParcel: undefined
   ParcelsScreen: undefined
+  DriverParcelScreen: undefined
   SuccessfulDeliveryScreen: undefined
   ReturnedParcelsScreen: undefined
   PendingApprovalScreen: undefined
@@ -127,7 +130,14 @@ const AppContent = () => {
         />
 
         {/* We add DriverDashboard here as well to ensure it's a valid top-level route if needed */}
-        <Stack.Screen name="DriverDashboard" component={ParcelsScreen} />
+        <Stack.Screen name="DriverParcelScreen" component={ParcelsScreen} />
+        <Stack.Screen name="DriverDashboard" component={DriverDashboard} />
+        <Stack.Screen name="EntityDashboard" component={EntityDashboard} />
+        <Stack.Screen name="ParcelsTab" component={AssignedParcelScreen} />
+
+
+
+
       </Stack.Navigator>
 
       <Sidebar visible={isSidebarVisible} onClose={toggleSidebar} />

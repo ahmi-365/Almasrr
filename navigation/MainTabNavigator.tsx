@@ -13,7 +13,6 @@ import AccountScreen from '../screens/AccountScreen';
 import StoresScreen from '../screens/StoresScreen';
 import CustomTabBar from './CustomTabBar';
 import { RootStackParamList } from './AppNavigator';
-import ParcelsScreen from '../screens/Driver/ParcelsScreen';
 import AssignedParcelScreen from '../screens/Driver/AssignedParcelScreen';
 
 export type TabParamList = {

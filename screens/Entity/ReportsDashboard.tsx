@@ -19,8 +19,8 @@ import {
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
-// import RNFS from 'react-native-fs';
-// import Share from 'react-native-share';
+import RNFS from 'react-native-fs';
+import Share from 'react-native-share';
 import {
   ChevronDown,
   Check,
@@ -42,6 +42,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomAlert from "../../components/CustomAlert";
+import { useDashboard } from "../../Context/DashboardContext";
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 
@@ -287,6 +288,17 @@ export default function ReportsDashboard() {
   const [alertConfirmColor, setAlertConfirmColor] = useState('#E74C3C');
   const [isDownloading, setIsDownloading] = useState(false);
   const [alertSuccess, setAlertSuccess] = useState(false);
+  const { setCurrentRoute } = useDashboard(); // Get the setter function
+
+
+
+  useFocusEffect(
+    React.useCallback(() => {
+      // Announce that this is now the current route
+      setCurrentRoute('ReportsTab');
+    }, [setCurrentRoute])
+  );
+
 
   useFocusEffect(
     useCallback(() => {
@@ -329,70 +341,70 @@ export default function ReportsDashboard() {
     }, [route.params?.entityCode])
   );
 
-  // const handleDownloadPdf = useCallback(async () => {
-  //   if ((user?.roleName === 'Entity' && !selectedEntity) || transactions.length === 0) {
-  //     Alert.alert('خطأ', 'لا توجد بيانات لتصديرها.');
-  //     return;
-  //   }
-  //   setIsDownloading(true);
+  const handleDownloadPdf = useCallback(async () => {
+    if ((user?.roleName === 'Entity' && !selectedEntity) || transactions.length === 0) {
+      Alert.alert('خطأ', 'لا توجد بيانات لتصديرها.');
+      return;
+    }
+    setIsDownloading(true);
 
-  //   try {
-  //     const formattedFromDate = formatDate(fromDate);
-  //     const formattedToDate = formatDate(toDate);
+    try {
+      const formattedFromDate = formatDate(fromDate);
+      const formattedToDate = formatDate(toDate);
 
-  //     let url = '';
-  //     let fileName = '';
+      let url = '';
+      let fileName = '';
 
-  //     if (user?.roleName === 'Entity') {
-  //       url = `https://tanmia-group.com:84/courierApi/Entity/GenerateTransactionReportPdf/${selectedEntity.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
-  //       fileName = `Report-${selectedEntity.strEntityCode}-${formattedFromDate}-${Date.now()}.pdf`;
-  //     } else if (user?.roleName === 'Driver') {
-  //       url = `https://tanmia-group.com:84/courierApi/Driver/GenerateTransactionReportPdf/${user.userId}/${formattedFromDate}/${formattedToDate}`;
-  //       fileName = `Report-Driver-${user.userId}-${formattedFromDate}-${Date.now()}.pdf`;
-  //     } else {
-  //       // Optional: handle cases where user role is not supported
-  //       setIsDownloading(false);
-  //       return;
-  //     }
+      if (user?.roleName === 'Entity') {
+        url = `https://tanmia-group.com:84/courierApi/Entity/GenerateTransactionReportPdf/${selectedEntity.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
+        fileName = `Report-${selectedEntity.strEntityCode}-${formattedFromDate}-${Date.now()}.pdf`;
+      } else if (user?.roleName === 'Driver') {
+        url = `https://tanmia-group.com:84/courierApi/Driver/GenerateTransactionReportPdf/${user.userId}/${formattedFromDate}/${formattedToDate}`;
+        fileName = `Report-Driver-${user.userId}-${formattedFromDate}-${Date.now()}.pdf`;
+      } else {
+        // Optional: handle cases where user role is not supported
+        setIsDownloading(false);
+        return;
+      }
 
-  //     const tempDownloadPath = `${RNFS.TemporaryDirectoryPath}/${fileName}`;
+      const tempDownloadPath = `${RNFS.TemporaryDirectoryPath}/${fileName}`;
 
-  //     const downloadResult = await RNFS.downloadFile({
-  //       fromUrl: url,
-  //       toFile: tempDownloadPath,
-  //     }).promise;
+      const downloadResult = await RNFS.downloadFile({
+        fromUrl: url,
+        toFile: tempDownloadPath,
+      }).promise;
 
-  //     if (downloadResult.statusCode !== 200) {
-  //       throw new Error(`Server responded with status code ${downloadResult.statusCode}`);
-  //     }
+      if (downloadResult.statusCode !== 200) {
+        throw new Error(`Server responded with status code ${downloadResult.statusCode}`);
+      }
 
-  //     console.log('File downloaded successfully to temporary path:', tempDownloadPath);
+      console.log('File downloaded successfully to temporary path:', tempDownloadPath);
 
-  //     if (Platform.OS === 'android') {
-  //       const downloadsPath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
-  //       await RNFS.moveFile(tempDownloadPath, downloadsPath);
-  //       setAlertTitle("نجاح");
-  //       setAlertMessage("تم حفظ الملف بنجاح في مجلد التنزيلات.");
-  //       setAlertSuccess(true);
-  //       setAlertVisible(true);
-  //       console.log('File moved to:', downloadsPath);
-  //     } else {
-  //       await Share.open({
-  //         url: `file://${tempDownloadPath}`,
-  //         type: 'application/pdf',
-  //         failOnCancel: false,
-  //         title: 'تنزيل التقرير',
-  //       });
-  //     }
-  //   } catch (error) {
-  //     console.error('Error downloading or saving PDF:', error);
-  //     setAlertTitle("خطأ");
-  //     setAlertMessage(error.message || "حدث خطأ أثناء تحميل أو حفظ ملف PDF.");
-  //     setAlertVisible(true);
-  //   } finally {
-  //     setIsDownloading(false);
-  //   }
-  // }, [user, selectedEntity, fromDate, toDate, transactions]);
+      if (Platform.OS === 'android') {
+        const downloadsPath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
+        await RNFS.moveFile(tempDownloadPath, downloadsPath);
+        setAlertTitle("نجاح");
+        setAlertMessage("تم حفظ الملف بنجاح في مجلد التنزيلات.");
+        setAlertSuccess(true);
+        setAlertVisible(true);
+        console.log('File moved to:', downloadsPath);
+      } else {
+        await Share.open({
+          url: `file://${tempDownloadPath}`,
+          type: 'application/pdf',
+          failOnCancel: false,
+          title: 'تنزيل التقرير',
+        });
+      }
+    } catch (error) {
+      console.error('Error downloading or saving PDF:', error);
+      setAlertTitle("خطأ");
+      setAlertMessage(error.message || "حدث خطأ أثناء تحميل أو حفظ ملف PDF.");
+      setAlertVisible(true);
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [user, selectedEntity, fromDate, toDate, transactions]);
 
   const handleSearch = useCallback(async () => {
     if (user?.roleName === "Entity" && !selectedEntity) {
@@ -539,7 +551,7 @@ export default function ReportsDashboard() {
                     style={styles.downloadButton}
                     disabled={isDownloading}
                     activeOpacity={0.7}
-                    // onPress={handleDownloadPdf}
+                    onPress={handleDownloadPdf}
                   >
                     {isDownloading ? (
                       <ActivityIndicator color="#FFF" size="small" />

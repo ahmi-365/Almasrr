@@ -29,6 +29,9 @@ import CustomAlert from '../components/CustomAlert';
 
 import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useDashboard } from '../Context/DashboardContext';
+import { useFocusEffect } from '@react-navigation/native';
+
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const { width } = Dimensions.get('window');
@@ -129,7 +132,7 @@ export default function AccountScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [isAlertVisible, setAlertVisible] = useState(false);
   const [isPasswordAlertVisible, setPasswordAlertVisible] = useState(false);
-  
+
   // Password change states
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -138,6 +141,15 @@ export default function AccountScreen({ navigation }) {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+  const { setCurrentRoute } = useDashboard(); // Get the setter function
+
+
+  useFocusEffect(
+    React.useCallback(() => {
+      // Announce that this is now the current route
+      setCurrentRoute('AccountTab');
+    }, [setCurrentRoute])
+  );
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -172,81 +184,81 @@ export default function AccountScreen({ navigation }) {
     }
   };
 
-const handleChangePassword = async () => {
-  // Reset messages
-  setPasswordError('');
-  setPasswordSuccess('');
+  const handleChangePassword = async () => {
+    // Reset messages
+    setPasswordError('');
+    setPasswordSuccess('');
 
-  // Validation
-  if (!newPassword || !confirmPassword) {
-    setPasswordError('يرجى ملء جميع الحقول');
-    return;
-  }
-
-  if (newPassword !== confirmPassword) {
-    setPasswordError('كلمة المرور الجديدة وتأكيد كلمة المرور غير متطابقين');
-    return;
-  }
-
-  if (newPassword.length < 3) {
-    setPasswordError('كلمة المرور الجديدة يجب أن تكون 3 أحرف على الأقل');
-    return;
-  }
-
-  setIsChangingPassword(true);
-
-  try {
-    // Get user data from AsyncStorage
-    const userDataString = await AsyncStorage.getItem('user');
-    if (!userDataString) {
-      setPasswordError('لم يتم العثور على بيانات المستخدم');
-      setIsChangingPassword(false);
+    // Validation
+    if (!newPassword || !confirmPassword) {
+      setPasswordError('يرجى ملء جميع الحقول');
       return;
     }
 
-    const userData = JSON.parse(userDataString);
-    const intUserCode = userData.userId;
-    const strRoleName = userData.roleName;
-
-    if (!intUserCode || !strRoleName) {
-      setPasswordError('بيانات المستخدم غير كاملة');
-      setIsChangingPassword(false);
+    if (newPassword !== confirmPassword) {
+      setPasswordError('كلمة المرور الجديدة وتأكيد كلمة المرور غير متطابقين');
       return;
     }
 
-    const payload = {
-      intUserCode,
-      strRoleName,
-      NewPassword: newPassword,
-    };
-
-    const response = await fetch('https://tanmia-group.com:84/courierApi/changePassword', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await response.json();
-
-    if (response.ok && (data.success || data.Success || data.Status === "success")) {
-      setPasswordSuccess(data.Message || 'تم تغيير كلمة المرور بنجاح');
-      setNewPassword('');
-      setConfirmPassword('');
-      setTimeout(() => {
-        setPasswordAlertVisible(false);
-        setPasswordSuccess('');
-      }, 2000);
-    } else {
-      setPasswordError(data.Message || data.message || 'فشل تغيير كلمة المرور. حاول مرة أخرى');
+    if (newPassword.length < 3) {
+      setPasswordError('كلمة المرور الجديدة يجب أن تكون 3 أحرف على الأقل');
+      return;
     }
-  } catch (error) {
-    setPasswordError('حدث خطأ أثناء تغيير كلمة المرور. حاول مرة أخرى');
-  } finally {
-    setIsChangingPassword(false);
-  }
-};
+
+    setIsChangingPassword(true);
+
+    try {
+      // Get user data from AsyncStorage
+      const userDataString = await AsyncStorage.getItem('user');
+      if (!userDataString) {
+        setPasswordError('لم يتم العثور على بيانات المستخدم');
+        setIsChangingPassword(false);
+        return;
+      }
+
+      const userData = JSON.parse(userDataString);
+      const intUserCode = userData.userId;
+      const strRoleName = userData.roleName;
+
+      if (!intUserCode || !strRoleName) {
+        setPasswordError('بيانات المستخدم غير كاملة');
+        setIsChangingPassword(false);
+        return;
+      }
+
+      const payload = {
+        intUserCode,
+        strRoleName,
+        NewPassword: newPassword,
+      };
+
+      const response = await fetch('https://tanmia-group.com:84/courierApi/changePassword', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && (data.success || data.Success || data.Status === "success")) {
+        setPasswordSuccess(data.Message || 'تم تغيير كلمة المرور بنجاح');
+        setNewPassword('');
+        setConfirmPassword('');
+        setTimeout(() => {
+          setPasswordAlertVisible(false);
+          setPasswordSuccess('');
+        }, 2000);
+      } else {
+        setPasswordError(data.Message || data.message || 'فشل تغيير كلمة المرور. حاول مرة أخرى');
+      }
+    } catch (error) {
+      setPasswordError('حدث خطأ أثناء تغيير كلمة المرور. حاول مرة أخرى');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
 
   if (loading) {
@@ -280,11 +292,11 @@ const handleChangePassword = async () => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>الإجراءات</Text>
-          <ActionRow 
-            icon={Lock} 
-            label="تغيير كلمة المرور" 
-            onPress={() => setPasswordAlertVisible(true)} 
-            color="#FF6B35" 
+          <ActionRow
+            icon={Lock}
+            label="تغيير كلمة المرور"
+            onPress={() => setPasswordAlertVisible(true)}
+            color="#FF6B35"
           />
           <ActionRow icon={LogOut} label="تسجيل الخروج" onPress={() => setAlertVisible(true)} color="#E74C3C" />
         </View>
@@ -307,13 +319,13 @@ const handleChangePassword = async () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>تغيير كلمة المرور</Text>
-            
+
             <View style={styles.passwordContainer}>
               {/* New Password */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>كلمة المرور الجديدة</Text>
                 <View style={styles.passwordInputWrapper}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={() => setShowNewPassword(!showNewPassword)}
                     style={styles.eyeIcon}
                   >
@@ -336,7 +348,7 @@ const handleChangePassword = async () => {
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>تأكيد كلمة المرور</Text>
                 <View style={styles.passwordInputWrapper}>
-                  <TouchableOpacity 
+                  <TouchableOpacity
                     onPress={() => setShowConfirmPassword(!showConfirmPassword)}
                     style={styles.eyeIcon}
                   >
@@ -371,8 +383,8 @@ const handleChangePassword = async () => {
             </View>
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.cancelButton]} 
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => {
                   setPasswordAlertVisible(false);
                   setNewPassword('');
@@ -384,9 +396,9 @@ const handleChangePassword = async () => {
               >
                 <Text style={styles.cancelButtonText}>إلغاء</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.confirmButton]} 
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton]}
                 onPress={handleChangePassword}
                 disabled={isChangingPassword}
               >

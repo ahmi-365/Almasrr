@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "684268148151",
+    "project_id": "almasar-1edbc",
+    "storage_bucket": "almasar-1edbc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:684268148151:android:66b01281ece5a927efc432",
+        "android_client_info": {
+          "package_name": "com.ALMASAR.ALMASAR"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7AJooPfNUJpbtNETVX3b5jubkCeS_pWs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

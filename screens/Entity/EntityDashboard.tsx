@@ -37,6 +37,7 @@ import Svg, { Path } from "react-native-svg";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomAlert from "../../components/CustomAlert";
+import { navigate } from "../../navigation/NavigationService";
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const HEADER_EXPANDED_HEIGHT = 1;
@@ -341,6 +342,15 @@ export default function EntityDashboard() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const imageSliderRef = useRef(null);
   const navigation = useNavigation();
+  const { setCurrentRoute } = useDashboard(); // Get the setter function
+
+  useFocusEffect(
+    React.useCallback(() => {
+      // Announce that this is now the current route
+      setCurrentRoute('EntityDashboard');
+    }, [setCurrentRoute])
+  );
+
 
   // Load user data
   useEffect(() => {
@@ -390,6 +400,8 @@ export default function EntityDashboard() {
     };
     loadCachedParcels();
   }, []);
+
+
 
   // Fetch all parcels
   const fetchAllParcels = useCallback(async () => {
@@ -471,6 +483,7 @@ export default function EntityDashboard() {
   // Refresh control
   const onRefresh = useCallback(() => {
     setRefreshing(true);
+    fetchAllParcels();
     fetchDashboardData();
   }, [fetchDashboardData]);
 
@@ -480,6 +493,43 @@ export default function EntityDashboard() {
       fetchAllParcels();
     }
   }, [user, fetchAllParcels]);
+
+
+  useEffect(() => {
+    const checkPendingNotification = async () => {
+      // We only proceed if the parcel list is loaded.
+      if (allParcels.length === 0) {
+        return;
+      }
+
+      try {
+        const parcelCode = await AsyncStorage.getItem('pending_notification_parcel_code');
+
+        if (parcelCode) {
+          console.log('Pending notification found for parcel code:', parcelCode);
+          // IMPORTANT: Remove the item immediately to prevent re-triggering
+          await AsyncStorage.removeItem('pending_notification_parcel_code');
+
+          const targetParcel = allParcels.find(
+            (p) => p.intParcelCode.toString() === parcelCode.toString()
+          );
+
+          if (targetParcel) {
+            console.log('Found parcel in dashboard state. Navigating...');
+            // navigation.navigate('ParcelDetailsScreen', { parcel: targetParcel });
+            navigate('ParcelDetailsScreen', { parcel: targetParcel });
+          } else {
+            console.warn('Parcel from notification not found in the loaded list.');
+          }
+        }
+      } catch (error) {
+        console.error('Failed to handle pending notification:', error);
+      }
+    };
+
+    checkPendingNotification();
+
+  }, [allParcels, navigation]); // Dependency array ensures this runs when parcels are loaded
 
   // Stats data calculation
   const statsData = useMemo(() => {

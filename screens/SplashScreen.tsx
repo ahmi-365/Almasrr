@@ -1,4 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+// screens/SplashScreen.tsx
+
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -13,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import Svg, { Circle } from 'react-native-svg';
+import messaging from '@react-native-firebase/messaging'; // ✅ 1. IMPORT FIREBASE MESSAGING
 
 type SplashScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Splash'>;
 
@@ -71,8 +74,8 @@ const ProgressLoader = ({ color }) => {
             strokeWidth="5"
             strokeLinecap="round"
             fill="none"
-            strokeDasharray="282.7" // 2 * PI * r = 2 * 3.14 * 45 = 282.6
-            strokeDashoffset="141.35" // half of the dasharray
+            strokeDasharray="282.7"
+            strokeDashoffset="141.35"
           />
         </Svg>
       </Animated.View>
@@ -85,50 +88,66 @@ export default function SplashScreen() {
   const bannerFadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Animate banner to fade in
     Animated.timing(bannerFadeAnim, {
       toValue: 1,
       duration: 1000,
       useNativeDriver: true,
     }).start();
 
-    const checkLogin = async () => {
-      try {
-        const userData = await AsyncStorage.getItem('user');
-        if (!userData) {
-          return navigation.replace('Login');
-        }
-        const parsed = JSON.parse(userData);
-        if (parsed?.success === true && parsed?.roleName) {
-          navigation.replace('MainTabs');
-        } else {
+    // ✅ 2. THIS NEW FUNCTION HANDLES THE ENTIRE LAUNCH SEQUENCE
+    const handleInitialLaunch = async () => {
+      // ✅ 1. CHECK FOR AN INITIAL NOTIFICATION
+      const remoteMessage = await messaging().getInitialNotification();
+
+      if (remoteMessage && remoteMessage.data?.intParcelCode) {
+        // ✅ 2. IF FOUND, JUST SAVE THE PARCEL CODE AS A "PENDING TASK"
+        const parcelCodeToString = String(remoteMessage.data.intParcelCode);
+        console.log('Notification opened app. Saving pending task for parcel code:', parcelCodeToString);
+        await AsyncStorage.setItem(
+          'pending_notification_parcel_code',
+          parcelCodeToString
+        );
+      }
+      // This is your existing login check logic. It will run AFTER the notification check.
+      const checkLogin = async () => {
+        try {
+          const userData = await AsyncStorage.getItem('user');
+          if (!userData) {
+            return navigation.replace('Login');
+          }
+          const parsed = JSON.parse(userData);
+          if (parsed?.success === true && parsed?.roleName) {
+            navigation.replace('MainTabs');
+          } else {
+            navigation.replace('Login');
+          }
+        } catch (error) {
+          console.error('Error reading user data:', error);
           navigation.replace('Login');
         }
-      } catch (error) {
-        console.error('Error reading user data:', error);
-        navigation.replace('Login');
-      }
+      };
+
+      // We still use your 3-second timer for a smooth user experience.
+      const navigationTimer = setTimeout(() => {
+        checkLogin();
+      }, 3000);
+
+      return () => clearTimeout(navigationTimer);
     };
 
-    const navigationTimer = setTimeout(() => {
-      checkLogin();
-    }, 3000); // 3 seconds delay to show the banner and loader
+    handleInitialLaunch();
 
-    return () => clearTimeout(navigationTimer);
   }, [bannerFadeAnim, navigation]);
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.darkOrange} />
-
-      {/* Full-screen banner */}
       <Animated.View style={[styles.bannerContainer, { opacity: bannerFadeAnim }]}>
         <Image
           source={require('../assets/images/Banner.png')}
           style={styles.bannerImage}
-          resizeMode="cover" // 'cover' to fill the entire screen
+          resizeMode="cover"
         />
-        {/* Progress Loader at the bottom of the banner */}
         <View style={styles.loaderBottomContainer}>
           <ProgressLoader color={Colors.primaryOrange} />
           <Text style={styles.loadingText}>جاري التحميل...</Text>
@@ -145,18 +164,17 @@ const styles = StyleSheet.create({
   },
   bannerContainer: {
     flex: 1,
-    justifyContent: 'flex-end', // Align children to the bottom
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    backgroundColor: 'black', // A dark background for a full-screen image
+    backgroundColor: 'black',
   },
   bannerImage: {
     flex: 1,
     width: '100%',
     height: '100%',
-    justifyContent: 'flex-end', // or 'center' depending on content
+    justifyContent: 'flex-end',
     alignItems: 'center',
   },
-
   loaderBottomContainer: {
     position: 'absolute',
     bottom: 50,
@@ -169,7 +187,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 15,
     fontSize: 16,
-    color: Colors.white, // Change text color to white for visibility on the banner
+    color: Colors.white,
     fontFamily: 'System',
     fontWeight: '500',
   },

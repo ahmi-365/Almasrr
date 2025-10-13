@@ -18,6 +18,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useDashboard } from '../../Context/DashboardContext';
 import { X } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -59,6 +60,7 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
   const slideAnim = useRef(new Animated.Value(screenWidth)).current;
   const rotationAnim = useRef(new Animated.Value(0)).current;
   const animationController = useRef<Animated.CompositeAnimation | null>(null);
+  const insets = useSafeAreaInsets();
 
   const { dashboardItem, orbitingItems } = useMemo(() => {
     if (!user) {
@@ -117,31 +119,33 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
   }, [visible, isRendered, itemAnims, mainButtonAnim, slideAnim, rotationAnim]);
 
   const handleItemPress = useCallback((item: DialerMenuItem) => {
+    // setTimeout(() => {
+    if (!user || !item.route || item.route === currentRoute) return;
+    // const activeTabs = user.roleName === 'Driver' ? DRIVER_TAB_SCREENS : TAB_SCREENS;
+    // if (activeTabs.includes(item.route as any)) {
+    //   navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: item.route as any }] } }] });
+    // } else {
+    //   navigation.reset({ index: 1, routes: [{ name: 'MainTabs' }, { name: item.route }] });
+    // }
+    // if (activeTabs.includes(item.route as any)) {
+    //   navigation.navigate('MainTabs', { screen: item.route as any });
+    // } else {
+    navigation.navigate(item.route as any);
     onClose();
-    setTimeout(() => {
-      if (!user || !item.route || item.route === currentRoute) return;
-      const activeTabs = user.roleName === 'Driver' ? DRIVER_TAB_SCREENS : TAB_SCREENS;
-      if (activeTabs.includes(item.route as any)) {
-        navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: item.route as any }] } }] });
-      } else {
-        navigation.reset({ index: 1, routes: [{ name: 'MainTabs' }, { name: item.route }] });
-      }
-      // if (activeTabs.includes(item.route as any)) {
-      //   navigation.navigate('MainTabs', { screen: item.route as any });
-      // } else {
-      //   navigation.navigate(item.route as any);
-      // }
 
-    }, 250);
-  }, [navigation, user, onClose, currentRoute]);
+    // }
+
+    // }, 250);
+  }, [navigation, onClose]);
 
   const handleProfilePress = () => {
-    onClose();
-    setTimeout(() => {
-      navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: 'AccountTab' }] } }] });
-      // navigation.navigate('MainTabs', { screen: 'AccountTab' });
 
-    }, 250);
+    // setTimeout(() => {
+    // navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: 'AccountTab' }] } }] });
+    navigation.navigate('MainTabs', { screen: 'AccountTab' });
+    onClose();
+
+    // }, 250);
   };
 
   if (!isRendered || !user || !dashboardItem) return null;
@@ -160,7 +164,7 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
 
   return (
     <Animated.View style={[styles.drawerContainer, { transform: [{ translateX: slideAnim }] }]}>
-      <SafeAreaView style={styles.safeArea}>
+      <View style={[styles.safeArea, { paddingTop: insets.top }]}>
         <StatusBar backgroundColor="transparent" translucent barStyle="dark-content" />
         <View style={styles.topBar}>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}><X color="#FFFFFF" size={28} /></TouchableOpacity>
@@ -207,7 +211,7 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
             </TouchableOpacity>
           </Animated.View>
         </Animated.View>
-      </SafeAreaView>
+      </View>
     </Animated.View>
   );
 }
@@ -216,7 +220,7 @@ const styles = StyleSheet.create({
   drawerContainer: { ...StyleSheet.absoluteFillObject, backgroundColor: '#E67E22', zIndex: 1000 },
   safeArea: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    // paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   topBar: { width: '100%', flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 5 },
   closeButton: { padding: 15 },

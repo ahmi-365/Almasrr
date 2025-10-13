@@ -1,4 +1,4 @@
-package com.anonymous.Almasr
+package com.ALMASAR.ALMASAR
 
 import android.app.Application
 import android.content.res.Configuration
