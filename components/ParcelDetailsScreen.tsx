@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
   TextInput,
   Platform,
+  KeyboardAvoidingView, // Import KeyboardAvoidingView
 } from "react-native";
 import {
   ArrowLeft,
@@ -138,12 +139,10 @@ const ParcelDetailsScreen = () => {
   const { parcel: initialParcel } = route.params;
   const [parcel, setParcel] = useState(initialParcel);
 
-  // MODIFICATION: Add state for the full user object
   const [user, setUser] = useState<any | null>(null);
   const [roleName, setRoleName] = useState<string | null>(null);
 
   const [isFetchingInvoices, setIsFetchingInvoices] = useState(false);
-  const [isNotifyAlertVisible, setNotifyAlertVisible] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState("");
   const [alertMessage, setAlertMessage] = useState("");
@@ -160,6 +159,12 @@ const ParcelDetailsScreen = () => {
   const [selectedRemarkOption, setSelectedRemarkOption] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // --- State for the Notification Remarks Modal ---
+  const [isNotificationModalVisible, setNotificationModalVisible] = useState(false);
+  const [notificationRemarks, setNotificationRemarks] = useState("");
+  const [isSendingNotification, setIsSendingNotification] = useState(false);
+
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
@@ -174,14 +179,13 @@ const ParcelDetailsScreen = () => {
     driverRemarks: true,
   });
 
-  // MODIFICATION: Update useEffect to get the full user object
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         const userDataString = await AsyncStorage.getItem('user');
         if (userDataString) {
           const userData = JSON.parse(userDataString);
-          setUser(userData); // Set the full user object
+          setUser(userData);
           setRoleName(userData.roleName);
         }
       } catch (e) {
@@ -214,16 +218,15 @@ const ParcelDetailsScreen = () => {
     ]).start();
   }, []);
 
-  // MODIFICATION: Replace refreshParcelData to use the fetchAllParcels logic
   const refreshParcelData = async () => {
     if (!user?.userId) {
       console.error("User ID not found, cannot refresh parcel data.");
-      // Do not show an alert here, as the user will be notified by the calling function on failure
       return;
     }
 
     console.log("Refreshing parcel data by fetching all driver parcels...");
     try {
+      // Assuming the user is a driver; adjust if logic needs to be different for entities.
       const response = await axios.get(
         `https://tanmia-group.com:84/courierApi/parcels/DriverParcels/${user.userId}`
       );
@@ -233,20 +236,16 @@ const ParcelDetailsScreen = () => {
         const updatedParcel = allParcels.find(p => p.intParcelCode === parcel.intParcelCode);
 
         if (updatedParcel) {
-          setParcel(updatedParcel); // Update the local state with the new data
+          setParcel(updatedParcel);
           console.log("Parcel data refreshed successfully from the list.");
         } else {
           console.warn(`Parcel with code ${parcel.intParcelCode} not found in the refreshed list. This may be expected if its status changed.`);
-          // If the parcel is not found, it means it's no longer in the driver's active lists.
-          // The success message from the action handler (e.g., handleCompleteParcel) will suffice.
-          // The component will continue to show the last available data until the user navigates away.
         }
       } else {
         console.error("Invalid data structure received from server while refreshing parcels.");
       }
     } catch (error) {
       console.error("Failed to refresh parcel data by fetching all parcels:", error);
-      // Let the handler's error alert take precedence if it's an API action failure.
     }
   };
 
@@ -402,35 +401,63 @@ const ParcelDetailsScreen = () => {
     }
   };
 
-
   const statusConfig =
     STATUS_CONFIG[parcel.StatusName] || STATUS_CONFIG["غير مؤكد"];
   const StatusIcon = statusConfig.icon;
 
   const handleNotifyPress = () => {
-    setNotifyAlertVisible(true);
+    setNotificationRemarks("");
+    setNotificationModalVisible(true);
   };
 
-  const confirmSendNotification = () => {
-    console.log(`Sending notification for parcel: ${parcel.ReferenceNo}`);
-    setNotifyAlertVisible(false);
-    setAlertTitle("نجاح");
-    setAlertMessage("تم إرسال الإشعار بنجاح.");
-    setAlertSuccess(true);
-    setAlertVisible(true);
+  const handleSendNotification = async () => {
+    if (!notificationRemarks.trim()) {
+      setAlertTitle("تنبيه");
+      setAlertMessage("الرجاء إدخال الملاحظات للإرسال.");
+      setAlertSuccess(false);
+      setAlertVisible(true);
+      return;
+    }
+
+    setIsSendingNotification(true);
+    setNotificationModalVisible(false);
+
+    try {
+      const params = new URLSearchParams();
+      params.append('parcelCode', parcel.intParcelCode.toString());
+      params.append('entityRemarks', notificationRemarks);
+
+      const response = await axios.post(
+        'https://tanmia-group.com:84/courierApi/notifications/entity-to-driver',
+        params,
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        }
+      );
+
+      if (response.data && response.data.Success) {
+        setAlertTitle("نجاح");
+        setAlertMessage(response.data.Message || "تم إرسال الإشعار بنجاح.");
+        setAlertSuccess(true);
+        setAlertVisible(true);
+      } else {
+        throw new Error(response.data.Message || "حدث خطأ أثناء إرسال الإشعار.");
+      }
+
+    } catch (error) {
+      console.error("Failed to send notification:", error);
+      setAlertTitle("خطأ");
+      setAlertMessage(error.message || "فشل إرسال الإشعار.");
+      setAlertSuccess(false);
+      setAlertVisible(true);
+    } finally {
+      setIsSendingNotification(false);
+      setNotificationRemarks("");
+    }
   };
 
-  const cancelSendNotification = () => {
-    setNotifyAlertVisible(false);
-  };
-
-  const handleConfirmDelivery = () => {
-    console.log(`Confirming delivery for parcel: ${parcel.ReferenceNo}`);
-    setAlertTitle("نجاح");
-    setAlertMessage("تم تأكيد التسليم بنجاح.");
-    setAlertSuccess(true);
-    setAlertVisible(true);
-  };
 
   const toggleSection = (section) => {
     setExpandedSections((prev) => ({
@@ -603,7 +630,7 @@ const ParcelDetailsScreen = () => {
                     {showConfirmButton && (
                       <TouchableOpacity
                         style={styles.confirmActionButton}
-                        onPressIn={handleConfirmDelivery}
+                        onPressIn={() => { }}
                         activeOpacity={0.7}
                       >
                         <CheckCircle size={20} color="#FFF" />
@@ -857,7 +884,7 @@ const ParcelDetailsScreen = () => {
           <View style={styles.modalOverlay}>
             <TouchableWithoutFeedback>
               <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>الفواتير المرتبطة</Text>
+                <Text style={styles.modalSubTitle}>الفواتير المرتبطة</Text>
                 <View style={styles.tableHeader}>
                   <Text style={[styles.tableHeaderText, { flex: 0.5 }]}>#</Text>
                   <Text style={[styles.tableHeaderText, { flex: 2 }]}>
@@ -990,7 +1017,7 @@ const ParcelDetailsScreen = () => {
         </View>
       </Modal>
 
-      {/* Remarks Modal */}
+      {/* Driver Remarks Modal */}
       <Modal
         visible={showRemarksModal}
         transparent
@@ -1070,19 +1097,39 @@ const ParcelDetailsScreen = () => {
         </View>
       </Modal>
 
+      {/* --- UPDATED Notification Remarks Modal --- */}
+      <Modal visible={isNotificationModalVisible} animationType="fade" transparent={true} onRequestClose={() => setNotificationModalVisible(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.remarksModalOverlay}>
+          <TouchableWithoutFeedback onPress={() => setNotificationModalVisible(false)}>
+            <View style={StyleSheet.absoluteFill} />
+          </TouchableWithoutFeedback>
+          <TouchableWithoutFeedback>
+            <View style={styles.remarksModalContent}>
+              <Text style={styles.notificationModalTitle}>إرسال إشعار للمندوب</Text>
+              <Text style={styles.modalSubTitle}>أدخل ملاحظاتك ليتم إرسالها للمندوب بخصوص الشحنة: <Text style={{ fontWeight: 'bold' }}>{parcel?.ReferenceNo}</Text></Text>
+              <TextInput
+                style={styles.remarksModalInput}
+                placeholder="مثال: الرجاء تسليم الشحنة اليوم قبل الساعة 5 مساءً"
+                placeholderTextColor="#9CA3AF"
+                multiline
+                value={notificationRemarks}
+                onChangeText={setNotificationRemarks}
+              />
+              <View style={styles.modalButtonContainer}>
+                <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setNotificationModalVisible(false)}>
+                  <Text style={[styles.modalButtonText, styles.cancelButtonText]}>إلغاء</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.modalButton, styles.sendButton]} onPress={handleSendNotification} disabled={isSendingNotification}>
+                  {isSendingNotification ? <ActivityIndicator color="#FFF" /> : <Text style={styles.modalButtonText}>إرسال</Text>}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </Modal>
 
-      {/* Custom Alerts */}
-      <CustomAlert
-        isVisible={isNotifyAlertVisible}
-        title="تأكيد الإرسال"
-        message="هل تريد إرسال إشعار إلى المندوب؟"
-        confirmText="نعم"
-        cancelText="لا"
-        onConfirm={confirmSendNotification}
-        onCancel={cancelSendNotification}
-        confirmButtonColor="#27AE60"
-      />
 
+      {/* Custom Alert for general feedback */}
       <CustomAlert
         isVisible={alertVisible}
         title={alertTitle}
@@ -1267,7 +1314,7 @@ const styles = StyleSheet.create({
   notifyActionButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#27AE60",
+    backgroundColor: "#FF8A65",
     paddingVertical: 5,
     paddingHorizontal: 10,
     borderRadius: 20,
@@ -1277,6 +1324,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
     marginBottom: 10,
+    gap: 5
   },
   notifyButtonText: {
     color: "#FFF",
@@ -1564,12 +1612,13 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  modalTitle: {
+  // Use a different name to avoid conflicts with invoice modal title
+  notificationModalTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    color: COLORS.text,
+    color: "#1F2937",
     textAlign: "right",
-    marginBottom: 20,
+    marginBottom: 8,
   },
   tableHeader: {
     flexDirection: "row-reverse",
@@ -1613,6 +1662,66 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  // --- Styles for NEW Notification Modal ---
+  remarksModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  remarksModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    width: "100%",
+    padding: 20,
+  },
+  modalSubTitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'right',
+    marginBottom: 16,
+    lineHeight: 20
+  },
+  remarksModalInput: {
+    width: '100%',
+    height: 100,
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    padding: 12,
+    textAlign: 'right',
+    textAlignVertical: 'top',
+    fontSize: 14,
+    marginBottom: 20,
+  },
+  modalButtonContainer: {
+    flexDirection: 'row-reverse',
+    width: '100%',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#F3F4F6',
+  },
+  sendButton: {
+    backgroundColor: '#FF6B35',
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  cancelButtonText: {
+    color: '#374151',
   },
 });
 

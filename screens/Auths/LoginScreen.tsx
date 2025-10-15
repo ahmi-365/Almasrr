@@ -205,10 +205,10 @@ const LoginScreen = () => {
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-const [isAlertVisible, setAlertVisible] = useState(false);
-const [alertTitle, setAlertTitle] = useState('');
-const [alertMessage, setAlertMessage] = useState('');
-const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange);
+  const [isAlertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange);
   type Errors = {
     phoneNumber?: string;
     password?: string;
@@ -280,60 +280,105 @@ const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange)
 
   }, []);
 
-const handleLogin = async () => {
-  setIsLoading(true);
-  Animated.sequence([
-    Animated.spring(buttonScaleAnim, {
-      toValue: 0.95,
-      useNativeDriver: true,
-      speed: 20,
-      bounciness: 10,
-    }),
-    Animated.spring(buttonScaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 20,
-      bounciness: 10,
-    }),
-  ]).start();
+  // --- NEW: Function to update FCM token on the server ---
+  const updateFCMToken = async (userId: number, roleName: string) => {
+    try {
+      const fcmToken = await AsyncStorage.getItem('fcmToken');
+      if (!fcmToken) {
+        console.log('No FCM token found, skipping update.');
+        return;
+      }
 
-  try {
-    const response = await fetch('https://tanmia-group.com:84/courierApi/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        UserName: phoneNumber,
-        Password: password,
+      let endpoint = '';
+      if (roleName === 'Entity') {
+        endpoint = 'https://tanmia-group.com:84/courierApi/entity/updateToken';
+      } else if (roleName === 'Driver') {
+        endpoint = 'https://tanmia-group.com:84/courierApi/driver/updateToken';
+      } else {
+        console.log(`Unknown role: ${roleName}. Skipping FCM token update.`);
+        return;
+      }
+
+      const body = {
+        Id: userId,
+        IosToken: Platform.OS === 'ios' ? fcmToken : null,
+        AndroidToken: Platform.OS === 'android' ? fcmToken : null,
+      };
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (response.ok) {
+        console.log(`FCM token updated successfully for ${roleName} ${userId}.`);
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to update FCM token:', response.status, errorData);
+      }
+    } catch (error) {
+      console.error('An error occurred while updating FCM token:', error);
+    }
+  };
+
+
+
+  const handleLogin = async () => {
+    setIsLoading(true);
+    Animated.sequence([
+      Animated.spring(buttonScaleAnim, {
+        toValue: 0.95,
+        useNativeDriver: true,
+        speed: 20,
+        bounciness: 10,
       }),
-    });
+      Animated.spring(buttonScaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 20,
+        bounciness: 10,
+      }),
+    ]).start();
 
-    const responseData = await response.json();
+    try {
+      const response = await fetch('https://tanmia-group.com:84/courierApi/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          UserName: phoneNumber,
+          Password: password,
+        }),
+      });
 
-    if (response.ok && responseData.success) {
-      setDashboardData(null);
-      setUser(responseData);
-      setDcBalance(String(responseData?.DCBalance?.toFixed(2) ?? '0.00'));
-      await AsyncStorage.setItem('user', JSON.stringify(responseData));
-      navigation.navigate('MainTabs');
-    } else {
-      setAlertTitle('خطأ في تسجيل الدخول');
-      setAlertMessage(responseData.message || 'يرجى التحقق من بياناتك');
+      const responseData = await response.json();
+
+      if (response.ok && responseData.success) {
+        updateFCMToken(responseData.userId, responseData.roleName);
+        setDashboardData(null);
+        setUser(responseData);
+        setDcBalance(String(responseData?.DCBalance?.toFixed(2) ?? '0.00'));
+        await AsyncStorage.setItem('user', JSON.stringify(responseData));
+        navigation.navigate('MainTabs');
+      } else {
+        setAlertTitle('خطأ في تسجيل الدخول');
+        setAlertMessage(responseData.message || 'يرجى التحقق من بياناتك');
+        setAlertConfirmColor(Colors.errorRed);
+        setAlertVisible(true);
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setAlertTitle('خطأ في الاتصال');
+      setAlertMessage('يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى');
       setAlertConfirmColor(Colors.errorRed);
       setAlertVisible(true);
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error('Login error:', error);
-    setAlertTitle('خطأ في الاتصال');
-    setAlertMessage('يرجى التحقق من اتصالك بالإنترنت والمحاولة مرة أخرى');
-    setAlertConfirmColor(Colors.errorRed);
-    setAlertVisible(true);
-  } finally {
-    setIsLoading(false);
-  }
-};
+  };
 
 
   const handleCreateAccount = () => {
@@ -417,7 +462,7 @@ const handleLogin = async () => {
               resizeMode="contain"
             />
           </View>
-          <Text style={styles.welcometitle}>المسار الذهبي</Text>
+          <Text style={styles.welcometitle}>المسار</Text>
           <Text style={styles.welcomeSubtitle}>يارِيت تسجل دخولك لحسابك</Text>
         </Animated.View>
 
@@ -475,20 +520,20 @@ const handleLogin = async () => {
           <View style={styles.bottomIndicator} />
         </View>
       </ScrollView>
-     <CustomAlert
-  isVisible={isAlertVisible}
-  title={alertTitle}
-  message={alertMessage}
-  confirmText="حسنًا"
-  cancelText="" 
-  onConfirm={() => {
-    setAlertVisible(false);
-    if (alertTitle === 'تم تسجيل الدخول بنجاح') {
-      navigation.navigate('MainTabs');
-    }
-  }}
-  onCancel={() => setAlertVisible(false)} 
-/>
+      <CustomAlert
+        isVisible={isAlertVisible}
+        title={alertTitle}
+        message={alertMessage}
+        confirmText="حسنًا"
+        cancelText=""
+        onConfirm={() => {
+          setAlertVisible(false);
+          if (alertTitle === 'تم تسجيل الدخول بنجاح') {
+            navigation.navigate('MainTabs');
+          }
+        }}
+        onCancel={() => setAlertVisible(false)}
+      />
 
     </KeyboardAvoidingView>
   );

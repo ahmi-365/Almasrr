@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Dimensions,
+  Alert,
 } from "react-native";
 import { useNotifications } from "../../Context/NotificationContext";
 import { useNavigation } from "@react-navigation/native";
@@ -21,6 +22,7 @@ import {
 } from "lucide-react-native";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const ShimmerPlaceholder = createShimmerPlaceholder(LinearGradient);
 const { width } = Dimensions.get("window");
@@ -75,22 +77,22 @@ const NotificationsScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
 
- useEffect(() => {
+  useEffect(() => {
     // console.log('🔔 NotificationsScreen mounted - fetching notifications');
-    
+
     fetchNotifications().finally(() => {
       setInitialLoad(false);
     });
   }, [fetchNotifications]);
-// Mark as read AFTER page is fully loaded
+  // Mark as read AFTER page is fully loaded
   useEffect(() => {
     if (!initialLoad && !loading && unreadCount > 0) {
       // console.log('✅ Page fully loaded - marking notifications as read');
-      
+
       const timer = setTimeout(() => {
         markAllAsRead();
       }, 500); // 500ms delay for smooth UX
-      
+
       return () => clearTimeout(timer);
     }
   }, [initialLoad, loading, unreadCount, markAllAsRead]);
@@ -127,14 +129,50 @@ const NotificationsScreen = () => {
     }
   };
 
-  const handleNotificationPress = async (notification: any) => {
+  const handleNotificationPress = async (notification) => {
+    if (!notification.ParcelCode) {
+      console.log("Notification does not have a ParcelCode. Cannot navigate.");
+      Alert.alert("معلومات", "هذا الإشعار للعلم فقط ولا يرتبط بطرد معين.");
+      return;
+    }
+
     console.log("📦 Opening notification for parcel:", notification.ParcelCode);
 
-    // Navigate to parcel details
-    // You'll need to fetch the parcel data or navigate to appropriate screen
-    navigation.goBack();
-    // Add your navigation logic here based on ParcelCode
+    try {
+      // 1. Retrieve the cached list of all parcels
+      const cachedParcelsString = await AsyncStorage.getItem('all_parcels');
+
+      if (!cachedParcelsString) {
+        Alert.alert(
+          "البيانات غير متوفرة",
+          "يرجى تحديث لوحة التحكم أولاً لتحميل بيانات الطرود ثم حاول مرة أخرى."
+        );
+        return;
+      }
+
+      // 2. Find the specific parcel using the ParcelCode from the notification
+      const allParcels = JSON.parse(cachedParcelsString);
+      const targetParcel = allParcels.find(
+        (p) => p.intParcelCode.toString() === notification.ParcelCode.toString()
+      );
+
+      // 3. Navigate if the parcel is found, otherwise show an error
+      if (targetParcel) {
+        console.log('Found parcel in local data. Navigating...');
+        navigation.navigate('ParcelDetailsScreen', { parcel: targetParcel });
+      } else {
+        console.warn('Parcel from notification not found in the loaded list.');
+        Alert.alert(
+          "لم يتم العثور على الطرد",
+          "قد يكون هذا الطرد قديمًا أو تم تحديث حالته. يرجى تحديث لوحة التحكم والمحاولة مرة أخرى."
+        );
+      }
+    } catch (error) {
+      console.error("Failed to process notification press:", error);
+      Alert.alert("خطأ", "حدث خطأ أثناء محاولة فتح تفاصيل الطرد.");
+    }
   };
+
 
   const renderNotification = ({ item }: { item: any }) => {
     const color = getNotificationColor(item.Type);

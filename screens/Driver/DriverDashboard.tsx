@@ -66,15 +66,10 @@ const StatCounterCard = ({ item, onPress }) => (
 const { width: screenWidth } = Dimensions.get('window');
 const SLIDER_WIDTH = screenWidth - 30;
 
-const IMAGE_BANNER_DATA = [
-  { id: '1', uri: 'https://images.unsplash.com/photo-1548695607-9c73430ba065?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTh8fGRlbGl2ZXJ5fGVufDB8fDB8fHww' },
-  { id: '2', uri: 'https://plus.unsplash.com/premium_photo-1682146662576-900a71864a11?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8ZGVsaXZlcnl8ZW58MHx8MHx8fDA%33' },
-  { id: '3', uri: 'https://plus.unsplash.com/premium_photo-1682090260563-191f8160ca48?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8ZGVsaXZlcnl8ZW58MHx8MHx8fDA%33' },
-];
-
+// Use item.url to match API response
 const ImageBanner = ({ item }) => (
   <View style={styles.imageBannerContainer}>
-    <Image source={{ uri: item.uri }} style={styles.bannerImage} resizeMode="cover" />
+    <Image source={{ uri: item.url }} style={styles.bannerImage} resizeMode="cover" />
   </View>
 );
 
@@ -174,28 +169,59 @@ export default function DriverDashboard() {
   const [alertConfirmColor, setAlertConfirmColor] = useState('#E67E22');
   const [allParcels, setAllParcels] = useState([]);
   const { fetchNotifications, unreadCount } = useNotifications();
-  // const { setCurrentRoute } = useDashboard();
+  const [imageBanners, setImageBanners] = useState([]);
+
 
   const navigation = useNavigation();
   const { setCurrentRoute } = useDashboard(); // Get the setter function
   useFocusEffect(
     React.useCallback(() => {
       setCurrentRoute('DriverDashboard');
-      
+
       // Refresh notifications when returning to dashboard
       if (user?.userId) {
-        // console.log('🔔 Driver Dashboard focused - refreshing notifications');
         fetchNotifications();
       }
     }, [setCurrentRoute, user, fetchNotifications])
   );
 
-  useFocusEffect(
-    React.useCallback(() => {
-      // Announce that this is now the current route
-      setCurrentRoute('DriverDashboard');
-    }, [setCurrentRoute])
-  );
+  // Fetch promo images when user is available
+  useEffect(() => {
+    const fetchPromoImages = async () => {
+      const userDataString = await AsyncStorage.getItem('user');
+      if (!userDataString) {
+        console.log('❌ No branch found'); // Clarified message
+
+        return;
+      }
+
+      const userData = JSON.parse(userDataString);
+
+      const branchCode = userData.intFromBranchCode || userData.branchCode || userData.BranchCode;
+      if (branchCode) {
+        try {
+          const response = await axios.get(`https://tanmia-group.com:84/courierapi/promoimages/${branchCode}`);
+          setImageBanners(response.data);
+        } catch (error) {
+          console.error("Failed to fetch promo images for driver:", error);
+        }
+      }
+    };
+    fetchPromoImages();
+  }, [user]);
+
+  // Image slider auto-scroll, dependent on images being loaded
+  useEffect(() => {
+    if (imageBanners.length > 0) {
+      const interval = setInterval(() => {
+        if (imageSliderRef.current) {
+          const nextIndex = Math.floor(Math.random() * imageBanners.length);
+          imageSliderRef.current.scrollToIndex({ index: nextIndex, animated: true });
+        }
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [imageBanners]);
 
   // Load cached parcels
   useEffect(() => {
@@ -211,12 +237,12 @@ export default function DriverDashboard() {
     };
     loadCachedParcels();
   }, []);
+
   useEffect(() => {
     const loadUser = async () => {
       if (!user) {
         try {
           const userDataString = await AsyncStorage.getItem('user');
-          // console.log('Loaded user from AsyncStorage:', userDataString);``
           if (userDataString) {
             setUser(JSON.parse(userDataString));
           } else {
@@ -230,10 +256,10 @@ export default function DriverDashboard() {
     };
     loadUser();
   }, [user, setUser]);
+
   // Fetch all parcels
   const fetchAllParcels = useCallback(async () => {
     if (!user?.userId) {
-      // console.log("⚠️ No user ID found, skipping parcel fetch");
       return;
     }
 
@@ -244,7 +270,6 @@ export default function DriverDashboard() {
       const response = await axios.get(url);
 
       if (response.data && response.data.Parcels && Array.isArray(response.data.Parcels)) {
-        // console.log("✅ Fetched", response.data.Parcels.length, "parcels");
         setAllParcels(response.data.Parcels);
         await AsyncStorage.setItem(
           "all_parcels",
@@ -258,15 +283,6 @@ export default function DriverDashboard() {
       console.error("❌ Error fetching parcels:", error.message);
     }
   }, [user]);
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (imageSliderRef.current) {
-        const nextIndex = Math.floor(Math.random() * IMAGE_BANNER_DATA.length);
-        imageSliderRef.current.scrollToIndex({ index: nextIndex, animated: true });
-      }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user?.userId) {
@@ -308,7 +324,8 @@ export default function DriverDashboard() {
     setRefreshing(true);
     fetchAllParcels();
     fetchDashboardData();
-  }, [fetchDashboardData]);
+  }, [fetchDashboardData, fetchAllParcels]);
+
   // Background parcel fetching
   useEffect(() => {
     if (user?.userId) {
@@ -318,26 +335,18 @@ export default function DriverDashboard() {
 
   useEffect(() => {
     const checkPendingNotification = async () => {
-      // We only proceed if the parcel list is loaded.
       if (allParcels.length === 0) {
         return;
       }
 
       try {
         const parcelCode = await AsyncStorage.getItem('pending_notification_parcel_code');
-
         if (parcelCode) {
-          // console.log('Pending notification found for parcel code:', parcelCode);
-          // IMPORTANT: Remove the item immediately to prevent re-triggering
           await AsyncStorage.removeItem('pending_notification_parcel_code');
-
           const targetParcel = allParcels.find(
             (p) => p.intParcelCode.toString() === parcelCode.toString()
           );
-
           if (targetParcel) {
-            // console.log('Found parcel in dashboard state. Navigating...');
-            // navigation.navigate('ParcelDetailsScreen', { parcel: targetParcel });
             navigate('ParcelDetailsScreen', { parcel: targetParcel });
           } else {
             console.warn('Parcel from notification not found in the loaded list.');
@@ -350,7 +359,7 @@ export default function DriverDashboard() {
 
     checkPendingNotification();
 
-  }, [allParcels, navigation]); // Dependency array ensures this runs when parcels are loaded
+  }, [allParcels, navigation]);
 
 
   const statsData: StatCardData[] = useMemo(() => {
@@ -369,7 +378,7 @@ export default function DriverDashboard() {
         label: definition.label,
         icon: definition.icon,
         color: definition.color,
-        navigateTo: definition.navigateTo, // Pass navigateTo property
+        navigateTo: definition.navigateTo,
         progress: totalCount > 0 ? count / totalCount : 0,
       };
     }).slice(0, 3);
@@ -411,9 +420,9 @@ export default function DriverDashboard() {
           <View style={styles.imageSliderContainer}>
             <FlatList
               ref={imageSliderRef}
-              data={IMAGE_BANNER_DATA}
+              data={imageBanners}
               renderItem={({ item }) => <ImageBanner item={item} />}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => item.id.toString()}
               horizontal
               showsHorizontalScrollIndicator={false}
               decelerationRate="fast"
@@ -425,7 +434,6 @@ export default function DriverDashboard() {
           </View>
           <View style={styles.statsSection}>
             <Text style={styles.sectionTitle}>ملخص المهام</Text>
-            {/* --- MODIFICATION 5: Add onPress handler to the card --- */}
             <FlatList
               data={statsData}
               renderItem={({ item }) => (

@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<KeyStore>
+  <CreationDate>2024-02-14T00:00:00</CreationDate>
+  <ValidityInfo />
+</KeyStore>
+
+
+<!-- Alias name: HMTLocal
+Creation date: Feb 14, 2024
+Entry type: PrivateKeyEntry
+Certificate chain length: 1
+Certificate[1]:
+Owner: CN="HMT, OU=HMT, O=HMT, L=ISLAMABAD, S=ISLAMABAD, C=92"
+Issuer: CN="HMT, OU=HMT, O=HMT, L=ISLAMABAD, S=ISLAMABAD, C=92"
+Serial number: 1f123aa1
+Valid from: Wed Feb 14 00:26:02 PST 2024 until: Fri Feb 06 00:26:02 PST 2054
+Certificate fingerprints:
+         SHA1: 1F:50:25:41:B4:1B:A5:12:00:FE:45:EE:ED:37:98:AD:FB:7D:7F:F6
+         SHA256: 6B:3E:22:66:32:1A:0D:BB:61:3E:B1:E2:3A:9E:11:CB:C0:2F:F5:5A:80:65:9D:F6:80:14:D2:C4:34:18:C7:DD
+Signature algorithm name: SHA256withRSA
+Subject Public Key Algorithm: 2048-bit RSA key
+Version: 3
+
+Extensions:
+
+#1: ObjectId: 2.5.29.14 Criticality=false
+SubjectKeyIdentifier [
+KeyIdentifier [
+0000: A9 B0 7F 29 2D BD 7F 0A   9B 0E 88 2A DD 09 77 B1  ...)-......*..w.
+0010: F0 D7 39 34                                        ..94
+]
+] -->

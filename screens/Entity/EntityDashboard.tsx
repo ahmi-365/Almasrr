@@ -110,27 +110,11 @@ const StatCounterCard = ({ item, onPress }) => (
   </TouchableOpacity>
 );
 
-// Image Banner Data
-const IMAGE_BANNER_DATA = [
-  {
-    id: "1",
-    uri: "https://images.unsplash.com/photo-1548695607-9c73430ba065?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTh8fGRlbGl2ZXJ5fGVufDB8fDB8fHww",
-  },
-  {
-    id: "2",
-    uri: "https://plus.unsplash.com/premium_photo-1682146662576-900a71864a11?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NXx8ZGVsaXZlcnl8ZW58MHx8MHx8fDA%33",
-  },
-  {
-    id: "3",
-    uri: "https://plus.unsplash.com/premium_photo-1682090260563-191f8160ca48?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8ZGVsaXZlcnl8ZW58MHx8MHx8fDA%33",
-  },
-];
-
 // Image Banner Component
 const ImageBanner = ({ item }) => (
   <View style={styles.imageBannerContainer}>
     <Image
-      source={{ uri: item.uri }}
+      source={{ uri: item.url }}
       style={styles.bannerImage}
       resizeMode="cover"
     />
@@ -340,25 +324,27 @@ export default function EntityDashboard() {
   const [alertTitle, setAlertTitle] = useState("");
   const [alertMessage, setAlertMessage] = useState("");
   const { fetchNotifications, unreadCount } = useNotifications();
+  const [imageBanners, setImageBanners] = useState([]);
+
 
   const scrollY = useRef(new Animated.Value(0)).current;
   const imageSliderRef = useRef(null);
   const navigation = useNavigation();
-  const { setCurrentRoute } = useDashboard(); // Get the setter 
-// ✅ REPLACE WITH THIS SINGLE HOOK
+  const { setCurrentRoute } = useDashboard(); // Get the setter
+  // ✅ REPLACE WITH THIS SINGLE HOOK
 
-useFocusEffect(
-  React.useCallback(() => {
-    // Set current route
-    setCurrentRoute('EntityDashboard');
-    
-    // Fetch notifications only when dashboard comes into focus
-    if (user?.userId) {
-      console.log('🔔 Dashboard focused - refreshing notifications');
-      fetchNotifications();
-    }
-  }, [setCurrentRoute, user, fetchNotifications])
-);
+  useFocusEffect(
+    React.useCallback(() => {
+      // Set current route
+      setCurrentRoute('EntityDashboard');
+
+      // Fetch notifications only when dashboard comes into focus
+      if (user?.userId) {
+        console.log('🔔 Dashboard focused - refreshing notifications');
+        fetchNotifications();
+      }
+    }, [setCurrentRoute, user, fetchNotifications])
+  );
 
   // Load user data
   useEffect(() => {
@@ -381,19 +367,49 @@ useFocusEffect(
     loadUser();
   }, [user, setUser]);
 
+  // Fetch promo images
+  useEffect(() => {
+
+    const fetchPromoImages = async () => {
+      const userDataString = await AsyncStorage.getItem('user');
+      if (!userDataString) {
+        console.log('❌ No branch found'); // Clarified message
+
+        return;
+      }
+
+      const userData = JSON.parse(userDataString);
+
+      const branchCode = userData.intFromBranchCode || userData.branchCode || userData.BranchCode;
+      if (branchCode) {
+        try {
+          const response = await axios.get(`https://tanmia-group.com:84/courierapi/promoimages/${branchCode}`);
+          setImageBanners(response.data);
+        } catch (error) {
+          console.error("Failed to fetch promo images:", error);
+        }
+      }
+    };
+    fetchPromoImages();
+  }, [user]);
+
+
   // Image slider auto-scroll
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (imageSliderRef.current) {
-        const nextIndex = Math.floor(Math.random() * IMAGE_BANNER_DATA.length);
-        imageSliderRef.current.scrollToIndex({
-          index: nextIndex,
-          animated: true,
-        });
-      }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
+    if (imageBanners.length > 0) {
+      const interval = setInterval(() => {
+        if (imageSliderRef.current) {
+          const nextIndex = Math.floor(Math.random() * imageBanners.length);
+          imageSliderRef.current.scrollToIndex({
+            index: nextIndex,
+            animated: true,
+          });
+        }
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [imageBanners]);
+
 
   // Load cached parcels
   useEffect(() => {
@@ -634,9 +650,9 @@ useFocusEffect(
           <View style={styles.imageSliderContainer}>
             <FlatList
               ref={imageSliderRef}
-              data={IMAGE_BANNER_DATA}
+              data={imageBanners}
               renderItem={({ item }) => <ImageBanner item={item} />}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => item.id.toString()}
               horizontal
               decelerationRate="fast"
               snapToInterval={SLIDER_WIDTH + 15}

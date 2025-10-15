@@ -15,6 +15,7 @@ import {
   RefreshControl,
   Image,
   Share as RNShare,
+  PermissionsAndroid,
 } from "react-native";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -341,7 +342,37 @@ export default function ReportsDashboard() {
     }, [route.params?.entityCode])
   );
 
+
+  const requestStoragePermission = async () => {
+    if (Platform.OS === 'android' && Platform.Version < 33) {
+      try {
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
+          {
+            title: 'إذن الوصول إلى الملفات',
+            message: 'يحتاج التطبيق إلى الوصول إلى التخزين لتنزيل الملفات.',
+            buttonNeutral: 'اسألني لاحقًا',
+            buttonNegative: 'إلغاء',
+            buttonPositive: 'موافقة',
+          }
+        );
+
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn('Permission error:', err);
+        return false;
+      }
+    }
+    return true; // On Android 13+ or iOS, permission is not required
+  };
+
   const handleDownloadPdf = useCallback(async () => {
+    const hasPermission = await requestStoragePermission();
+    if (!hasPermission) {
+      Alert.alert('صلاحيات مفقودة', 'يرجى السماح للتطبيق بالوصول إلى التخزين لتنزيل الملف.');
+      return;
+    }
+
     if ((user?.roleName === 'Entity' && !selectedEntity) || transactions.length === 0) {
       Alert.alert('خطأ', 'لا توجد بيانات لتصديرها.');
       return;

@@ -13,6 +13,7 @@ import {
     FlatList,
     RefreshControl,
     Image,
+    KeyboardAvoidingView, // Import KeyboardAvoidingView
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -93,7 +94,6 @@ const formatDateTime = (isoString: string) => {
     } catch (e) { return isoString; }
 };
 
-// --- MODIFIED DeliveryCard to handle tracking press ---
 const DeliveryCard = ({ item, onNotifyPress, onTrackPress }: { item: Parcel, onNotifyPress: (parcel: Parcel) => void, onTrackPress: (parcel: Parcel) => void }) => (
     <View style={styles.modernTransactionItem}>
         <View style={styles.cardHeader}>
@@ -179,8 +179,11 @@ export default function OnTheWayScreen() {
     const [alertMessage, setAlertMessage] = useState('');
     const [alertSuccess, setAlertSuccess] = useState(false);
 
+    // --- State for the new remarks modal ---
     const [parcelToNotify, setParcelToNotify] = useState<Parcel | null>(null);
-    const [isNotifyAlertVisible, setNotifyAlertVisible] = useState(false);
+    const [isRemarksModalVisible, setRemarksModalVisible] = useState(false);
+    const [entityRemarks, setEntityRemarks] = useState("");
+    const [isSending, setIsSending] = useState(false); // To disable send button
 
     // --- State for WebView Modal ---
     const [webViewVisible, setWebViewVisible] = useState(false);
@@ -256,9 +259,11 @@ export default function OnTheWayScreen() {
         handleSearch();
     }, [handleSearch]);
 
+    // --- MODIFIED: Opens the new remarks modal ---
     const handleNotifyPress = (parcel: Parcel) => {
         setParcelToNotify(parcel);
-        setNotifyAlertVisible(true);
+        setEntityRemarks(""); // Clear previous remarks
+        setRemarksModalVisible(true);
     };
 
     // --- Handler for opening the WebView ---
@@ -267,21 +272,54 @@ export default function OnTheWayScreen() {
         setWebViewVisible(true);
     };
 
-    const confirmSendNotification = () => {
-        console.log(`Sending notification for parcel: ${parcelToNotify?.ReferenceNo}`);
-        setNotifyAlertVisible(false);
-        setParcelToNotify(null);
+    // --- NEW: Handles sending the notification with remarks ---
+    const handleSendNotification = async () => {
+        if (!parcelToNotify || !entityRemarks.trim() || isSending) {
+            setAlertTitle("تنبيه");
+            setAlertMessage("الرجاء كتابة الملاحظات قبل الإرسال.");
+            setAlertSuccess(false);
+            setAlertVisible(true);
+            return;
+        }
 
-        setAlertTitle("نجاح");
-        setAlertMessage("تم إرسال الإشعار بنجاح.");
-        setAlertSuccess(true);
-        setAlertVisible(true);
+        setIsSending(true);
+        setRemarksModalVisible(false);
+
+        try {
+            const params = new URLSearchParams();
+            params.append('parcelCode', parcelToNotify.intParcelCode.toString());
+            params.append('entityRemarks', entityRemarks);
+
+            const response = await axios.post(
+                'https://tanmia-group.com:84/courierApi/notifications/entity-to-driver',
+                params,
+                {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                }
+            );
+
+            if (response.data.Success) {
+                setAlertTitle("نجاح");
+                setAlertMessage(response.data.Message || "تم إرسال الإشعار بنجاح.");
+                setAlertSuccess(true);
+            } else {
+                throw new Error(response.data.Message || "فشل إرسال الإشعار.");
+            }
+        } catch (error) {
+            console.error("Failed to send notification:", error);
+            setAlertTitle("خطأ");
+            setAlertMessage(error.message || "حدث خطأ غير متوقع.");
+            setAlertSuccess(false);
+        } finally {
+            setAlertVisible(true);
+            setIsSending(false);
+            setParcelToNotify(null);
+            setEntityRemarks("");
+        }
     };
 
-    const cancelSendNotification = () => {
-        setNotifyAlertVisible(false);
-        setParcelToNotify(null);
-    };
 
     const filteredParcels = useMemo(() => {
         if (!parcelSearchQuery) return allParcels;
@@ -412,11 +450,42 @@ export default function OnTheWayScreen() {
                 </SafeAreaView>
             </Modal>
 
+            {/* --- NEW Remarks Modal for Notifications --- */}
+            <Modal visible={isRemarksModalVisible} animationType="fade" transparent={true} onRequestClose={() => setRemarksModalVisible(false)}>
+                <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.remarksModalOverlay}>
+                    <TouchableWithoutFeedback onPress={() => setRemarksModalVisible(false)}>
+                        <View style={StyleSheet.absoluteFill} />
+                    </TouchableWithoutFeedback>
+                    <TouchableWithoutFeedback>
+                        <View style={styles.remarksModalContent}>
+                            <Text style={styles.modalTitle}>إرسال إشعار للمندوب</Text>
+                            <Text style={styles.modalSubTitle}>أدخل ملاحظاتك ليتم إرسالها للمندوب بخصوص الشحنة: <Text style={{ fontWeight: 'bold' }}>{parcelToNotify?.ReferenceNo}</Text></Text>
+                            <TextInput
+                                style={styles.remarksModalInput}
+                                placeholder="مثال: الرجاء تسليم الشحنة اليوم قبل الساعة 5 مساءً"
+                                placeholderTextColor="#9CA3AF"
+                                multiline
+                                value={entityRemarks}
+                                onChangeText={setEntityRemarks}
+                            />
+                            <View style={styles.modalButtonContainer}>
+                                <TouchableOpacity style={[styles.modalButton, styles.cancelButton]} onPress={() => setRemarksModalVisible(false)}>
+                                    <Text style={[styles.modalButtonText, styles.cancelButtonText]}>إلغاء</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.modalButton, styles.sendButton]} onPress={handleSendNotification} disabled={isSending}>
+                                    {isSending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.modalButtonText}>إرسال</Text>}
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </TouchableWithoutFeedback>
+                </KeyboardAvoidingView>
+            </Modal>
+
             <CustomAlert isVisible={isAlertVisible} title={alertTitle} message={alertMessage} confirmText="حسنًا" onConfirm={() => setAlertVisible(false)} success={alertSuccess} cancelText={undefined} onCancel={undefined} />
-            <CustomAlert isVisible={isNotifyAlertVisible} title="تأكيد الإرسال" message="هل تريد إرسال إشعار إلى المندوب؟" confirmText="نعم" cancelText="لا" onConfirm={confirmSendNotification} onCancel={cancelSendNotification} confirmButtonColor="#27AE60" />
         </View>
     );
 }
+
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#F8F9FA" },
@@ -482,7 +551,8 @@ const styles = StyleSheet.create({
     },
     modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.5)", justifyContent: "center", alignItems: "center", padding: 20, },
     modalContent: { backgroundColor: "#FFFFFF", borderRadius: 8, width: "100%", maxHeight: "70%", padding: 20, },
-    modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginBottom: 16, },
+    modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginBottom: 8, },
+    modalSubTitle: { fontSize: 14, color: '#6B7280', textAlign: 'right', marginBottom: 16, lineHeight: 20 },
     modalSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 8, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: "#E5E7EB", },
     modalSearchInput: { flex: 1, color: "#1F2937", fontSize: 16, paddingVertical: Platform.OS === "ios" ? 12 : 8, textAlign: "right", },
     modalItem: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 16, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: "#F3F4F6", },
@@ -512,5 +582,61 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         flex: 1,
         marginHorizontal: 10,
+    },
+    // --- Styles for Remarks Modal ---
+    remarksModalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 20,
+    },
+    remarksModalContent: {
+        backgroundColor: "#FFFFFF",
+        borderRadius: 8,
+        width: "100%",
+        padding: 20,
+        alignItems: 'flex-end',
+    },
+    remarksModalInput: {
+        width: '100%',
+        height: 100,
+        backgroundColor: "#F9FAFB",
+        borderWidth: 1,
+        borderColor: "#E5E7EB",
+        borderRadius: 8,
+        padding: 12,
+        textAlign: 'right',
+        textAlignVertical: 'top',
+        fontSize: 14,
+        marginBottom: 20,
+    },
+    modalButtonContainer: {
+        flexDirection: 'row',
+        width: '100%',
+        justifyContent: 'space-between',
+    },
+    modalButton: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    cancelButton: {
+        backgroundColor: '#F3F4F6',
+        marginRight: 8,
+    },
+    sendButton: {
+        backgroundColor: '#FF6B35',
+        marginLeft: 8,
+    },
+    modalButtonText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#FFF',
+    },
+    cancelButtonText: {
+        color: '#374151',
     },
 });
