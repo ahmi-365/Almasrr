@@ -166,23 +166,23 @@ export default function App() {
 
         console.log(`App Version Check - Current: ${currentVersion}, Required: ${requiredVersion}`);
 
-        // if (requiredVersion && currentVersion !== requiredVersion) {
-        //   // if (requiredVersion && parseInt(currentVersion) < parseInt(requiredVersion)) {
-        //   // --- IMPORTANT: REPLACE WITH YOUR ACTUAL STORE URLS ---
-        //   const storeUrl = Platform.OS === 'ios'
-        //     ? 'https://apps.apple.com/us/app/your-app-name/idcom.ALMASAR.ALMASAR'
-        //     : 'https://play.google.com/store/apps/details?id=com.ALMASAR.ALMASAR';
+        if (requiredVersion && currentVersion !== requiredVersion) {
+          // if (requiredVersion && parseInt(currentVersion) < parseInt(requiredVersion)) {
+          // --- IMPORTANT: REPLACE WITH YOUR ACTUAL STORE URLS ---
+          const storeUrl = Platform.OS === 'ios'
+            ? 'https://apps.apple.com/us/app/your-app-name/idcom.ALMASAR.ALMASAR'
+            : 'https://play.google.com/store/apps/details?id=com.ALMASAR.ALMASAR';
 
-        //   setAlertInfo({
-        //     isVisible: true,
-        //     title: 'تحديث إجباري',
-        //     message: 'يتوفر إصدار جديد من التطبيق. يرجى التحديث إلى أحدث إصدار للاستمرار.',
-        //     confirmText: 'تحديث الآن',
-        //     onConfirm: () => Linking.openURL(storeUrl),
-        //     success: false,
-        //   });
-        //   return false; // STOP initialization
-        // }
+          setAlertInfo({
+            isVisible: true,
+            title: 'تحديث إجباري',
+            message: 'يتوفر إصدار جديد من التطبيق. يرجى التحديث إلى أحدث إصدار للاستمرار.',
+            confirmText: 'تحديث الآن',
+            onConfirm: () => Linking.openURL(storeUrl),
+            success: false,
+          });
+          return false; // STOP initialization
+        }
         return true; // PROCEED with initialization
       } catch (error) {
         console.error("Update check failed:", error);

@@ -1,11 +1,10 @@
 import Expo
 import React
 import ReactAppDependencyProvider
-import Firebase // ✅ 1. IMPORT FIREBASE
-import UserNotifications // ✅ 2. IMPORT USERNOTIFICATIONS
+import Firebase
+import UserNotifications
 
 @UIApplicationMain
-// ✅ 3. CONFORM TO THE NOTIFICATION DELEGATE PROTOCOL
 public class AppDelegate: ExpoAppDelegate, UNUserNotificationCenterDelegate {
   var window: UIWindow?
 
@@ -16,10 +15,10 @@ public class AppDelegate: ExpoAppDelegate, UNUserNotificationCenterDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
-    // ✅ 4. INITIALIZE FIREBASE
+    // Initialize Firebase
     FirebaseApp.configure()
-    
-    // ✅ 5. SET THE DELEGATE FOR FOREGROUND NOTIFICATIONS
+
+    // Set the delegate for notification handling
     UNUserNotificationCenter.current().delegate = self
 
     let delegate = ReactNativeDelegate()
@@ -41,15 +40,21 @@ public class AppDelegate: ExpoAppDelegate, UNUserNotificationCenterDelegate {
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  // ✅ 6. ADD THIS METHOD TO HANDLE FOREGROUND NOTIFICATIONS
-  // This function is called when a notification is received while the app is open.
+  // Handle foreground notifications
   public func userNotificationCenter(
     _ center: UNUserNotificationCenter,
     willPresent notification: UNNotification,
     completionHandler: @escaping (UNNotificationPresentationOptions) -> Void)
   {
-    // This tells iOS to show the notification banner, play a sound, and update the badge.
     completionHandler([.alert, .sound, .badge])
+  }
+
+  // Handle user interaction with notifications
+    public func userNotificationCenter(_ center: UNUserNotificationCenter,
+                                didReceive response: UNNotificationResponse,
+                                withCompletionHandler completionHandler: @escaping () -> Void) {
+    // This function is called when a user taps on a notification
+    completionHandler()
   }
 
   // Linking API
