@@ -189,7 +189,9 @@ const inputStyles = StyleSheet.create({
 const RegisterDetailsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RegisterDetailsRouteProp>();
-  const { mobileNumber } = route.params;
+  // *** MODIFICATION HERE ***
+  // Destructure both mobileNumber and intCityCode from route params
+  const { mobileNumber, intCityCode } = route.params;
 
   const [entityName, setEntityName] = useState('');
   const [ownerName, setOwnerName] = useState('');
@@ -306,6 +308,8 @@ const RegisterDetailsScreen: React.FC = () => {
       }),
     ]).start();
 
+    // *** MODIFICATION HERE ***
+    // Add intCityCode to the form body
     const formBody = new URLSearchParams({
       EntityName: entityName.trim(),
       OwnerName: ownerName.trim(),
@@ -313,6 +317,8 @@ const RegisterDetailsScreen: React.FC = () => {
       strPassword: password,
       MobileNumber: `218${mobileNumber}`,
       EntityDescription: entityDescription.trim(),
+      intParentEntityCode: '0',
+      intCityCode: String(intCityCode), // Add the city code here
     }).toString();
 
     try {

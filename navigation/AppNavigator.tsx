@@ -41,7 +41,8 @@ export type RootStackParamList = {
   AddParcelForm: undefined;
   CityRates: undefined;
   AddParcelWhatsapp: undefined;
-  RegisterDetails: { mobileNumber: string };
+  RegisterDetails: { mobileNumber: string, intCityCode: number | null };
+
   EntityDashboard: undefined;
   ReportsTab: undefined;
   StoresTab: undefined;
@@ -96,11 +97,11 @@ const AppContent = () => {
             presentation: 'card'
           }}
         />
-        <Stack.Screen 
-  name="NotificationsScreen" 
-  component={NotificationsScreen}
-  options={{ headerShown: false }}
-/>
+        <Stack.Screen
+          name="NotificationsScreen"
+          component={NotificationsScreen}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen

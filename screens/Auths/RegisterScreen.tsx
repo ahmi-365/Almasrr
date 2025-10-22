@@ -23,8 +23,12 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import CustomAlert from '../../components/CustomAlert';
+import { Dropdown } from 'react-native-element-dropdown';
 
-type RegisterScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Register'>;
+type RegisterScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'Register'
+>;
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -41,7 +45,6 @@ const Colors = {
   errorRed: '#EF5350',
   softOrange: '#FFD7C5',
   successGreen: '#4CAF50',
-
 };
 
 const RegisterScreen = () => {
@@ -53,12 +56,16 @@ const RegisterScreen = () => {
   const [isCodeSent, setIsCodeSent] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const [errors, setErrors] = useState<any>({});
+  const [cities, setCities] = useState([]);
+  const [selectedCity, setSelectedCity] = useState<number | null>(null);
 
   // Custom Alert states
   const [isAlertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
-  const [alertConfirmColor, setAlertConfirmColor] = useState(Colors.primaryOrange);
+  const [alertConfirmColor, setAlertConfirmColor] = useState(
+    Colors.primaryOrange
+  );
   // Animation references
   const headerAnim = useRef(new Animated.Value(0)).current;
   const formOpacityAnim = useRef(new Animated.Value(0)).current;
@@ -78,6 +85,25 @@ const RegisterScreen = () => {
   );
 
   useEffect(() => {
+    // Fetch cities
+    const fetchCities = async () => {
+      try {
+        const response = await fetch(
+          'https://tanmia-group.com:86/courierApi/register/cities'
+        );
+        const data = await response.json();
+        const formattedCities = data.map((city: any) => ({
+          label: city.strCityName,
+          value: city.intCityCode,
+        }));
+        setCities(formattedCities);
+      } catch (error) {
+        console.error('Failed to fetch cities:', error);
+      }
+    };
+
+    fetchCities();
+
     // Initial animations
     Animated.sequence([
       Animated.timing(headerAnim, {
@@ -142,22 +168,28 @@ const RegisterScreen = () => {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return `${mins.toString().padStart(2, '0')}:${secs
+      .toString()
+      .padStart(2, '0')}`;
   };
 
   const startCountdown = () => setCountdown(120);
 
-  const validatePhoneNumber = () => {
-    if (!/^[0-9]{8,12}$/.test(phoneNumber)) {
-      setErrors({ phoneNumber: 'يرجى إدخال رقم جوال صحيح (8-12 أرقام)' });
-      return false;
+  const validateForm = () => {
+    const newErrors: any = {};
+    if (!selectedCity) {
+      newErrors.city = 'يرجى اختيار المدينة';
     }
-    setErrors({});
-    return true;
+    if (!/^[0-9]{8,12}$/.test(phoneNumber)) {
+      newErrors.phoneNumber = 'يرجى إدخال رقم جوال صحيح (8-12 أرقام)';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
+
   const handleSendVerificationCode = async () => {
-    if (!validatePhoneNumber()) return;
+    if (!validateForm()) return;
     setIsLoading(true);
     Keyboard.dismiss();
 
@@ -178,12 +210,17 @@ const RegisterScreen = () => {
 
     try {
       const fullMobileNumber = `218${phoneNumber}`;
-      const formBody = new URLSearchParams({ MobileNumber: fullMobileNumber }).toString();
-      const response = await fetch('https://tanmia-group.com:84/courierApi/register/sendotp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formBody,
-      });
+      const formBody = new URLSearchParams({
+        MobileNumber: fullMobileNumber,
+      }).toString();
+      const response = await fetch(
+        'https://tanmia-group.com:84/courierApi/register/sendotp',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formBody,
+        }
+      );
       const responseData = await response.json();
       if (responseData.Success) {
         setIsCodeSent(true);
@@ -235,18 +272,31 @@ const RegisterScreen = () => {
 
     try {
       const fullMobileNumber = `218${phoneNumber}`;
-      const formBody = new URLSearchParams({ MobileNumber: fullMobileNumber, OTP: verificationCode }).toString();
-      const response = await fetch('https://tanmia-group.com:84/courierApi/register/verifyotp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formBody,
-      });
+      const formBody = new URLSearchParams({
+        MobileNumber: fullMobileNumber,
+        OTP: verificationCode,
+      }).toString();
+      const response = await fetch(
+        'https://tanmia-group.com:84/courierApi/register/verifyotp',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: formBody,
+        }
+      );
       const responseData = await response.json();
       if (responseData.Success) {
-        navigation.navigate('RegisterDetails', { mobileNumber: phoneNumber });
+        // *** MODIFICATION HERE ***
+        // Pass both mobileNumber and the selected intCityCode to the next screen
+        navigation.navigate('RegisterDetails', {
+          mobileNumber: phoneNumber,
+          intCityCode: selectedCity
+        });
       } else {
         setAlertTitle('خطأ في التحقق');
-        setAlertMessage(responseData.Message || 'الرمز الذي أدخلته غير صحيح أو انتهت صلاحيته.');
+        setAlertMessage(
+          responseData.Message || 'الرمز الذي أدخلته غير صحيح أو انتهت صلاحيته.'
+        );
         setAlertConfirmColor(Colors.errorRed);
         setAlertVisible(true);
       }
@@ -266,16 +316,24 @@ const RegisterScreen = () => {
   const wavePath1 = waveOffset1.interpolate({
     inputRange: [0, 1],
     outputRange: [
-      `M0,${screenHeight * 0.15} C${screenWidth * 0.25},${screenHeight * 0.25} ${screenWidth * 0.75},${screenHeight * 0.05} ${screenWidth},${screenHeight * 0.15} V0 H0 Z`,
-      `M0,${screenHeight * 0.15} C${screenWidth * 0.25},${screenHeight * 0.05} ${screenWidth * 0.75},${screenHeight * 0.25} ${screenWidth},${screenHeight * 0.15} V0 H0 Z`
+      `M0,${screenHeight * 0.15} C${screenWidth * 0.25},${screenHeight * 0.25
+      } ${screenWidth * 0.75},${screenHeight * 0.05} ${screenWidth},${screenHeight * 0.15
+      } V0 H0 Z`,
+      `M0,${screenHeight * 0.15} C${screenWidth * 0.25},${screenHeight * 0.05
+      } ${screenWidth * 0.75},${screenHeight * 0.25} ${screenWidth},${screenHeight * 0.15
+      } V0 H0 Z`,
     ],
   });
 
   const wavePath2 = waveOffset2.interpolate({
     inputRange: [0, 1],
     outputRange: [
-      `M0,${screenHeight * 0.2} C${screenWidth * 0.35},${screenHeight * 0.1} ${screenWidth * 0.65},${screenHeight * 0.3} ${screenWidth},${screenHeight * 0.2} V0 H0 Z`,
-      `M0,${screenHeight * 0.2} C${screenWidth * 0.35},${screenHeight * 0.3} ${screenWidth * 0.65},${screenHeight * 0.1} ${screenWidth},${screenHeight * 0.2} V0 H0 Z`
+      `M0,${screenHeight * 0.2} C${screenWidth * 0.35},${screenHeight * 0.1
+      } ${screenWidth * 0.65},${screenHeight * 0.3} ${screenWidth},${screenHeight * 0.2
+      } V0 H0 Z`,
+      `M0,${screenHeight * 0.2} C${screenWidth * 0.35},${screenHeight * 0.3
+      } ${screenWidth * 0.65},${screenHeight * 0.1} ${screenWidth},${screenHeight * 0.2
+      } V0 H0 Z`,
     ],
   });
 
@@ -283,7 +341,9 @@ const RegisterScreen = () => {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : -StatusBar.currentHeight}
+      keyboardVerticalOffset={
+        Platform.OS === 'ios' ? 0 : -StatusBar.currentHeight
+      }
     >
       <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
       <ScrollView
@@ -306,22 +366,32 @@ const RegisterScreen = () => {
           <Svg height={screenHeight * 0.3} width={screenWidth}>
             <Defs>
               <LinearGradient id="gradTop" x1="0%" y1="0%" x2="100%" y2="0%">
-                <Stop offset="0%" stopColor={Colors.lightOrange} stopOpacity="0.8" />
-                <Stop offset="100%" stopColor={Colors.primaryOrange} stopOpacity="1" />
+                <Stop
+                  offset="0%"
+                  stopColor={Colors.lightOrange}
+                  stopOpacity="0.8"
+                />
+                <Stop
+                  offset="100%"
+                  stopColor={Colors.primaryOrange}
+                  stopOpacity="1"
+                />
               </LinearGradient>
               <LinearGradient id="gradMid" x1="0%" y1="0%" x2="100%" y2="0%">
-                <Stop offset="0%" stopColor={Colors.lightOrange} stopOpacity="0.6" />
-                <Stop offset="100%" stopColor={Colors.primaryOrange} stopOpacity="0.7" />
+                <Stop
+                  offset="0%"
+                  stopColor={Colors.lightOrange}
+                  stopOpacity="0.6"
+                />
+                <Stop
+                  offset="100%"
+                  stopColor={Colors.primaryOrange}
+                  stopOpacity="0.7"
+                />
               </LinearGradient>
             </Defs>
-            <AnimatedPath
-              d={wavePath1}
-              fill="url(#gradTop)"
-            />
-            <AnimatedPath
-              d={wavePath2}
-              fill="url(#gradMid)"
-            />
+            <AnimatedPath d={wavePath1} fill="url(#gradTop)" />
+            <AnimatedPath d={wavePath2} fill="url(#gradMid)" />
           </Svg>
         </View>
 
@@ -336,53 +406,111 @@ const RegisterScreen = () => {
           </View>
           <Text style={styles.welcometitle}>إنشاء حساب جديد</Text>
           <Text style={styles.welcomeSubtitle}>
-            {!isCodeSent ? 'أدخل رقم جوالك لتلقي رمز التحقق' : 'أدخل رمز التحقق المرسل إلى جوالك'}
+            {!isCodeSent
+              ? 'أدخل رقم جوالك لتلقي رمز التحقق'
+              : 'أدخل رمز التحقق المرسل إلى جوالك'}
           </Text>
         </Animated.View>
 
         {/* Form Section */}
         <Animated.View style={[styles.formSection, { opacity: formOpacityAnim }]}>
           {!isCodeSent ? (
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>*رقم الجوال</Text>
-              <View style={[styles.phoneInputWrapper, errors.phoneNumber && styles.inputError]}>
-                <Icon name="phone" size={20} color={Colors.greyText} style={styles.inputIcon} />
-                <Text style={styles.countryCode}>+218</Text>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="XXXXXXXX"
-                  placeholderTextColor={Colors.greyText}
-                  value={phoneNumber}
-                  onChangeText={(text) => setPhoneNumber(text.replace(/[^0-9]/g, ''))}
-                  keyboardType="phone-pad"
-                  maxLength={12}
-                  editable={!isLoading}
-                  textAlign="right"
+            <>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>*المدينة</Text>
+                <Dropdown
+                  style={[
+                    styles.dropdown,
+                    errors.city && styles.inputError,
+                  ]}
+                  placeholderStyle={styles.placeholderStyle}
+                  selectedTextStyle={styles.selectedTextStyle}
+                  inputSearchStyle={styles.inputSearchStyle}
+                  iconStyle={styles.iconStyle}
+                  data={cities}
+                  search
+                  maxHeight={300}
+                  labelField="label"
+                  valueField="value"
+                  placeholder="اختر مدينة"
+                  searchPlaceholder="ابحث..."
+                  value={selectedCity}
+                  onChange={(item) => {
+                    setSelectedCity(item.value);
+                  }}
                 />
-                <TouchableOpacity
-                  style={styles.sendCodeButton}
-                  onPress={handleSendVerificationCode}
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <ActivityIndicator color={Colors.white} size="small" />
-                  ) : (
-                    <Text style={styles.sendCodeButtonText}>إرسال</Text>
-                  )}
-                </TouchableOpacity>
+                {errors.city && (
+                  <Text style={styles.errorText}>{errors.city}</Text>
+                )}
               </View>
-              {errors.phoneNumber && <Text style={styles.errorText}>{errors.phoneNumber}</Text>}
-            </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>*رقم الجوال</Text>
+                <View
+                  style={[
+                    styles.phoneInputWrapper,
+                    errors.phoneNumber && styles.inputError,
+                  ]}
+                >
+                  <Icon
+                    name="phone"
+                    size={20}
+                    color={Colors.greyText}
+                    style={styles.inputIcon}
+                  />
+                  <Text style={styles.countryCode}>+218</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="XXXXXXXX"
+                    placeholderTextColor={Colors.greyText}
+                    value={phoneNumber}
+                    onChangeText={(text) =>
+                      setPhoneNumber(text.replace(/[^0-9]/g, ''))
+                    }
+                    keyboardType="phone-pad"
+                    maxLength={12}
+                    editable={!isLoading}
+                    textAlign="right"
+                  />
+                  <TouchableOpacity
+                    style={styles.sendCodeButton}
+                    onPress={handleSendVerificationCode}
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <ActivityIndicator color={Colors.white} size="small" />
+                    ) : (
+                      <Text style={styles.sendCodeButtonText}>إرسال</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+                {errors.phoneNumber && (
+                  <Text style={styles.errorText}>{errors.phoneNumber}</Text>
+                )}
+              </View>
+            </>
           ) : (
             <>
               <View style={styles.successMessage}>
                 <Icon name="check-circle" size={20} color="#4CAF50" />
-                <Text style={styles.successText}>تم إرسال الرمز إلى +218{phoneNumber}</Text>
+                <Text style={styles.successText}>
+                  تم إرسال الرمز إلى +218{phoneNumber}
+                </Text>
               </View>
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>*رمز التحقق</Text>
-                <View style={[styles.phoneInputWrapper, errors.verificationCode && styles.inputError]}>
-                  <Icon name="lock" size={20} color={Colors.greyText} style={styles.inputIcon} />
+                <View
+                  style={[
+                    styles.phoneInputWrapper,
+                    errors.verificationCode && styles.inputError,
+                  ]}
+                >
+                  <Icon
+                    name="lock"
+                    size={20}
+                    color={Colors.greyText}
+                    style={styles.inputIcon}
+                  />
                   <TextInput
                     style={styles.textInput}
                     placeholder="رمز التحقق"
@@ -394,22 +522,40 @@ const RegisterScreen = () => {
                     textAlign="right"
                   />
                 </View>
-                {errors.verificationCode && <Text style={styles.errorText}>{errors.verificationCode}</Text>}
+                {errors.verificationCode && (
+                  <Text style={styles.errorText}>
+                    {errors.verificationCode}
+                  </Text>
+                )}
               </View>
 
               <TouchableOpacity
                 onPress={handleSendVerificationCode}
-                style={[styles.resendButton, countdown > 0 && styles.resendButtonDisabled]}
+                style={[
+                  styles.resendButton,
+                  countdown > 0 && styles.resendButtonDisabled,
+                ]}
                 disabled={countdown > 0 || isLoading}
               >
                 {countdown > 0 ? (
                   <View style={styles.resendTimerContainer}>
-                    <Text style={styles.resendDisabledText}>يمكنك إرسال رمز جديد خلال </Text>
-                    <Icon name="timer" size={16} color={Colors.primaryOrange} style={{ marginHorizontal: 4 }} />
-                    <Text style={styles.resendDisabledText}>{formatTime(countdown)}</Text>
+                    <Text style={styles.resendDisabledText}>
+                      يمكنك إرسال رمز جديد خلال{' '}
+                    </Text>
+                    <Icon
+                      name="timer"
+                      size={16}
+                      color={Colors.primaryOrange}
+                      style={{ marginHorizontal: 4 }}
+                    />
+                    <Text style={styles.resendDisabledText}>
+                      {formatTime(countdown)}
+                    </Text>
                   </View>
                 ) : (
-                  <Text style={styles.resendButtonText}>لم تتلق الرمز؟ إرسال مرة أخرى</Text>
+                  <Text style={styles.resendButtonText}>
+                    لم تتلق الرمز؟ إرسال مرة أخرى
+                  </Text>
                 )}
               </TouchableOpacity>
             </>
@@ -426,7 +572,10 @@ const RegisterScreen = () => {
           {isCodeSent && (
             <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
               <TouchableOpacity
-                style={[styles.mainButton, isLoading && styles.mainButtonDisabled]}
+                style={[
+                  styles.mainButton,
+                  isLoading && styles.mainButtonDisabled,
+                ]}
                 onPress={handleVerifyOtp}
                 disabled={isLoading}
               >
@@ -713,6 +862,35 @@ const styles = StyleSheet.create({
     marginTop: 5,
     textAlign: 'right',
     fontFamily: 'System',
+  },
+  dropdown: {
+    height: 50,
+    borderColor: Colors.borderGrey,
+    borderWidth: 2,
+    borderRadius: 30,
+    paddingHorizontal: 15,
+    backgroundColor: Colors.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  placeholderStyle: {
+    fontSize: 16,
+    color: Colors.greyText,
+  },
+  selectedTextStyle: {
+    fontSize: 16,
+    color: Colors.darkText,
+  },
+  iconStyle: {
+    width: 20,
+    height: 20,
+  },
+  inputSearchStyle: {
+    height: 40,
+    fontSize: 16,
   },
 });
 

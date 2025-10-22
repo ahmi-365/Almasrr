@@ -463,12 +463,12 @@ const LoginScreen = () => {
             />
           </View>
           <Text style={styles.welcometitle}>المسار</Text>
-          <Text style={styles.welcomeSubtitle}>يارِيت تسجل دخولك لحسابك</Text>
+          <Text style={styles.welcomeSubtitle}>مرحبًا بك في شركة المسار، يرجى تسجيل الدخول للمتابعة</Text>
         </Animated.View>
 
         <Animated.View style={[styles.formSection, { opacity: formOpacityAnim }]}>
           <CustomInput
-            label="*رقم الهاتف أو البريد الالكتروني"
+            label="*رقم الهاتف"
             value={phoneNumber}
             onChangeText={(text) => {
               setPhoneNumber(text);
