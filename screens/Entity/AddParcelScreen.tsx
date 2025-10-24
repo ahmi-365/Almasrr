@@ -519,7 +519,7 @@ export default function CreateParcelScreen() {
         title: "حقول مطلوبة",
         message: "يرجى اختيار طريقة الدفع.",
       });
-    if (!selectedDeliveryType && parseInt(quantity, 10) >  1) // New validation for delivery type
+    if (!selectedDeliveryType && parseInt(quantity, 10) > 1) // New validation for delivery type
       return showAlert({
         title: "حقول مطلوبة",
         message: "يرجى اختيار نوع التسليم.",
@@ -566,19 +566,20 @@ export default function CreateParcelScreen() {
     };
 
     try {
-const response = await axios.post('https://tanmia-group.com:84/courierApi/parcels/saveparcel', payload);
-            if (response.data && response.status === 200) {
-                showAlert({
-                    title: 'نجاح',
-                    message: response.data.message || 'تم حفظ الطرد بنجاح!',
-                    confirmText: 'إضافة طرد جديد',
-                    onConfirm: resetForm,
-                    success: true, // --- Set success to true ---
-                });
-                // console.log('Parcel saved successfully:', response.data);
-            } else {
-                throw new Error(response.data?.message || 'فشل حفظ الطرد');
-            }    } catch (error) {
+      const response = await axios.post('https://tanmia-group.com:84/courierApi/parcels/saveparcel', payload);
+      if (response.data && response.status === 200) {
+        showAlert({
+          title: 'نجاح',
+          message: response.data.message || 'تم حفظ الطرد بنجاح!',
+          confirmText: 'إضافة طرد جديد',
+          onConfirm: resetForm,
+          success: true, // --- Set success to true ---
+        });
+        // console.log('Parcel saved successfully:', response.data);
+      } else {
+        throw new Error(response.data?.message || 'فشل حفظ الطرد');
+      }
+    } catch (error) {
       console.error(
         "Save parcel error:",
         error.response?.data || error.message

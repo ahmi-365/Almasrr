@@ -6,7 +6,7 @@ import CustomPlusButton from '../components/Entity/CustomPlusButton';
 import { MessageCircle, ClipboardPlus } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
-const TAB_BAR_HEIGHT = 70;
+const TAB_BAR_HEIGHT = 100;
 
 const AnimatedTabItem = ({ isFocused, label, icon, onPress }) => {
     const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     },
     addButton: {
         position: 'absolute',
-        top: -85,
+        top: -100,
         justifyContent: 'center',
         alignItems: 'center',
         width: 70,
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     // --- 2. ADJUST WRAPPER POSITION ---
     bubblesWrapper: {
         position: 'absolute',
-        bottom: 150, // Increased to make space for the badge
+        bottom: 170, // Increased to make space for the badge
         width: '100%',
         alignItems: 'center',
     },

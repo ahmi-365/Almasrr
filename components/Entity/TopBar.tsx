@@ -1,14 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, useWindowDimensions } from 'react-native';
 import { Bell, Menu, Search } from 'lucide-react-native';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDashboard } from '../../Context/DashboardContext';
 import { useNavigation } from '@react-navigation/native';
 import { useNotifications } from '../../Context/NotificationContext';
-
-const { width } = Dimensions.get('window');
-const HEADER_HEIGHT = 210;
 
 interface ModernTopBarProps {
   allParcels?: any[];
@@ -20,16 +17,20 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
   const insets = useSafeAreaInsets();
   const { toggleSidebar, user } = useDashboard();
   const navigation = useNavigation();
-const { unreadCount } = useNotifications();
+  const { unreadCount } = useNotifications();
 
   const navigateToSearch = () => {
     navigation.navigate('SearchScreen' as never, { allParcels } as never);
   };
 
- const navigateToNotifications = () => {
-  // Just navigate - marking as read will happen in NotificationsScreen
-  navigation.navigate('NotificationsScreen' as never);
-};
+  const { width, height: screenHeight } = useWindowDimensions();
+  const HEADER_HEIGHT = screenHeight * 0.30; // Set header height to 30% of the screen height
+
+
+  const navigateToNotifications = () => {
+    // Just navigate - marking as read will happen in NotificationsScreen
+    navigation.navigate('NotificationsScreen' as never);
+  };
 
   const getRoleInArabic = (role: string | undefined): string => {
     if (role === 'Entity') return 'المتجر';
@@ -61,8 +62,8 @@ const { unreadCount } = useNotifications();
 
       <View style={[styles.contentContainer, { paddingTop: insets.top }]}>
         <View style={styles.topRow}>
-          <TouchableOpacity 
-            style={styles.iconButton} 
+          <TouchableOpacity
+            style={styles.iconButton}
             onPress={navigateToNotifications}
           >
             <Bell color="#4A5568" size={24} />
@@ -195,8 +196,8 @@ const styles = StyleSheet.create({
     borderColor: '#FFFFFF',
   },
   searchContainerWrapper: {
-    marginTop: 15,
-    marginBottom: 10,
+    marginTop: 10,
+
   },
   searchButton: {
     flexDirection: 'row-reverse',
@@ -204,7 +205,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingHorizontal: 15,
-    paddingVertical: 14,
+    paddingVertical: 10,
     borderWidth: 2,
     borderColor: '#E9ECEF',
     elevation: 2,
@@ -214,9 +215,8 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
   },
   searchButtonText: {
-    flex: 1,
     textAlign: 'right',
-    fontSize: 16,
+    fontSize: 14,
     color: '#6C757D',
     marginHorizontal: 10,
   },

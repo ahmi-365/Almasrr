@@ -168,11 +168,11 @@ const EntitiesBalanceScreen = () => {
   // MODIFICATION: Handler for BalanceCard press
   const handleBalanceCardPress = useCallback((entityCode: number, entityName: string) => {
     // Navigate to ReportsDashboard and pass the entityCode as a parameter
-navigation.navigate('MainTabs', {
-  screen: 'ReportsTab',
-  params: { entityCode },
-});
-console.log(`Navigating to reports for entity:  ${entityCode}`);
+    navigation.navigate('MainTabs', {
+      screen: 'ReportsTab',
+      params: { entityCode },
+    });
+    console.log(`Navigating to reports for entity:  ${entityCode}`);
   }, [navigation]);
 
   const renderEmptyComponent = () => (

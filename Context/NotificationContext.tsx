@@ -34,22 +34,22 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const getNotificationUrls = (userData: any, branchCode: number, entityCode: string) => {
     const userRole = userData.roleName || userData.role;
     const isDriver = userRole === 'Driver';
-    
+
     const fetchUrl = isDriver
       ? `https://tanmia-group.com:84/courierApi/Driver/notifications/${branchCode}/${entityCode}`
       : `https://tanmia-group.com:84/courierApi/Entity/notifications/${branchCode}/${entityCode}`;
-    
+
     const markAsReadUrl = isDriver
       ? `https://tanmia-group.com:84/courierApi/notifications/driver/mark-all-read/${branchCode}/${entityCode}`
       : `https://tanmia-group.com:84/courierApi/notifications/entity/mark-all-read/${branchCode}/${entityCode}`;
-    
+
     return { fetchUrl, markAsReadUrl, userRole };
   };
 
   const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
-      
+
       const userDataString = await AsyncStorage.getItem('user');
       if (!userDataString) {
         // console.log('❌ No user data found for fetching notifications'); // Clarified message
@@ -58,7 +58,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
 
       const userData = JSON.parse(userDataString);
-      
+
       const branchCode = userData.intFromBranchCode || userData.branchCode || userData.BranchCode;
       const entityCode = userData.userId || userData.strSenderEntityCode;
 
@@ -70,7 +70,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
 
       const { fetchUrl, userRole } = getNotificationUrls(userData, branchCode, entityCode);
-      
+
       // console.log(`🔔 Fetching ${userRole} notifications from:`, fetchUrl);
 
       const response = await axios.get(fetchUrl);
@@ -116,7 +116,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
 
       const userData = JSON.parse(userDataString);
-      
+
       const branchCode = userData.intFromBranchCode || userData.branchCode || userData.BranchCode;
       const entityCode = userData.userId || userData.strSenderEntityCode;
 
@@ -126,8 +126,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       }
 
       const { markAsReadUrl, userRole } = getNotificationUrls(userData, branchCode, entityCode);
-      
-      
+
+
       // Optimistically update UI immediately
       setNotifications(prev => {
         const updated = prev.map(n => ({ ...n, IsRead: true }));

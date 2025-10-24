@@ -41,20 +41,31 @@ public class AppDelegate: ExpoAppDelegate, UNUserNotificationCenterDelegate {
   }
 
   // Handle foreground notifications
+  // public func userNotificationCenter(
+  //   _ center: UNUserNotificationCenter,
+  //   willPresent notification: UNNotification,
+  //   completionHandler: @escaping (UNNotificationPresentationOptions) -> Void)
+  // {
+  //   completionHandler([.alert, .sound, .badge])
+  // }
+
+  // // Handle user interaction with notifications
+  //   public func userNotificationCenter(_ center: UNUserNotificationCenter,
+  //                               didReceive response: UNNotificationResponse,
+  //                               withCompletionHandler completionHandler: @escaping () -> Void) {
+  //   // This function is called when a user taps on a notification
+  //   completionHandler()
+  // }
+
   public func userNotificationCenter(
     _ center: UNUserNotificationCenter,
     willPresent notification: UNNotification,
     completionHandler: @escaping (UNNotificationPresentationOptions) -> Void)
   {
-    completionHandler([.alert, .sound, .badge])
-  }
-
-  // Handle user interaction with notifications
-    public func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                didReceive response: UNNotificationResponse,
-                                withCompletionHandler completionHandler: @escaping () -> Void) {
-    // This function is called when a user taps on a notification
-    completionHandler()
+    // Pass an empty array to prevent the system from showing its own alert.
+    // Your onMessage handler in JavaScript will now be responsible for the display.
+    // You can still include .badge or .sound if you want the system to handle those.
+    completionHandler([])
   }
 
   // Linking API
