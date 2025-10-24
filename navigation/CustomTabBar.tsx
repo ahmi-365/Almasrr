@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, TouchableOpacity, StyleSheet, Dimensions, Text, Animated, Easing } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Dimensions, Text, Animated, Easing, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 import CustomPlusButton from '../components/Entity/CustomPlusButton';
 import { MessageCircle, ClipboardPlus } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
-const TAB_BAR_HEIGHT = 100;
+const TAB_BAR_HEIGHT = Platform.OS === 'ios' ? 100 : 70;
 
 const AnimatedTabItem = ({ isFocused, label, icon, onPress }) => {
     const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     },
     addButton: {
         position: 'absolute',
-        top: -100,
+        top: Platform.OS === 'ios' ? -100 : -85,
         justifyContent: 'center',
         alignItems: 'center',
         width: 70,
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     // --- 2. ADJUST WRAPPER POSITION ---
     bubblesWrapper: {
         position: 'absolute',
-        bottom: 170, // Increased to make space for the badge
+        bottom: Platform.OS === 'ios' ? 170 : 150, // Increased to make space for the badge
         width: '100%',
         alignItems: 'center',
     },

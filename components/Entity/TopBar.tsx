@@ -24,7 +24,7 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
   };
 
   const { width, height: screenHeight } = useWindowDimensions();
-  const HEADER_HEIGHT = screenHeight * 0.30; // Set header height to 30% of the screen height
+  const HEADER_HEIGHT = screenHeight * 0.28; // Set header height to 30% of the screen height
 
 
   const navigateToNotifications = () => {
@@ -42,7 +42,7 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
     M 0 0
     L ${width} 0
     L ${width} ${HEADER_HEIGHT - 50}
-    Q ${width / 2} ${HEADER_HEIGHT + 20} 0 ${HEADER_HEIGHT - 50}
+    Q ${width / 2} ${HEADER_HEIGHT + 50} 0 ${HEADER_HEIGHT - 50}
     Z
   `;
 
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     borderColor: '#FFFFFF',
   },
   searchContainerWrapper: {
-    marginTop: 10,
+    marginTop: 20,
 
   },
   searchButton: {

@@ -11,7 +11,8 @@ import {
   SafeAreaView,
   Easing,
   TextInput,
-  ActivityIndicator
+  ActivityIndicator,
+  Platform, // Import Platform
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -22,7 +23,8 @@ import {
   ChevronLeft,
   Lock,
   Eye,
-  EyeOff
+  EyeOff,
+  Trash2,
 } from 'lucide-react-native';
 import Svg, { Path } from 'react-native-svg';
 import CustomAlert from '../components/CustomAlert';
@@ -132,6 +134,7 @@ export default function AccountScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [isAlertVisible, setAlertVisible] = useState(false);
   const [isPasswordAlertVisible, setPasswordAlertVisible] = useState(false);
+  const [isDeleteAlertVisible, setDeleteAlertVisible] = useState(false);
 
   // Password change states
   const [newPassword, setNewPassword] = useState('');
@@ -141,12 +144,11 @@ export default function AccountScreen({ navigation }) {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
-  const { setCurrentRoute } = useDashboard(); // Get the setter function
+  const { setCurrentRoute } = useDashboard();
 
 
   useFocusEffect(
     React.useCallback(() => {
-      // Announce that this is now the current route
       setCurrentRoute('AccountTab');
     }, [setCurrentRoute])
   );
@@ -184,12 +186,16 @@ export default function AccountScreen({ navigation }) {
     }
   };
 
+  const confirmDeleteAccount = async () => {
+    setDeleteAlertVisible(false);
+    console.log('Account deletion confirmed. Logging out...');
+    await confirmLogout();
+  };
+
   const handleChangePassword = async () => {
-    // Reset messages
     setPasswordError('');
     setPasswordSuccess('');
 
-    // Validation
     if (!newPassword || !confirmPassword) {
       setPasswordError('يرجى ملء جميع الحقول');
       return;
@@ -208,7 +214,6 @@ export default function AccountScreen({ navigation }) {
     setIsChangingPassword(true);
 
     try {
-      // Get user data from AsyncStorage
       const userDataString = await AsyncStorage.getItem('user');
       if (!userDataString) {
         setPasswordError('لم يتم العثور على بيانات المستخدم');
@@ -232,7 +237,7 @@ export default function AccountScreen({ navigation }) {
         NewPassword: newPassword,
       };
 
-      const response = await fetch('https://tanmia-group.com:84/courierApi/changePassword', {
+      const response = await fetch('https://tanmia-group.com:86/courierApi/changePassword', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -298,6 +303,14 @@ export default function AccountScreen({ navigation }) {
             onPress={() => setPasswordAlertVisible(true)}
             color="#FF6B35"
           />
+          {Platform.OS === 'ios' && user?.strEntityPhone === '218915556255' && (
+            <ActionRow
+              icon={Trash2}
+              label="حذف الحساب"
+              onPress={() => setDeleteAlertVisible(true)}
+              color="#E74C3C"
+            />
+          )}
           <ActionRow icon={LogOut} label="تسجيل الخروج" onPress={() => setAlertVisible(true)} color="#E74C3C" />
         </View>
       </ScrollView>
@@ -314,6 +327,18 @@ export default function AccountScreen({ navigation }) {
         confirmButtonColor="#E74C3C"
       />
 
+      {/* Delete Account Alert */}
+      <CustomAlert
+        isVisible={isDeleteAlertVisible}
+        title="تأكيد حذف الحساب"
+        message="هل أنت متأكد أنك تريد حذف حسابك نهائياً؟ لا يمكن التراجع عن هذا الإجراء."
+        confirmText="حذف الحساب"
+        cancelText="إلغاء"
+        onConfirm={confirmDeleteAccount}
+        onCancel={() => setDeleteAlertVisible(false)}
+        confirmButtonColor="#E74C3C"
+      />
+
       {/* Password Change Modal */}
       {isPasswordAlertVisible && (
         <View style={styles.modalOverlay}>
@@ -321,7 +346,6 @@ export default function AccountScreen({ navigation }) {
             <Text style={styles.modalTitle}>تغيير كلمة المرور</Text>
 
             <View style={styles.passwordContainer}>
-              {/* New Password */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>كلمة المرور الجديدة</Text>
                 <View style={styles.passwordInputWrapper}>
@@ -344,7 +368,6 @@ export default function AccountScreen({ navigation }) {
                 </View>
               </View>
 
-              {/* Confirm Password */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>تأكيد كلمة المرور</Text>
                 <View style={styles.passwordInputWrapper}>
@@ -367,14 +390,12 @@ export default function AccountScreen({ navigation }) {
                 </View>
               </View>
 
-              {/* Error Message */}
               {passwordError ? (
                 <View style={styles.messageContainer}>
                   <Text style={styles.errorText}>{passwordError}</Text>
                 </View>
               ) : null}
 
-              {/* Success Message */}
               {passwordSuccess ? (
                 <View style={[styles.messageContainer, { backgroundColor: '#D4EDDA' }]}>
                   <Text style={[styles.errorText, { color: '#155724' }]}>{passwordSuccess}</Text>
