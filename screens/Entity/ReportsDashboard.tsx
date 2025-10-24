@@ -14,14 +14,16 @@ import {
   FlatList,
   RefreshControl,
   Image,
-  Share as RNShare,
   PermissionsAndroid,
+  Linking,
 } from "react-native";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import RNFS from 'react-native-fs';
 import Share from 'react-native-share';
+import notifee, { EventType } from '@notifee/react-native';
+import FileViewer from 'react-native-file-viewer';
 import {
   ChevronDown,
   Check,
@@ -29,17 +31,14 @@ import {
   Calendar,
   TrendingUp,
   TrendingDown,
-  DollarSign,
   Store as StoreIcon,
-  Wallet,
   WalletMinimal,
   Download,
-  FileDown,
 } from "lucide-react-native";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context"; // Corrected import
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomAlert from "../../components/CustomAlert";
@@ -279,9 +278,7 @@ export default function ReportsDashboard() {
   const [fromDate, setFromDate] = useState(new Date());
   const [toDate, setToDate] = useState(new Date());
   const [entityModalVisible, setEntityModalVisible] = useState(false);
-  const [datePickerVisible, setDatePickerVisible] = useState<
-    "from" | "to" | null
-  >(null);
+  const [datePickerVisible, setDatePickerVisible] = useState<"from" | "to" | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isAlertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
@@ -289,17 +286,13 @@ export default function ReportsDashboard() {
   const [alertConfirmColor, setAlertConfirmColor] = useState('#E74C3C');
   const [isDownloading, setIsDownloading] = useState(false);
   const [alertSuccess, setAlertSuccess] = useState(false);
-  const { setCurrentRoute } = useDashboard(); // Get the setter function
-
-
+  const { setCurrentRoute } = useDashboard();
 
   useFocusEffect(
     React.useCallback(() => {
-      // Announce that this is now the current route
       setCurrentRoute('ReportsTab');
     }, [setCurrentRoute])
   );
-
 
   useFocusEffect(
     useCallback(() => {
@@ -313,18 +306,12 @@ export default function ReportsDashboard() {
             if (storedEntities) {
               const parsedEntities: Entity[] = JSON.parse(storedEntities);
               setEntities(parsedEntities);
-
-              // Check if entityCode was passed via route params
               const entityCode = route.params?.entityCode;
-
               if (entityCode) {
-                // Find and set the entity from navigation params
                 const matchedEntity = parsedEntities.find(e => e.intEntityCode === entityCode);
                 if (matchedEntity) {
                   setSelectedEntity(matchedEntity);
-                  // Set a flag to trigger search after component mounts
                   setTimeout(() => {
-                    // Make sure user is set before searching
                     if (parsedUser) {
                       handleSearchWithEntity(matchedEntity, parsedUser);
                     }
@@ -342,7 +329,6 @@ export default function ReportsDashboard() {
     }, [route.params?.entityCode])
   );
 
-
   const requestStoragePermission = async () => {
     if (Platform.OS === 'android' && Platform.Version < 33) {
       try {
@@ -356,14 +342,13 @@ export default function ReportsDashboard() {
             buttonPositive: 'موافقة',
           }
         );
-
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
         console.warn('Permission error:', err);
         return false;
       }
     }
-    return true; // On Android 13+ or iOS, permission is not required
+    return true;
   };
 
   const handleDownloadPdf = useCallback(async () => {
@@ -379,10 +364,28 @@ export default function ReportsDashboard() {
     }
     setIsDownloading(true);
 
+    const notificationId = 'pdf-download';
+    const channelId = await notifee.createChannel({
+      id: 'downloads',
+      name: 'Downloads',
+    });
+
+    await notifee.displayNotification({
+      id: notificationId,
+      title: 'بدء تحميل التقرير',
+      body: 'جاري تحميل تقرير PDF الخاص بك.',
+      android: {
+        channelId,
+        progress: {
+          max: 100,
+          current: 0,
+        },
+      },
+    });
+
     try {
       const formattedFromDate = formatDate(fromDate);
       const formattedToDate = formatDate(toDate);
-
       let url = '';
       let fileName = '';
 
@@ -393,32 +396,69 @@ export default function ReportsDashboard() {
         url = `https://tanmia-group.com:84/courierApi/Driver/GenerateTransactionReportPdf/${user.userId}/${formattedFromDate}/${formattedToDate}`;
         fileName = `Report-Driver-${user.userId}-${formattedFromDate}-${Date.now()}.pdf`;
       } else {
-        // Optional: handle cases where user role is not supported
         setIsDownloading(false);
         return;
       }
 
       const tempDownloadPath = `${RNFS.TemporaryDirectoryPath}/${fileName}`;
 
-      const downloadResult = await RNFS.downloadFile({
+      const downloadResult = RNFS.downloadFile({
         fromUrl: url,
         toFile: tempDownloadPath,
+        progress: (res) => {
+          const progress = (res.bytesWritten / res.contentLength) * 100;
+          notifee.displayNotification({
+            id: notificationId,
+            title: 'جاري تحميل التقرير',
+            body: `${Math.round(progress)}% مكتمل`,
+            android: {
+              channelId,
+              progress: {
+                max: 100,
+                current: Math.round(progress),
+              },
+            },
+          });
+        },
       }).promise;
 
-      if (downloadResult.statusCode !== 200) {
-        throw new Error(`Server responded with status code ${downloadResult.statusCode}`);
+      const result = await downloadResult;
+
+      if (result.statusCode !== 200) {
+        throw new Error(`Server responded with status code ${result.statusCode}`);
       }
 
-      console.log('File downloaded successfully to temporary path:', tempDownloadPath);
-
       if (Platform.OS === 'android') {
-        const downloadsPath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
-        await RNFS.moveFile(tempDownloadPath, downloadsPath);
+        const almasarFolderPath = `${RNFS.DownloadDirectoryPath}/Almasar`;
+        await RNFS.mkdir(almasarFolderPath);
+        const finalPdfPath = `${almasarFolderPath}/${fileName}`;
+        await RNFS.moveFile(tempDownloadPath, finalPdfPath);
+
+        await RNFS.scanFile(finalPdfPath);
+
+        await notifee.displayNotification({
+          id: notificationId,
+          title: 'اكتمل التحميل',
+          body: 'تم حفظ التقرير بنجاح. انقر للفتح.',
+          data: {
+            filePath: finalPdfPath,
+          },
+          android: {
+            channelId,
+            pressAction: {
+              id: 'open-pdf',
+            },
+          },
+        });
+
+        // --- NEW: SHOW SUCCESS DIALOG ---
         setAlertTitle("نجاح");
-        setAlertMessage("تم حفظ الملف بنجاح في مجلد التنزيلات.");
+        setAlertMessage("تم حفظ الملف بنجاح في مجلد التنزيلات/Almasar");
         setAlertSuccess(true);
         setAlertVisible(true);
-        console.log('File moved to:', downloadsPath);
+
+        console.log('File moved and scanned:', finalPdfPath);
+
       } else {
         await Share.open({
           url: `file://${tempDownloadPath}`,
@@ -426,9 +466,16 @@ export default function ReportsDashboard() {
           failOnCancel: false,
           title: 'تنزيل التقرير',
         });
+        await notifee.cancelNotification(notificationId);
       }
     } catch (error) {
       console.error('Error downloading or saving PDF:', error);
+      await notifee.displayNotification({
+        id: notificationId,
+        title: 'فشل التحميل',
+        body: 'حدث خطأ أثناء تحميل التقرير.',
+        android: { channelId },
+      });
       setAlertTitle("خطأ");
       setAlertMessage(error.message || "حدث خطأ أثناء تحميل أو حفظ ملف PDF.");
       setAlertVisible(true);
@@ -436,6 +483,31 @@ export default function ReportsDashboard() {
       setIsDownloading(false);
     }
   }, [user, selectedEntity, fromDate, toDate, transactions]);
+
+  useEffect(() => {
+    const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
+      if (type === EventType.PRESS && detail.pressAction?.id === 'open-pdf') {
+        const filePath = detail.notification?.data?.filePath;
+
+        // --- FIX: Ensure filePath is a string before using it ---
+        if (filePath && typeof filePath === 'string') {
+          FileViewer.open(filePath)
+            .then(() => {
+              console.log('File opened successfully');
+            })
+            .catch(error => {
+              console.error('Error opening file:', error);
+              Alert.alert(
+                'خطأ',
+                'لا يمكن فتح الملف. يرجى التأكد من وجود تطبيق قادر على عرض ملفات PDF.'
+              );
+            });
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, []);
 
   const handleSearch = useCallback(async () => {
     if (user?.roleName === "Entity" && !selectedEntity) {
@@ -472,7 +544,6 @@ export default function ReportsDashboard() {
     }
   }, [selectedEntity, fromDate, toDate, user]);
 
-  // Helper function to search with a specific entity
   const handleSearchWithEntity = useCallback(async (entity: Entity, currentUser: User) => {
     if (!currentUser) return;
     setLoading(true);
