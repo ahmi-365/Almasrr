@@ -89,7 +89,7 @@ const RegisterScreen = () => {
     const fetchCities = async () => {
       try {
         const response = await fetch(
-          'https://tanmia-group.com:86/courierApi/register/cities'
+          'https://tanmia-group.com:84/courierApi/register/cities'
         );
         const data = await response.json();
         const formattedCities = data.map((city: any) => ({

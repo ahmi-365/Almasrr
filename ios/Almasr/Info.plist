@@ -2,6 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Basic App Info -->
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
@@ -12,8 +13,13 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+
+	<!-- ✅ App Name -->
 	<key>CFBundleName</key>
-	<string>$(PRODUCT_NAME)</string>
+	<string>المسار للشحن - ليبيا</string>
+	<key>CFBundleDisplayName</key>
+	<string>المسار للشحن</string>
+
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
@@ -22,31 +28,64 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
 	<key>LSMinimumSystemVersion</key>
 	<string>12.0</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+
+	<!-- ✅ Network / Internet -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
-		<false/>
+		<true/>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+
+	<!-- ✅ Permissions -->
+	<key>NSCameraUsageDescription</key>
+	<string>يتطلب هذا التطبيق الوصول إلى الكاميرا لالتقاط الصور أو الفيديو.</string>
+
+	<key>NSMicrophoneUsageDescription</key>
+	<string>يتطلب هذا التطبيق الوصول إلى الميكروفون لتسجيل الصوت.</string>
+
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>يحتاج هذا التطبيق للوصول إلى مكتبة الصور لاختيار أو تحميل الصور.</string>
+
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>يحتاج هذا التطبيق إلى إذن لحفظ الصور أو مقاطع الفيديو في مكتبتك.</string>
+
+	<key>NSUserNotificationUsageDescription</key>
+	<string>يرغب هذا التطبيق في إرسال الإشعارات إليك.</string>
+
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>قد يستخدم هذا التطبيق البلوتوث للاتصال بالأجهزة القريبة.</string>
+
+	<!-- ✅ Background modes for push notifications -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+
+	<!-- ✅ UI / Display -->
 	<key>UILaunchStoryboardName</key>
 	<string>SplashScreen</string>
+
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>arm64</string>
 	</array>
+
 	<key>UIStatusBarStyle</key>
 	<string>UIStatusBarStyleDefault</string>
+
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
 </dict>

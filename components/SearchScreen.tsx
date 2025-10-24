@@ -225,8 +225,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row-reverse',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 16,
-        marginTop: 40
+        paddingVertical: 10,
+        marginTop: 10
     },
     title: {
         fontSize: 24,

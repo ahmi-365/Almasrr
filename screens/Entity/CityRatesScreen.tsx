@@ -40,7 +40,7 @@ const CityRatesSkeleton = () => {
     // Table Header Skeleton
     const TableHeaderSkeleton = () => (
         <View style={styles.tableHeaderSkeleton}>
-            
+
             <ShimmerPlaceHolder
                 style={[styles.headerCellSkeleton, styles.cityColumnSkeleton]}
                 shimmerColors={shimmerColors}
@@ -76,7 +76,7 @@ const CityRatesSkeleton = () => {
                     />
                 </View>
             </View>
-            
+
             {/* Price Cells Skeleton */}
             <View style={[styles.cellSkeleton, styles.priceColumnSkeleton]}>
                 <ShimmerPlaceHolder
@@ -84,14 +84,14 @@ const CityRatesSkeleton = () => {
                     shimmerColors={shimmerColors}
                 />
             </View>
-            
+
             <View style={[styles.cellSkeleton, styles.priceColumnSkeleton]}>
                 <ShimmerPlaceHolder
                     style={styles.priceSkeleton}
                     shimmerColors={shimmerColors}
                 />
             </View>
-            
+
             <View style={[styles.cellSkeleton, styles.priceColumnSkeleton]}>
                 <ShimmerPlaceHolder
                     style={styles.priceSkeleton}
@@ -118,16 +118,16 @@ const CityRatesSkeleton = () => {
                     shimmerColors={shimmerColors}
                 />
             </View>
-            
+
             {/* Enhanced Table Skeleton */}
             <View style={styles.tableSkeletonContainer}>
                 <TableHeaderSkeleton />
                 <ScrollView style={styles.tableSkeletonScrollView}>
                     {/* Generate 8 skeleton rows */}
                     {[...Array(8)].map((_, index) => (
-                        <TableRowSkeleton 
-                            key={index} 
-                            isEven={index % 2 === 0} 
+                        <TableRowSkeleton
+                            key={index}
+                            isEven={index % 2 === 0}
                         />
                     ))}
                 </ScrollView>
@@ -157,19 +157,19 @@ const TableRow = ({ item, index }: { item: CityPrice; index: number }) => (
                 </Text>
             </View>
         </View>
-        
+
         <View style={styles.priceCell}>
             <Text style={styles.priceCellText}>
                 {item.DcOfficePrice?.toFixed(2) ?? 'N/A'}
             </Text>
         </View>
-        
+
         <View style={styles.priceCell}>
             <Text style={styles.priceCellText}>
                 {item.DcInsideCityPrice?.toFixed(2) ?? 'N/A'}
             </Text>
         </View>
-        
+
         <View style={styles.priceCell}>
             <Text style={styles.priceCellText}>
                 {item.DcOutSkirtPrice?.toFixed(2) ?? 'N/A'}
@@ -182,17 +182,17 @@ const TableRow = ({ item, index }: { item: CityPrice; index: number }) => (
 const PriceTable = ({ data }: { data: CityPrice[] }) => (
     <View style={styles.tableContainer}>
         <TableHeader />
-        <ScrollView 
+        <ScrollView
             style={styles.tableScrollView}
             showsVerticalScrollIndicator={true}
             indicatorStyle="default"
             scrollIndicatorInsets={{ right: 2 }}
         >
             {data.map((item, index) => (
-                <TableRow 
-                    key={`${item.strCityName}-${index}`} 
-                    item={item} 
-                    index={index} 
+                <TableRow
+                    key={`${item.strCityName}-${index}`}
+                    item={item}
+                    index={index}
                 />
             ))}
         </ScrollView>
@@ -208,7 +208,7 @@ export default function CityRatesScreen() {
     const [selectedCity, setSelectedCity] = useState<string>('الكل');
     const [modalVisible, setModalVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    
+
     // Custom Alert states
     const [isAlertVisible, setAlertVisible] = useState(false);
     const [alertTitle, setAlertTitle] = useState('');
@@ -219,25 +219,25 @@ export default function CityRatesScreen() {
         setLoading(true);
         try {
             const userData = await AsyncStorage.getItem('user');
-            if (!userData) { 
-                setLoading(false); 
-                return; 
+            if (!userData) {
+                setLoading(false);
+                return;
             }
-            
+
             const parsedUser = JSON.parse(userData);
             const userCityCode = parsedUser?.intCityCode;
-            
-            if (!userCityCode) { 
-                setLoading(false); 
-                return; 
+
+            if (!userCityCode) {
+                setLoading(false);
+                return;
             }
-            
+
             const response = await axios.get(`https://tanmia-group.com:84/courierApi/City/GetCityPrices/${userCityCode}`);
             const priceData: CityPrice[] = response.data || [];
-            
+
             setAllPrices(priceData);
             setFilteredPrices(priceData);
-            
+
             const cityNames = ['الكل', ...new Set(priceData.map(p => p.strCityName).filter(name => name))].sort();
             setFilterCities(cityNames);
         } catch (error) {
@@ -245,16 +245,16 @@ export default function CityRatesScreen() {
             setAlertTitle('خطأ');
             setAlertMessage('فشل في جلب بيانات الأسعار.');
             setAlertConfirmColor('#E74C3C');
-            setAlertVisible(true);        
+            setAlertVisible(true);
         } finally {
             setLoading(false);
             setIsRefreshing(false);
         }
     }, []);
 
-    useFocusEffect(useCallback(() => { 
+    useFocusEffect(useCallback(() => {
         setLoading(true);
-        fetchData(); 
+        fetchData();
     }, [fetchData]));
 
     const onRefresh = useCallback(() => {
@@ -263,10 +263,10 @@ export default function CityRatesScreen() {
     }, [fetchData]);
 
     const displayedCities = useMemo(() => {
-        if (!searchQuery) { 
-            return filterCities; 
+        if (!searchQuery) {
+            return filterCities;
         }
-        return filterCities.filter(city => 
+        return filterCities.filter(city =>
             city.toLowerCase().includes(searchQuery.toLowerCase()) || city === 'الكل'
         );
     }, [searchQuery, filterCities]);
@@ -285,13 +285,13 @@ export default function CityRatesScreen() {
     const renderFilterSection = () => (
         <View style={styles.modernFilterSection}>
             <Text style={styles.filterSectionTitle}>تصفية أسعار المدن</Text>
-            
+
             {/* City Filter Dropdown */}
-            <TouchableOpacity 
-                style={styles.modernDropdown} 
-                onPress={() => { 
-                    setSearchQuery(''); 
-                    setModalVisible(true); 
+            <TouchableOpacity
+                style={styles.modernDropdown}
+                onPress={() => {
+                    setSearchQuery('');
+                    setModalVisible(true);
                 }}
             >
                 <View style={styles.dropdownContent}>
@@ -335,7 +335,7 @@ export default function CityRatesScreen() {
             {/* Use the new TopBar component */}
             {!loading && <TopBar title="أسعار المدن" />}
 
-            <ScrollView 
+            <ScrollView
                 style={styles.scrollContainer}
                 refreshControl={
                     <RefreshControl
@@ -349,27 +349,27 @@ export default function CityRatesScreen() {
                 contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 120 }}
             >
                 {!loading && renderFilterSection()}
-                
+
                 {!loading && filteredPrices.length > 0 && (
                     <PriceTable data={filteredPrices} />
                 )}
-                
+
                 {!loading && filteredPrices.length === 0 && renderEmptyComponent()}
             </ScrollView>
 
             {loading && (
                 <View style={styles.skeletonContainer}>
                     {/* Render the TopBar here as well */}
-                    <TopBar title="أسعار المدن" /> 
+                    <TopBar title="أسعار المدن" />
                     <CityRatesSkeleton />
                 </View>
             )}
 
             {/* City Filter Modal */}
-            <Modal 
-                animationType="fade" 
-                transparent={true} 
-                visible={modalVisible} 
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={modalVisible}
                 onRequestClose={() => setModalVisible(false)}
             >
                 <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
@@ -378,28 +378,28 @@ export default function CityRatesScreen() {
                             <View style={styles.modalHeader}>
                                 <Text style={styles.modalTitle}>اختر المدينة</Text>
                             </View>
-                            
+
                             <View style={styles.modalSearchContainer}>
                                 <Search color="#9CA3AF" size={20} style={styles.modalSearchIcon} />
-                                <TextInput 
-                                    style={styles.modalSearchInput} 
-                                    placeholder="ابحث عن مدينة..." 
-                                    placeholderTextColor="#9CA3AF" 
-                                    value={searchQuery} 
-                                    onChangeText={setSearchQuery} 
+                                <TextInput
+                                    style={styles.modalSearchInput}
+                                    placeholder="ابحث عن مدينة..."
+                                    placeholderTextColor="#9CA3AF"
+                                    value={searchQuery}
+                                    onChangeText={setSearchQuery}
                                 />
                             </View>
-                            
+
                             <FlatList
                                 data={displayedCities}
                                 keyExtractor={item => item}
                                 renderItem={({ item }) => (
-                                    <TouchableOpacity 
-                                        style={styles.modalItem} 
+                                    <TouchableOpacity
+                                        style={styles.modalItem}
                                         onPress={() => handleFilterChange(item)}
                                     >
                                         <Text style={[
-                                            styles.modalItemText, 
+                                            styles.modalItemText,
                                             selectedCity === item && styles.modalItemSelected
                                         ]}>
                                             {item}
@@ -428,15 +428,15 @@ export default function CityRatesScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { 
-        flex: 1, 
-        backgroundColor: "#F8F9FA" 
+    container: {
+        flex: 1,
+        backgroundColor: "#F8F9FA"
     },
-    
+
     scrollContainer: {
         flex: 1,
     },
-    
+
     // Filter Section
     modernFilterSection: {
         backgroundColor: "#FFFFFF",
@@ -480,20 +480,20 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
     },
-    dropdownLabel: { 
-        color: '#6B7280', 
-        fontSize: 14, 
-        marginRight: 10 
+    dropdownLabel: {
+        color: '#6B7280',
+        fontSize: 14,
+        marginRight: 10
     },
-    dropdownValueContainer: { 
-        flexDirection: 'row-reverse', 
-        alignItems: 'center', 
-        gap: 8 
+    dropdownValueContainer: {
+        flexDirection: 'row-reverse',
+        alignItems: 'center',
+        gap: 8
     },
-    dropdownValue: { 
-        color: '#1F2937', 
-        fontSize: 16, 
-        fontWeight: '600' 
+    dropdownValue: {
+        color: '#1F2937',
+        fontSize: 16,
+        fontWeight: '600'
     },
 
     // Table Styles
@@ -508,35 +508,35 @@ const styles = StyleSheet.create({
         elevation: 3,
         overflow: 'hidden',
     },
-    
+
     tableHeader: {
         flexDirection: 'row-reverse',
         backgroundColor: '#FF6B35',
         paddingVertical: 12,
         paddingHorizontal: 8,
     },
-    
+
     tableHeaderText: {
         color: '#FFFFFF',
         fontSize: 14,
         fontWeight: 'bold',
         textAlign: 'center',
     },
-    
+
     cityColumn: {
         flex: 2,
         paddingHorizontal: 4,
     },
-    
+
     priceColumn: {
         flex: 1,
         paddingHorizontal: 4,
     },
-    
+
     tableScrollView: {
         flex: 1,
     },
-    
+
     tableRow: {
         flexDirection: 'row-reverse',
         paddingVertical: 12,
@@ -546,24 +546,24 @@ const styles = StyleSheet.create({
         minHeight: 50,
         alignItems: 'center',
     },
-    
+
     evenRow: {
         backgroundColor: '#F9FAFB',
     },
-    
+
     cityCell: {
         flex: 2,
         paddingHorizontal: 4,
         justifyContent: 'center',
     },
-    
+
     cityNameContainer: {
         flexDirection: 'row-reverse',
         alignItems: 'center',
         gap: 6,
         flexWrap: 'wrap',
     },
-    
+
     cityNameText: {
         color: '#1F2937',
         fontSize: 14,
@@ -571,21 +571,21 @@ const styles = StyleSheet.create({
         textAlign: 'right',
         flex: 1,
     },
-    
+
     priceCell: {
         flex: 1,
         paddingHorizontal: 4,
         alignItems: 'center',
         justifyContent: 'center',
     },
-    
+
     priceCellText: {
         color: '#1F2937',
         fontSize: 14,
         fontWeight: '600',
         textAlign: 'center',
     },
-    
+
     // Empty State
     emptyContainer: {
         backgroundColor: "#FFFFFF",
@@ -595,11 +595,11 @@ const styles = StyleSheet.create({
         alignItems: "center",
         marginTop: 20,
     },
-    emptyImage: { 
-        width: 200, 
-        height: 120, 
-        marginBottom: 16, 
-        opacity: 0.7 
+    emptyImage: {
+        width: 200,
+        height: 120,
+        marginBottom: 16,
+        opacity: 0.7
     },
     emptyText: {
         color: "#374151",
@@ -614,19 +614,19 @@ const styles = StyleSheet.create({
         textAlign: "center",
         lineHeight: 20,
     },
-    
+
     // Modal Styles
-    modalOverlay: { 
-        flex: 1, 
-        backgroundColor: 'rgba(0, 0, 0, 0.5)', 
-        justifyContent: 'center', 
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
     },
-    modalContent: { 
-        backgroundColor: '#FFFFFF', 
-        borderRadius: 8, 
-        width: '100%', 
+    modalContent: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 8,
+        width: '100%',
         maxHeight: '70%',
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 2 },
@@ -639,50 +639,50 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: "#F3F4F6",
     },
-    modalTitle: { 
-        color: "#1F2937", 
-        fontSize: 18, 
+    modalTitle: {
+        color: "#1F2937",
+        fontSize: 18,
         fontWeight: "bold",
         textAlign: "center",
     },
-    modalSearchContainer: { 
-        flexDirection: 'row-reverse', 
-        alignItems: 'center', 
-        backgroundColor: '#F9FAFB', 
-        borderRadius: 8, 
-        margin: 20, 
+    modalSearchContainer: {
+        flexDirection: 'row-reverse',
+        alignItems: 'center',
+        backgroundColor: '#F9FAFB',
+        borderRadius: 8,
+        margin: 20,
         paddingHorizontal: 12,
         borderWidth: 1,
         borderColor: "#E5E7EB",
     },
-    modalSearchInput: { 
-        flex: 1, 
-        color: '#1F2937', 
-        fontSize: 16, 
-        paddingVertical: Platform.OS === "ios" ? 12 : 8, 
-        textAlign: 'right' 
+    modalSearchInput: {
+        flex: 1,
+        color: '#1F2937',
+        fontSize: 16,
+        paddingVertical: Platform.OS === "ios" ? 12 : 8,
+        textAlign: 'right'
     },
-    modalSearchIcon: { 
-        marginLeft: 8 
+    modalSearchIcon: {
+        marginLeft: 8
     },
-    modalItem: { 
-        paddingVertical: 16, 
-        paddingHorizontal: 20, 
-        borderBottomWidth: 1, 
-        borderBottomColor: '#F3F4F6', 
-        flexDirection: 'row-reverse', 
-        justifyContent: 'space-between', 
-        alignItems: 'center' 
+    modalItem: {
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F3F4F6',
+        flexDirection: 'row-reverse',
+        justifyContent: 'space-between',
+        alignItems: 'center'
     },
-    modalItemText: { 
-        color: '#1F2937', 
-        fontSize: 16 
+    modalItemText: {
+        color: '#1F2937',
+        fontSize: 16
     },
-    modalItemSelected: { 
-        color: '#FF6B35', 
-        fontWeight: 'bold' 
+    modalItemSelected: {
+        color: '#FF6B35',
+        fontWeight: 'bold'
     },
-    
+
     // Enhanced Skeleton Styles
     skeletonContainer: {
         position: 'absolute',
@@ -728,7 +728,7 @@ const styles = StyleSheet.create({
         width: '40%',
         alignSelf: 'flex-end',
     },
-    
+
     // Table Skeleton Container
     tableSkeletonContainer: {
         backgroundColor: "#FFFFFF",
@@ -742,7 +742,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         height: 400,
     },
-    
+
     // Table Header Skeleton
     tableHeaderSkeleton: {
         flexDirection: 'row-reverse',
@@ -750,13 +750,13 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 8,
     },
-    
+
     headerCellSkeleton: {
         height: 16,
         borderRadius: 4,
         marginHorizontal: 4,
     },
-    
+
     // Table Row Skeleton
     tableRowSkeleton: {
         flexDirection: 'row-reverse',
@@ -768,49 +768,49 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: '#FFFFFF',
     },
-    
+
     evenRowSkeleton: {
         backgroundColor: '#F9FAFB',
     },
-    
+
     tableSkeletonScrollView: {
         flex: 1,
     },
-    
+
     // Cell Skeletons
     cellSkeleton: {
         paddingHorizontal: 4,
         justifyContent: 'center',
     },
-    
+
     cityColumnSkeleton: {
         flex: 2,
     },
-    
+
     priceColumnSkeleton: {
         flex: 1,
     },
-    
+
     // City Content Skeleton
     cityContentSkeleton: {
         flexDirection: 'row-reverse',
         alignItems: 'center',
         gap: 6,
     },
-    
+
     cityIconSkeleton: {
         width: 16,
         height: 16,
         borderRadius: 8,
     },
-    
+
     cityNameSkeleton: {
         height: 14,
         borderRadius: 4,
         flex: 1,
         maxWidth: 120,
     },
-    
+
     // Price Skeleton
     priceSkeleton: {
         height: 14,

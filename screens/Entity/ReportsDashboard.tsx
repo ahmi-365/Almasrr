@@ -50,7 +50,7 @@ const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const MaterialTopBar = ({ title }) => {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.topBar, { paddingTop: insets.top + 30 }]}>
+    <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
       <Text style={styles.topBarTitle}>{title}</Text>
     </View>
   );
