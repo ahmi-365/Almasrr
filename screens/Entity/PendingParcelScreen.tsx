@@ -202,6 +202,9 @@ export default function PendingApprovalScreen() {
     const [webViewVisible, setWebViewVisible] = useState(false);
     const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
 
+    // --- ADDED: State to track if the initial fetch has been done ---
+    const [initialFetchDone, setInitialFetchDone] = useState(false);
+
     useFocusEffect(
         useCallback(() => {
             const fetchFilterEntities = async () => {
@@ -265,6 +268,14 @@ export default function PendingApprovalScreen() {
             setIsRefreshing(false);
         }
     }, [user, setUser, selectedEntity]);
+
+    // --- ADDED: This useEffect will run once when the component mounts ---
+    useEffect(() => {
+        if (user && !initialFetchDone) {
+            handleSearch();
+            setInitialFetchDone(true); // Mark that the initial fetch has been done
+        }
+    }, [user, handleSearch, initialFetchDone]);
 
     // Handler for opening the WebView
     const handleIconPress = (parcel: Parcel) => {
@@ -392,6 +403,7 @@ export default function PendingApprovalScreen() {
 }
 
 
+// Styles remain unchanged
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#F8F9FA" },
     listContentContainer: { paddingHorizontal: 12, paddingBottom: 120 },

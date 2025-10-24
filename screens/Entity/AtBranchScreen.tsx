@@ -202,6 +202,10 @@ export default function AtBranchScreen() {
     const [webViewVisible, setWebViewVisible] = useState(false);
     const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
 
+    // Add a state to track if the initial fetch has been done
+    const [initialFetchDone, setInitialFetchDone] = useState(false);
+
+
     useFocusEffect(
         useCallback(() => {
             const fetchFilterEntities = async () => {
@@ -266,6 +270,15 @@ export default function AtBranchScreen() {
             setIsRefreshing(false);
         }
     }, [user, setUser, selectedEntity]);
+
+    // This useEffect will run once when the component mounts
+    useEffect(() => {
+        if (user && !initialFetchDone) {
+            handleSearch();
+            setInitialFetchDone(true); // Mark that the initial fetch has been done
+        }
+    }, [user, handleSearch, initialFetchDone]);
+
 
     const onRefresh = useCallback(() => {
         setIsRefreshing(true);
@@ -390,7 +403,7 @@ export default function AtBranchScreen() {
         </View>
     );
 }
-
+// Your existing styles remain unchanged
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#F8F9FA" },
     listContentContainer: { paddingHorizontal: 12, paddingBottom: 120 },
@@ -404,7 +417,7 @@ const styles = StyleSheet.create({
     modernDropdownValue: { color: "#1F2937", fontSize: 16, fontWeight: "600", textAlign: "right" },
     modernSearchButton: { backgroundColor: "#FF6B35", borderRadius: 8, padding: 16, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 },
     modernSearchButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
-    resultsHeader: { marginBottom: 10 },
+    resultsHeader: { marginBottom: 10, marginTop: 10 },
     sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", marginBottom: 16, textAlign: "right" },
     parcelSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: "#E5E7EB" },
     modernModalSearchInput: { flex: 1, color: "#1F2937", fontSize: 16, paddingVertical: Platform.OS === "ios" ? 12 : 8, textAlign: "right" },

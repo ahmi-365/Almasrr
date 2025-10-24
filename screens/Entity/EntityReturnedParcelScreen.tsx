@@ -238,13 +238,15 @@ export default function ReturnedParcelsScreen() {
     const [webViewVisible, setWebViewVisible] = useState(false);
     const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
 
+    // --- ADDED: State to track if the initial fetch has been done ---
+    const [initialFetchDone, setInitialFetchDone] = useState(false);
+
     useEffect(() => {
         const fetchReturnStatuses = async () => {
             try {
                 const response = await axios.get(`https://tanmia-group.com:84/courierApi/parcels/GetSelectedStatuses`);
                 const fetchedStatuses = Array.isArray(response.data?.Statuses) ? response.data.Statuses : [];
                 setReturnStatuses(fetchedStatuses);
-                // console.log("Fetched return statuses:", fetchedStatuses);
             } catch (error) {
                 console.error("Error fetching return statuses:", error);
                 setReturnStatuses([]);
@@ -252,11 +254,11 @@ export default function ReturnedParcelsScreen() {
         };
         fetchReturnStatuses();
     }, []);
+
     const handleFetchInvoices = async (parcel: Parcel) => {
-        // Prevent multiple clicks on the same parcel
         if (fetchingInvoiceParcelId === parcel.intParcelCode) return;
 
-        setFetchingInvoiceParcelId(parcel.intParcelCode); // Set the specific parcel ID
+        setFetchingInvoiceParcelId(parcel.intParcelCode);
         setSelectedParcelForInvoice(parcel);
 
         try {
@@ -279,9 +281,10 @@ export default function ReturnedParcelsScreen() {
             setAlertSuccess(false);
             setAlertVisible(true);
         } finally {
-            setFetchingInvoiceParcelId(null); // Clear the loading state
+            setFetchingInvoiceParcelId(null);
         }
     };
+
     useFocusEffect(
         useCallback(() => {
             const fetchFilterEntities = async () => {
@@ -299,7 +302,6 @@ export default function ReturnedParcelsScreen() {
 
                     const response = await axios.get(`https://tanmia-group.com:84/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
                     setEntities(response.data || []);
-                    // console.log("Fetched filter entities:", response.data);
                 } catch (error) {
                     console.error("Failed to fetch filter entities:", error);
                     setAlertTitle("خطأ");
@@ -310,6 +312,7 @@ export default function ReturnedParcelsScreen() {
             fetchFilterEntities();
         }, [user])
     );
+
     const formatInvoiceDate = (dateString: string) => {
         try {
             const date = new Date(dateString);
@@ -321,6 +324,7 @@ export default function ReturnedParcelsScreen() {
             return dateString.split(' ')[0] || dateString;
         }
     };
+
     const handleSearch = useCallback(async () => {
         setLoading(true);
         setParcelSearchQuery("");
@@ -346,13 +350,11 @@ export default function ReturnedParcelsScreen() {
             const targetId = selectedEntity ? selectedEntity.intEntityCode : parsedUser.userId;
 
             const response = await axios.get(`https://tanmia-group.com:84/courierApi/parcels/details/${targetId}/${statusId}`);
-            // console.log("api generated url", `https://tanmia-group.com:84/courierApi/parcels/details/${targetId}/${statusId}`);
             let parcels = response.data?.Parcels || [];
             if (selectedReturnStatus?.Value) {
                 parcels = parcels.filter(parcel => parcel.intStatusCode.toString() === selectedReturnStatus.Value);
             }
             setAllParcels(parcels);
-            // console.log("Fetched returned parcels:", parcels);
         } catch (error) {
             console.error("Failed to load returned parcels:", error);
             setAlertTitle("خطأ");
@@ -364,12 +366,19 @@ export default function ReturnedParcelsScreen() {
         }
     }, [user, setUser, selectedEntity, selectedReturnStatus]);
 
+    // --- ADDED: This useEffect will run once when the component mounts ---
+    useEffect(() => {
+        if (user && !initialFetchDone) {
+            handleSearch();
+            setInitialFetchDone(true); // Mark that the initial fetch has been done
+        }
+    }, [user, handleSearch, initialFetchDone]);
+
     const onRefresh = useCallback(() => {
         setIsRefreshing(true);
         handleSearch();
     }, [handleSearch]);
 
-    // --- Handler for opening the WebView ---
     const handleTrackPress = (parcel: Parcel) => {
         setSelectedParcel(parcel);
         setWebViewVisible(true);
@@ -576,6 +585,7 @@ export default function ReturnedParcelsScreen() {
     );
 }
 
+// Styles remain unchanged
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#F8F9FA" },
     listContentContainer: { paddingHorizontal: 12, paddingBottom: 120 },
@@ -590,7 +600,7 @@ const styles = StyleSheet.create({
     modernSearchButton: { backgroundColor: "#FF6B35", borderRadius: 8, padding: 16, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 },
     modernSearchButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
 
-    resultsHeader: { marginBottom: 10 },
+    resultsHeader: { marginBottom: 10, marginTop: 10 },
     sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", marginBottom: 16, textAlign: "right" },
     parcelSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: "#E5E7EB" },
     modernModalSearchInput: { flex: 1, color: "#1F2937", fontSize: 16, paddingVertical: Platform.OS === "ios" ? 12 : 8, textAlign: "right" },
