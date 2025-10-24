@@ -166,8 +166,8 @@ export default function App() {
 
         console.log(`App Version Check - Current: ${currentVersion}, Required: ${requiredVersion}`);
 
-        if (requiredVersion && currentVersion !== requiredVersion) {
-          // if (requiredVersion && parseInt(currentVersion) < parseInt(requiredVersion)) {
+        // if (requiredVersion && currentVersion !== requiredVersion) {
+        if (requiredVersion && parseInt(currentVersion) <= parseInt(requiredVersion)) {
           // --- IMPORTANT: REPLACE WITH YOUR ACTUAL STORE URLS ---
           const storeUrl = Platform.OS === 'ios'
             ? 'https://apps.apple.com/us/app/your-app-name/idcom.ALMASAR.ALMASAR'
