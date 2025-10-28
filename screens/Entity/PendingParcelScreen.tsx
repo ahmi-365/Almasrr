@@ -170,7 +170,7 @@ const FilterSection = ({ selectedEntity, setEntityModalVisible, handleSearch, lo
                 <View style={styles.modernDropdownIcon}><StoreIcon color="#FF6B35" size={20} /></View>
                 <View style={styles.modernDropdownText}>
                     <Text style={styles.modernDropdownLabel}>المتجر المحدد</Text>
-                    <Text style={styles.modernDropdownValue} numberOfLines={1}>{selectedEntity ? selectedEntity.strEntityName : "كل المتاجر"}</Text>
+                    <Text style={styles.modernDropdownValue}>{selectedEntity ? selectedEntity.strEntityName : "كل المتاجر"}</Text>
                 </View>
                 <ChevronDown color="#9CA3AF" size={20} />
             </View>
@@ -375,7 +375,7 @@ export default function PendingApprovalScreen() {
                         <TouchableOpacity onPress={() => setWebViewVisible(false)} style={styles.modalBackButton}>
                             <ChevronLeft size={24} color="#1F2937" />
                         </TouchableOpacity>
-                        <Text style={styles.modalHeaderTitle} numberOfLines={1}>
+                        <Text style={styles.modalHeaderTitle}>
                             {selectedParcel ? `تتبع: ${selectedParcel.ReferenceNo}` : 'تتبع الشحنة'}
                         </Text>
                         <View style={{ width: 40 }} />

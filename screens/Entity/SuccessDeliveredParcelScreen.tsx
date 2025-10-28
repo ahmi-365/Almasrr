@@ -100,7 +100,7 @@ const ParcelCard = ({ item, onTrackPress }: { item: Parcel, onTrackPress: (parce
                 <View style={styles.parcelHeaderContent}>
                     <View style={styles.parcelIconBackground}><Package color="#fff" size={20} /></View>
                     <View style={styles.parcelNameContainer}>
-                        <Text style={styles.transactionDate} numberOfLines={1}>{item.ReferenceNo}</Text>
+                        <Text style={styles.transactionDate}>{item.ReferenceNo}</Text>
                         <Text style={styles.runningTotalLabel}>{item.CityName}</Text>
                     </View>
                 </View>
@@ -116,8 +116,8 @@ const ParcelCard = ({ item, onTrackPress }: { item: Parcel, onTrackPress: (parce
                 <View style={styles.parcelInfoRow}><Box size={14} color="#6B7280" /><Text style={styles.parcelInfoText}>الكمية: {item.Quantity}</Text></View>
             </View>
             <View style={styles.parcelColumn}>
-                <View style={styles.parcelInfoRow}><FileText size={14} color="#6B7280" /><Text style={styles.parcelInfoText} numberOfLines={2}>{item.Remarks || 'لا توجد ملاحظات'}</Text></View>
-                {item.strDriverRemarks && (<Text style={styles.transactionRemarks} numberOfLines={2}>ملاحظات المندوب: {item.strDriverRemarks}</Text>)}
+                <View style={styles.parcelInfoRow}><FileText size={14} color="#6B7280" /><Text style={styles.parcelInfoText}>{item.Remarks || 'لا توجد ملاحظات'}</Text></View>
+                {item.strDriverRemarks && (<Text style={styles.transactionRemarks}>ملاحظات المندوب: {item.strDriverRemarks}</Text>)}
             </View>
         </View>
         <View style={styles.dateFooter}><Calendar size={12} color="#9CA3AF" /><Text style={styles.dateFooterText}>{formatDateTime(item.CreatedAt)}</Text></View>
@@ -131,7 +131,7 @@ const FilterSection = ({ selectedEntity, setEntityModalVisible, handleSearch, lo
                 <View style={styles.modernDropdownIcon}><StoreIcon color="#FF6B35" size={20} /></View>
                 <View style={styles.modernDropdownText}>
                     <Text style={styles.modernDropdownLabel}>المتجر المحدد</Text>
-                    <Text style={styles.modernDropdownValue} numberOfLines={1}>
+                    <Text style={styles.modernDropdownValue}>
                         {selectedEntity ? selectedEntity.strEntityName : "كل المتاجر"}
                     </Text>
                 </View>
@@ -364,7 +364,7 @@ export default function SuccessfulDeliveryScreen() {
                         <TouchableOpacity onPress={() => setWebViewVisible(false)} style={styles.modalBackButton}>
                             <ChevronLeft size={24} color="#1F2937" />
                         </TouchableOpacity>
-                        <Text style={styles.modalHeaderTitle} numberOfLines={1}>
+                        <Text style={styles.modalHeaderTitle}>
                             {selectedParcel ? `تتبع: ${selectedParcel.ReferenceNo}` : 'تتبع الشحنة'}
                         </Text>
                         <View style={{ width: 40 }} />

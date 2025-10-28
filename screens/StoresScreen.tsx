@@ -296,7 +296,7 @@ const StoreCard = ({ item, onDelete, onEdit }) => (
             <StoreIcon color="#fff" size={20} />
           </View>
           <View style={styles.storeNameContainer}>
-            <Text style={styles.transactionDate} numberOfLines={1}>
+            <Text style={styles.transactionDate}>
               {item.strEntityName}
             </Text>
             <Text style={styles.runningTotalLabel}>{item.strEntityCode}</Text>
@@ -322,14 +322,14 @@ const StoreCard = ({ item, onDelete, onEdit }) => (
         <View style={styles.storeColumn}>
           <View style={styles.storeInfoRow}>
             <MapPin size={14} color="#6B7280" />
-            <Text style={styles.storeInfoText} numberOfLines={2}>
+            <Text style={styles.storeInfoText}>
               {item.strAddress}
             </Text>
           </View>
 
           {item.strEntityDescription &&
             item.strEntityDescription !== item.strEntityName && (
-              <Text style={styles.transactionRemarks} numberOfLines={2}>
+              <Text style={styles.transactionRemarks}>
                 {item.strEntityDescription}
               </Text>
             )}
@@ -346,13 +346,13 @@ const StoreCard = ({ item, onDelete, onEdit }) => (
           <Text style={styles.editButtonText}>تعديل</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.deleteButton}
           onPress={() => onDelete(item.intEntityCode, item.strEntityName)}
         >
           <Trash2 color="#E74C3C" size={16} />
           <Text style={styles.deleteButtonText}>حذف</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
     </TouchableOpacity>
   </View>

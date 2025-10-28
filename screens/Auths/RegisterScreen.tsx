@@ -61,6 +61,8 @@ const RegisterScreen = () => {
 
   // Custom Alert states
   const [isAlertVisible, setAlertVisible] = useState(false);
+  const [alertSuccess, setAlertSuccess] = useState(false);
+
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const [alertConfirmColor, setAlertConfirmColor] = useState(
@@ -212,6 +214,7 @@ const RegisterScreen = () => {
       const fullMobileNumber = `218${phoneNumber}`;
       const formBody = new URLSearchParams({
         MobileNumber: fullMobileNumber,
+        intCityCode: selectedCity.toString(),
       }).toString();
       const response = await fetch(
         'https://tanmia-group.com:84/courierApi/register/sendotp',
@@ -221,6 +224,7 @@ const RegisterScreen = () => {
           body: formBody,
         }
       );
+      console.log(formBody)
       const responseData = await response.json();
       if (responseData.Success) {
         setIsCodeSent(true);
@@ -229,6 +233,8 @@ const RegisterScreen = () => {
         setAlertMessage(responseData.Message);
         setAlertConfirmColor(Colors.successGreen);
         setAlertVisible(true);
+        setAlertSuccess(true);
+
       } else {
         setAlertTitle('خطأ');
         setAlertMessage(responseData.Message || 'فشل إرسال الرمز.');
@@ -275,6 +281,7 @@ const RegisterScreen = () => {
       const formBody = new URLSearchParams({
         MobileNumber: fullMobileNumber,
         OTP: verificationCode,
+        intCityCode: selectedCity.toString(),
       }).toString();
       const response = await fetch(
         'https://tanmia-group.com:84/courierApi/register/verifyotp',
@@ -299,6 +306,7 @@ const RegisterScreen = () => {
         );
         setAlertConfirmColor(Colors.errorRed);
         setAlertVisible(true);
+
       }
     } catch (error) {
       console.error('Verify OTP error:', error);
@@ -358,6 +366,7 @@ const RegisterScreen = () => {
           message={alertMessage}
           confirmText="حسنًا"
           cancelText=""
+          success={alertSuccess}
           onConfirm={() => setAlertVisible(false)}
           onCancel={() => setAlertVisible(false)}
         />

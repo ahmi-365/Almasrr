@@ -688,7 +688,7 @@ export default function EntityDashboard() {
           </View>
 
           {/* Promo Slider */}
-          <View style={styles.promoSliderContainer}>
+          {/* <View style={styles.promoSliderContainer}>
             <FlatList
               data={PROMO_SLIDER_DATA}
               renderItem={({ item }) => <PromoSliderItem item={item} />}
@@ -705,7 +705,7 @@ export default function EntityDashboard() {
                 index,
               })}
             />
-          </View>
+          </View> */}
         </>
       </Animated.ScrollView>
 
@@ -779,7 +779,7 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   statsSection: {
-    marginBottom: 25
+    marginBottom: 50
   },
   sectionTitle: {
     fontSize: 18,

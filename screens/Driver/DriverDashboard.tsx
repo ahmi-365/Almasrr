@@ -447,7 +447,7 @@ export default function DriverDashboard() {
               showsHorizontalScrollIndicator={false}
             />
           </View>
-          <View style={styles.promoSliderContainer}>
+          {/* <View style={styles.promoSliderContainer}>
             <FlatList
               data={PROMO_SLIDER_DATA}
               renderItem={({ item }) => <PromoSliderItem item={item} />}
@@ -460,7 +460,7 @@ export default function DriverDashboard() {
               ItemSeparatorComponent={() => <View style={{ width: 15 }} />}
               getItemLayout={(data, index) => ({ length: SLIDER_WIDTH + 15, offset: (SLIDER_WIDTH + 15) * index, index })}
             />
-          </View>
+          </View> */}
         </>
       </Animated.ScrollView>
       <CustomAlert
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     textAlign: 'right',
   },
-  statsSection: { marginBottom: 25 },
+  statsSection: { marginBottom: 50 },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',

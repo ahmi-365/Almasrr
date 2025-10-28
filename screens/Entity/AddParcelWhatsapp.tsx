@@ -26,6 +26,7 @@ import {
     Calendar,
     Hash,
     ShoppingBag,
+    Clock, // Added for the time slot icon
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -48,6 +49,14 @@ interface Entity {
     strEntityName: string;
     strEntityCode: string;
 }
+
+// --- Constants ---
+const TIME_SLOTS = [
+    '10:00 - 12:00',
+    '12:00 - 14:00',
+    '14:00 - 16:00',
+    '16:00 - 18:00',
+];
 
 // --- Reusable UI Components ---
 const FormInput = ({ label, icon: Icon, placeholder, value, onChangeText, keyboardType = 'default', editable = true, required = false }) => (<View style={styles.inputContainer}><Text style={styles.label}>{label}{required && <Text style={styles.requiredStar}> *</Text>}</Text><View style={[styles.inputWrapper, !editable && styles.disabledInput]}><TextInput style={styles.input} placeholder={placeholder} placeholderTextColor="#A1A1AA" value={value} onChangeText={onChangeText} keyboardType={keyboardType as KeyboardTypeOptions} editable={editable} />{Icon && <Icon color="#A1A1AA" size={20} />}</View></View>);
@@ -78,8 +87,11 @@ export default function AddParcelWhatsappScreen() {
     const [isSending, setIsSending] = useState(false);
 
     const [orderDate, setOrderDate] = useState(new Date());
-    const [isPickerVisible, setPickerVisible] = useState(false);
-    const [pickerMode, setPickerMode] = useState<'date' | 'time'>('date');
+    const [isDatePickerVisible, setDatePickerVisible] = useState(false);
+
+    const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
+    const [isTimeSlotModalVisible, setTimeSlotModalVisible] = useState(false);
+
 
     const [quantity, setQuantity] = useState('');
     const [productPrice, setProductPrice] = useState('');
@@ -131,6 +143,27 @@ export default function AddParcelWhatsappScreen() {
         [storeSearchQuery, stores]
     );
 
+    // --- UPDATED: Time slot filtering logic ---
+    const availableTimeSlots = useMemo(() => {
+        const now = new Date();
+        const isSelectedDateToday = orderDate.getFullYear() === now.getFullYear() &&
+            orderDate.getMonth() === now.getMonth() &&
+            orderDate.getDate() === now.getDate();
+
+        // If selected date is not today (i.e., it's in the future), show all slots
+        if (!isSelectedDateToday) {
+            return TIME_SLOTS;
+        }
+
+        // If it is today, filter out past time slots
+        const currentHour = now.getHours();
+        return TIME_SLOTS.filter(slot => {
+            const endHour = parseInt(slot.split(' - ')[1].split(':')[0], 10);
+            return currentHour < endHour;
+        });
+    }, [orderDate]);
+
+
     // --- Handlers ---
     const handleSelectStore = (store: Entity) => {
         setSelectedStore(store);
@@ -138,46 +171,41 @@ export default function AddParcelWhatsappScreen() {
         setStoreSearchQuery("");
     };
 
-    const showPicker = (currentMode: 'date' | 'time') => {
-        setPickerVisible(true);
-        setPickerMode(currentMode);
+    const handleSelectTimeSlot = (timeSlot: string) => {
+        setSelectedTimeSlot(timeSlot);
+        setTimeSlotModalVisible(false);
     };
 
-    const onPickerChange = (event: any, selectedValue?: Date) => {
-        setPickerVisible(Platform.OS === 'ios');
+    // --- UPDATED: Date change handler to reset time slot ---
+    const onDateChange = (event: any, selectedValue?: Date) => {
+        setDatePickerVisible(Platform.OS === 'ios'); // Keep visible on iOS until user confirms
         if (event.type === 'set' && selectedValue) {
-            if (pickerMode === 'date') {
-                setOrderDate(selectedValue);
-                if (Platform.OS === 'android') {
-                    setPickerVisible(false);
-                    showPicker('time');
-                }
-            } else {
-                const newTime = selectedValue;
-                const combinedDate = new Date(orderDate);
-                combinedDate.setHours(newTime.getHours());
-                combinedDate.setMinutes(newTime.getMinutes());
-                setOrderDate(combinedDate);
-                if (Platform.OS === 'android') {
-                    setPickerVisible(false);
-                }
+            // Check if the date has actually changed
+            if (selectedValue.toDateString() !== orderDate.toDateString()) {
+                setSelectedTimeSlot(null); // Reset time slot if date changes
             }
-        } else {
-            setPickerVisible(false);
+            setOrderDate(selectedValue);
+        }
+        if (Platform.OS === 'android') {
+            setDatePickerVisible(false); // Always close on Android after selection
         }
     };
+
 
     const resetForm = () => {
         setQuantity('');
         setProductPrice('');
         setSelectedStore(null);
         setOrderDate(new Date());
+        setSelectedTimeSlot(null);
     };
 
-    // --- UPDATED: Handler now only sends to API ---
     const handleSendRequest = async () => {
         if (!selectedStore) {
             return showAlert({ title: 'حقل مطلوب', message: 'يرجى اختيار المتجر أولاً.' });
+        }
+        if (!selectedTimeSlot) {
+            return showAlert({ title: 'حقل مطلوب', message: 'يرجى اختيار فترة زمنية.' });
         }
         if (!quantity.trim() || !(parseInt(quantity, 10) > 0)) {
             return showAlert({ title: 'قيمة غير صالحة', message: 'يرجى إدخال كمية صحيحة أكبر من صفر.' });
@@ -192,33 +220,33 @@ export default function AddParcelWhatsappScreen() {
             const year = orderDate.getFullYear();
             const month = (orderDate.getMonth() + 1).toString().padStart(2, '0');
             const day = orderDate.getDate().toString().padStart(2, '0');
-            const hour = orderDate.getHours().toString().padStart(2, '0');
-            const minute = orderDate.getMinutes().toString().padStart(2, '0');
-            const apiDateTime = `${year}-${month}-${day}T${hour}-${minute}`;
+            const formattedDate = `${year}-${month}-${day}`;
+
 
             const userDataString = await AsyncStorage.getItem('user');
             if (!userDataString) throw new Error("User not found");
 
             const parsedUser = JSON.parse(userDataString);
             const userId = parsedUser?.userId;
-            const entitycode = userId;
+            // const entitycode = userId;
+            const entitycode = selectedStore.intEntityCode ?? userId;
             const qty = quantity;
             const amount = productPrice;
+            // --- UPDATED: Extract only the start time from the selected slot ---
+            // For example, "16:00 - 18:00" becomes "16:00"
+            const startTime = selectedTimeSlot.split(' - ')[0];
 
-            const apiUrl = `https://tanmia-group.com:84/courierApi/parcels/RequestParcelWhatsapp/${entitycode}/${apiDateTime}/${qty}/${amount}`;
-
-            // 🟠 Logging everything you're sending
+            // const apiUrl = `https://tanmia-group.com:84/courierApi/parcels/RequestParcelWhatsapp/${entitycode}/${apiDateTime}/${qty}/${amount}`;
+            const apiUrl = `https://tanmia-group.com:84/courierApi/parcels/RequestParcelWhatsapp/${entitycode}/${formattedDate}/${qty}/${amount}?strTimeSlot=${startTime}`;
             console.log('🟠 Sending Request with the following data:');
             console.log('User ID / Entity Code:', entitycode);
-            console.log('Order Date (formatted):', apiDateTime);
+            console.log('Order Date (yyyy-MM-dd):', formattedDate);
             console.log('Quantity:', qty);
             console.log('Product Price:', amount);
             console.log('Constructed API URL:', apiUrl);
 
-            // ✅ Send POST request with empty body
             const response = await axios.post(apiUrl, {});
 
-            // ✅ Log response
             console.log('✅ API Response Status:', response.status);
             console.log('✅ API Response Data:', response.data);
 
@@ -259,21 +287,32 @@ export default function AddParcelWhatsappScreen() {
                     <>
                         <FormPicker label="المتجر" icon={Store} value={selectedStore?.strEntityName} onPress={() => setStoreModalVisible(true)} placeholder="اختر المتجر" required />
 
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.label}>تاريخ ووقت الطلب<Text style={styles.requiredStar}> *</Text></Text>
-                            <TouchableOpacity style={styles.inputWrapper} onPress={() => showPicker('date')}>
-                                <Text style={styles.input}>
-                                    {`${orderDate.getHours().toString().padStart(2, '0')}:${orderDate.getMinutes().toString().padStart(2, '0')}   ${orderDate.getDate().toString().padStart(2, '0')}-${(orderDate.getMonth() + 1).toString().padStart(2, '0')}-${orderDate.getFullYear()}`}
-                                </Text>
-                                <Calendar color="#A1A1AA" size={20} />
-                            </TouchableOpacity>
+                        <View style={styles.rowContainer}>
+                            <View style={styles.halfWidthInput}>
+                                <Text style={styles.label}>تاريخ<Text style={styles.requiredStar}> *</Text></Text>
+                                <TouchableOpacity style={styles.inputWrapper} onPress={() => setDatePickerVisible(true)}>
+                                    <Text style={styles.input}>
+                                        {orderDate.toLocaleDateString('ar-EG-u-nu-latn', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+                                    </Text>
+                                    <Calendar color="#A1A1AA" size={20} />
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.halfWidthInput}>
+                                <Text style={styles.label}>فترة زمنية<Text style={styles.requiredStar}> *</Text></Text>
+                                <TouchableOpacity style={styles.inputWrapper} onPress={() => setTimeSlotModalVisible(true)}>
+                                    <Text style={[styles.input, !selectedTimeSlot && styles.placeholderText]}>
+                                        {selectedTimeSlot || "اختر فترة"}
+                                    </Text>
+                                    <Clock color="#A1A1AA" size={20} />
+                                </TouchableOpacity>
+                            </View>
                         </View>
+
 
                         <FormInput label="الكمية" icon={Hash} value={quantity} onChangeText={setQuantity} placeholder="1" keyboardType="number-pad" required />
                         <FormInput label="سعر المنتج" icon={ShoppingBag} value={productPrice} onChangeText={setProductPrice} placeholder="0.00" keyboardType="numeric" required />
                     </>
-
-
                 )}
 
                 <View style={styles.imageContainer}>
@@ -291,20 +330,46 @@ export default function AddParcelWhatsappScreen() {
                 </TouchableOpacity>
             </View>
 
-            {isPickerVisible && (
+            {isDatePickerVisible && (
                 <DateTimePicker
                     value={orderDate}
-                    mode={pickerMode}
+                    mode={'date'}
                     is24Hour={true}
                     display="default"
-                    onChange={onPickerChange}
+                    onChange={onDateChange}
+                    minimumDate={new Date()} // --- UPDATED: Disable past dates
                 />
             )}
-
 
             <CustomAlert isVisible={alertConfig.isVisible} title={alertConfig.title} message={alertConfig.message} confirmText={alertConfig.confirmText} onConfirm={handleAlertConfirm} cancelText={null} success={alertConfig.success} onCancel={undefined} />
 
             <Modal visible={isStoreModalVisible} animationType="fade" transparent={true} onRequestClose={() => setStoreModalVisible(false)}><TouchableWithoutFeedback onPress={() => setStoreModalVisible(false)}><View style={styles.modalOverlay}><TouchableWithoutFeedback><SafeAreaView style={styles.modernModalContent}><Text style={styles.modalTitle}>اختيار المتجر</Text><View style={styles.modernModalSearchContainer}><Search color="#9CA3AF" size={20} style={styles.modalSearchIcon} /><TextInput style={styles.modernModalSearchInput} placeholder="ابحث عن متجر..." placeholderTextColor="#9CA3AF" value={storeSearchQuery} onChangeText={setStoreSearchQuery} /></View><FlatList data={displayedStores} keyExtractor={(item) => item.intEntityCode.toString()} renderItem={({ item }) => (<TouchableOpacity style={styles.modernModalItem} onPress={() => handleSelectStore(item)}><View style={styles.modalItemContent}><Text style={[styles.modernModalItemText, selectedStore?.intEntityCode === item.intEntityCode && styles.modalItemSelected]}>{item.strEntityName}</Text><Text style={styles.modalItemCode}>{item.strEntityCode}</Text></View>{selectedStore?.intEntityCode === item.intEntityCode && <Check color="#FF6B35" size={20} />}</TouchableOpacity>)} /></SafeAreaView></TouchableWithoutFeedback></View></TouchableWithoutFeedback></Modal>
+
+            {/* --- UPDATED: Time Slot Modal now uses filtered data --- */}
+            <Modal visible={isTimeSlotModalVisible} animationType="fade" transparent={true} onRequestClose={() => setTimeSlotModalVisible(false)}>
+                <TouchableWithoutFeedback onPress={() => setTimeSlotModalVisible(false)}>
+                    <View style={styles.modalOverlay}>
+                        <TouchableWithoutFeedback>
+                            <SafeAreaView style={[styles.modernModalContent, { maxHeight: "50%" }]}>
+                                <Text style={styles.modalTitle}>اختيار فترة زمنية</Text>
+                                <FlatList
+                                    data={availableTimeSlots}
+                                    keyExtractor={(item) => item}
+                                    renderItem={({ item }) => (
+                                        <TouchableOpacity style={styles.modernModalItem} onPress={() => handleSelectTimeSlot(item)}>
+                                            <Text style={[styles.modernModalItemText, selectedTimeSlot === item && styles.modalItemSelected]}>
+                                                {item}
+                                            </Text>
+                                            {selectedTimeSlot === item && <Check color="#FF6B35" size={20} />}
+                                        </TouchableOpacity>
+                                    )}
+                                    ListEmptyComponent={<Text style={styles.emptyListText}>لا توجد فترات متاحة لهذا اليوم</Text>}
+                                />
+                            </SafeAreaView>
+                        </TouchableWithoutFeedback>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
         </View>
     );
 }
@@ -335,16 +400,21 @@ const styles = StyleSheet.create({
     modernModalItemText: { color: "#1F2937", fontSize: 16, fontWeight: "500", textAlign: "right", marginBottom: 2 },
     modalItemCode: { color: "#6B7280", fontSize: 12, textAlign: "right" },
     modalItemSelected: { color: "#FF6B35", fontWeight: "bold" },
-    imageContainer: {
-        flex: 1,
-        justifyContent: 'center',   // vertical centering
-        alignItems: 'center',       // horizontal centering
-        marginTop: 12,
+    imageContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 12, },
+    image: { width: 200, height: 200, },
+    rowContainer: {
+        flexDirection: 'row-reverse',
+        justifyContent: 'space-between',
+        marginBottom: 20,
     },
-
-    image: {
-        width: 200,
-        height: 200,
+    halfWidthInput: {
+        width: '48%',
+    },
+    emptyListText: { // Added style for empty list message
+        textAlign: 'center',
+        color: '#6B7280',
+        fontSize: 16,
+        padding: 20,
     },
 });
 

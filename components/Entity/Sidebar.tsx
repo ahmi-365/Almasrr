@@ -82,9 +82,11 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
         { image: images.deliveredParcels, title: 'التوصيل ناجح', route: 'SuccessfulDeliveryScreen' }
 
       ];
-    const dashboardRoute: keyof RootStackParamList = isDriver ? 'DriverDashboard' : 'EntityDashboard';
+    // const dashboardRoute: keyof RootStackParamList = isDriver ? 'DriverDashboard' : 'EntityDashboard';
+    const dashboardRoute: keyof RootStackParamList = isDriver ? 'ReportsTab' : 'ReportsTab';
+
     return {
-      dashboardItem: { image: images.dashboard, title: 'لوحة القيادة', route: dashboardRoute },
+      dashboardItem: { image: images.dashboard, title: 'تقرير المعاملات', route: dashboardRoute },
       orbitingItems: allItems,
     };
   }, [user]);
@@ -155,7 +157,9 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
 
   const isDriver = user.roleName === 'Driver';
   const activeTabs = isDriver ? DRIVER_TAB_SCREENS : TAB_SCREENS;
-  const isDashboardActive = activeTabs.includes(currentRoute as any);
+  // const isDashboardActive = activeTabs.includes(currentRoute as any);
+  const isDashboardActive = currentRoute === 'ReportsTab';
+
 
   const rotation = rotationAnim.interpolate({
     inputRange: [0, 1],
@@ -186,7 +190,7 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
             const totalItems = orbitingItems.length;
             const anglePerItem = 360 / totalItems;
             const angle = -90 + (index * anglePerItem);
-            const radius = screenWidth * 0.3;
+            const radius = screenWidth * 0.33;
             const isActive = item.route === currentRoute;
             const itemAnimation = itemAnims[index];
 
@@ -209,6 +213,7 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
             <TouchableOpacity style={[styles.mainButton, isDashboardActive && styles.mainButtonActive]} onPress={() => handleItemPress(dashboardItem)}>
               <Image source={dashboardItem.image} style={[styles.mainButtonImage, isDashboardActive && styles.mainButtonImageActive]} />
             </TouchableOpacity>
+            <Text style={styles.menuItemText}>{dashboardItem.title}</Text>
           </Animated.View>
         </Animated.View>
       </View>
@@ -241,15 +246,15 @@ const styles = StyleSheet.create({
   profileButton: { backgroundColor: '#FFFFFF', borderRadius: 25, paddingVertical: 12, paddingHorizontal: 40, elevation: 5, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 5 },
   profileButtonText: { color: '#FF8C42', fontSize: 14, fontWeight: 'bold' },
   dialerContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  mainButton: { width: 68, height: 68, borderRadius: 34, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', elevation: 10 },
+  mainButton: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', elevation: 10 },
   mainButtonActive: { backgroundColor: '#FF8C42' },
   menuItemContainer: { position: 'absolute', alignItems: 'center' },
   menuItem: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center' },
   menuItemActive: { backgroundColor: '#FF8C42' },
-  menuItemText: { color: '#FFFFFF', marginTop: 0, fontSize: 12, fontWeight: 'bold', textAlign: 'center', width: 90, textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+  menuItemText: { color: '#FFFFFF', marginTop: 5, fontSize: 12, fontWeight: 'bold', textAlign: 'center', textShadowColor: 'rgba(0, 0, 0, 0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
   mainButtonImage: {
-    width: 65,
-    height: 65,
+    width: 60,
+    height: 60,
     resizeMode: 'contain',
   },
   mainButtonImageActive: {

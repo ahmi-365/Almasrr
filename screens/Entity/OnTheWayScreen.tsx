@@ -131,7 +131,7 @@ const DeliveryCard = ({ item, onNotifyPress, onTrackPress }: { item: Parcel, onN
                 <View style={styles.sectionHeader}><View style={styles.dot} /><Text style={styles.sectionTitle}>تفاصيل الطلب</Text></View>
                 <View style={styles.detailsRow}>
                     <View style={styles.detailBox}><Text style={styles.detailNumber}>{item.Quantity}</Text><Text style={styles.detailLabel}>الكمية</Text></View>
-                    <View style={styles.detailBox}><Text style={[styles.detailNumber, { fontSize: 16 }]} numberOfLines={1}>{item.TypeName}</Text><Text style={styles.detailLabel}>نوع الطرد</Text></View>
+                    <View style={styles.detailBox}><Text style={[styles.detailNumber, { fontSize: 16 }]}>{item.TypeName}</Text><Text style={styles.detailLabel}>نوع الطرد</Text></View>
                 </View>
             </View>
 
@@ -440,7 +440,7 @@ export default function OnTheWayScreen() {
                         <TouchableOpacity onPress={() => setWebViewVisible(false)} style={styles.modalBackButton}>
                             <ChevronLeft size={24} color="#1F2937" />
                         </TouchableOpacity>
-                        <Text style={styles.modalHeaderTitle} numberOfLines={1}>
+                        <Text style={styles.modalHeaderTitle}>
                             {selectedParcel ? `تتبع: ${selectedParcel.ReferenceNo}` : 'تتبع الشحنة'}
                         </Text>
                         <View style={{ width: 40 }} />

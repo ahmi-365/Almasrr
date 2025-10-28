@@ -102,7 +102,7 @@ const ParcelCard = ({ item }: { item: Parcel }) => (
                     <Package color="#fff" size={20} />
                 </View>
                 <View style={styles.parcelNameContainer}>
-                    <Text style={styles.transactionDate} numberOfLines={1}>
+                    <Text style={styles.transactionDate}>
                         {item.ReferenceNo}
                     </Text>
                     <Text style={styles.runningTotalLabel}>{item.CityName}</Text>
@@ -146,12 +146,12 @@ const ParcelCard = ({ item }: { item: Parcel }) => (
             <View style={styles.parcelColumn}>
                 <View style={styles.parcelInfoRow}>
                     <FileText size={14} color="#6B7280" />
-                    <Text style={styles.parcelInfoText} numberOfLines={2}>
+                    <Text style={styles.parcelInfoText}>
                         {item.Remarks || 'لا توجد ملاحظات'}
                     </Text>
                 </View>
                 {item.strDriverRemarks && (
-                    <Text style={styles.transactionRemarks} numberOfLines={2}>
+                    <Text style={styles.transactionRemarks}>
                         ملاحظات المندوب: {item.strDriverRemarks}
                     </Text>
                 )}
