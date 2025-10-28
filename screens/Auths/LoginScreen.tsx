@@ -382,7 +382,7 @@ const LoginScreen = () => {
 
 
   const handleCreateAccount = () => {
-    navigation.navigate('Register');
+    navigation.replace('Register');
   };
 
   const wavePath1 = waveOffset1.interpolate({
@@ -529,7 +529,7 @@ const LoginScreen = () => {
         onConfirm={() => {
           setAlertVisible(false);
           if (alertTitle === 'تم تسجيل الدخول بنجاح') {
-            navigation.navigate('MainTabs');
+            navigation.replace('MainTabs');
           }
         }}
         onCancel={() => setAlertVisible(false)}

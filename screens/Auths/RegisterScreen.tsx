@@ -229,13 +229,14 @@ const RegisterScreen = () => {
       if (responseData.Success) {
         setIsCodeSent(true);
         startCountdown();
+        setAlertSuccess(true);
         setAlertTitle('تم الإرسال');
         setAlertMessage(responseData.Message);
         setAlertConfirmColor(Colors.successGreen);
         setAlertVisible(true);
-        setAlertSuccess(true);
 
       } else {
+        setAlertSuccess(false);
         setAlertTitle('خطأ');
         setAlertMessage(responseData.Message || 'فشل إرسال الرمز.');
         setAlertConfirmColor(Colors.errorRed);
@@ -243,6 +244,7 @@ const RegisterScreen = () => {
       }
     } catch (error) {
       console.error('Send OTP error:', error);
+      setAlertSuccess(false);
       setAlertTitle('خطأ في الاتصال');
       setAlertMessage('يرجى التحقق من اتصالك بالإنترنت.');
       setAlertConfirmColor(Colors.errorRed);
@@ -300,6 +302,8 @@ const RegisterScreen = () => {
           intCityCode: selectedCity
         });
       } else {
+        setAlertSuccess(false);
+
         setAlertTitle('خطأ في التحقق');
         setAlertMessage(
           responseData.Message || 'الرمز الذي أدخلته غير صحيح أو انتهت صلاحيته.'
@@ -310,6 +314,7 @@ const RegisterScreen = () => {
       }
     } catch (error) {
       console.error('Verify OTP error:', error);
+      setAlertSuccess(false);
       setAlertTitle('خطأ في الاتصال');
       setAlertMessage('يرجى التحقق من اتصالك بالإنترنت.');
       setAlertConfirmColor(Colors.errorRed);
@@ -319,7 +324,7 @@ const RegisterScreen = () => {
     }
   };
 
-  const handleBackToLogin = () => navigation.navigate('Login');
+  const handleBackToLogin = () => navigation.replace('Login');
 
   const wavePath1 = waveOffset1.interpolate({
     inputRange: [0, 1],
