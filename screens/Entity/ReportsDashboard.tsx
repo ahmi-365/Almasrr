@@ -15,7 +15,7 @@ import {
   RefreshControl,
   Image,
   PermissionsAndroid,
-  Linking,
+  Button,
 } from "react-native";
 import { useFocusEffect, useRoute } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -38,7 +38,7 @@ import {
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
-import { useSafeAreaInsets } from "react-native-safe-area-context"; // Corrected import
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
 import CustomAlert from "../../components/CustomAlert";
@@ -122,7 +122,7 @@ const FilterSection = ({
   setEntityModalVisible,
   fromDate,
   toDate,
-  setDatePickerVisible,
+  onShowDatePicker,
   handleSearch,
   loading,
 }) => (
@@ -152,11 +152,12 @@ const FilterSection = ({
     <View style={styles.modernDateRow}>
       <TouchableOpacity
         style={styles.modernDateField}
-        onPress={() => setDatePickerVisible("from")}
+        onPress={() => onShowDatePicker("from")}
         activeOpacity={0.7}
       >
         <View style={styles.modernDateIcon}>
-          <Calendar color="#3498DB" size={18} />
+          {/* UPDATED: Consistent icon color */}
+          <Calendar color="#6B7280" size={18} />
         </View>
         <View style={styles.modernDateContent}>
           <Text style={styles.modernDateLabel}>من تاريخ</Text>
@@ -167,11 +168,12 @@ const FilterSection = ({
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.modernDateField}
-        onPress={() => setDatePickerVisible("to")}
+        onPress={() => onShowDatePicker("to")}
         activeOpacity={0.7}
       >
         <View style={styles.modernDateIcon}>
-          <Calendar color="#E67E22" size={18} />
+          {/* UPDATED: Consistent icon color */}
+          <Calendar color="#6B7280" size={18} />
         </View>
         <View style={styles.modernDateContent}>
           <Text style={styles.modernDateLabel}>إلى تاريخ</Text>
@@ -279,6 +281,7 @@ export default function ReportsDashboard() {
   const [toDate, setToDate] = useState(new Date());
   const [entityModalVisible, setEntityModalVisible] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState<"from" | "to" | null>(null);
+  const [isDatePickerModalVisible, setDatePickerModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isAlertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
@@ -451,7 +454,6 @@ export default function ReportsDashboard() {
           },
         });
 
-        // --- NEW: SHOW SUCCESS DIALOG ---
         setAlertTitle("نجاح");
         setAlertMessage("تم حفظ الملف بنجاح في مجلد التنزيلات/Almasar");
         setAlertSuccess(true);
@@ -488,8 +490,6 @@ export default function ReportsDashboard() {
     const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
       if (type === EventType.PRESS && detail.pressAction?.id === 'open-pdf') {
         const filePath = detail.notification?.data?.filePath;
-
-        // --- FIX: Ensure filePath is a string before using it ---
         if (filePath && typeof filePath === 'string') {
           FileViewer.open(filePath)
             .then(() => {
@@ -571,11 +571,26 @@ export default function ReportsDashboard() {
     handleSearch();
   }, [handleSearch]);
 
+  const showDatePicker = (mode: 'from' | 'to') => {
+    setDatePickerVisible(mode);
+    if (Platform.OS === 'ios') {
+      setDatePickerModalVisible(true);
+    }
+  };
+
   const onDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    setDatePickerVisible(null);
-    if (event.type === "set" && selectedDate) {
-      if (datePickerVisible === "from") setFromDate(selectedDate);
-      else setToDate(selectedDate);
+    const currentDate = selectedDate || (datePickerVisible === 'from' ? fromDate : toDate);
+
+    if (Platform.OS === 'android') {
+      setDatePickerVisible(null);
+    }
+
+    if (event.type === "set") {
+      if (datePickerVisible === "from") {
+        setFromDate(currentDate);
+      } else {
+        setToDate(currentDate);
+      }
     }
   };
 
@@ -640,7 +655,7 @@ export default function ReportsDashboard() {
               setEntityModalVisible={setEntityModalVisible}
               fromDate={fromDate}
               toDate={toDate}
-              setDatePickerVisible={setDatePickerVisible}
+              onShowDatePicker={showDatePicker}
               handleSearch={handleSearch}
               loading={loading && !refreshing}
             />
@@ -712,7 +727,7 @@ export default function ReportsDashboard() {
         }
       />
 
-      {datePickerVisible && (
+      {Platform.OS === 'android' && datePickerVisible && (
         <DateTimePicker
           value={datePickerVisible === "from" ? fromDate : toDate}
           mode="date"
@@ -721,6 +736,37 @@ export default function ReportsDashboard() {
           maximumDate={new Date()}
         />
       )}
+
+      {Platform.OS === 'ios' && (
+        <Modal
+          transparent={true}
+          animationType="slide"
+          visible={isDatePickerModalVisible}
+          onRequestClose={() => setDatePickerModalVisible(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setDatePickerModalVisible(false)}>
+            <View style={styles.iosModalOverlay}>
+              <View style={styles.iosDatePickerContainer}>
+
+                <DateTimePicker
+                  key={String(new Date())} 
+                  value={datePickerVisible === "from" ? fromDate : toDate}
+                  mode="date"
+                  display="inline"
+                  onChange={onDateChange}
+                  maximumDate={new Date()} // This is correct
+                  minimumDate={undefined}
+                  textColor='#FF6B35'
+                  accentColor='#FF6B35'
+                  themeVariant="light"
+                />
+                <Button title="Done" onPress={() => setDatePickerModalVisible(false)} color="#FF6B35" />
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+      )}
+
       {user?.roleName === "Entity" && (
         <Modal
           visible={entityModalVisible}
@@ -804,6 +850,7 @@ export default function ReportsDashboard() {
   );
 }
 
+// --- STYLESHEET WITH COLOR UPDATES ---
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8F9FA" },
   topBar: {
@@ -1120,5 +1167,17 @@ const styles = StyleSheet.create({
     width: "auto",
     borderRadius: 8,
     marginBottom: 12,
+  },
+  iosModalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    // backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  iosDatePickerContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingBottom: 20,
+    borderTopRightRadius: 16,
+    borderTopLeftRadius: 16,
+    paddingHorizontal: 8,
   },
 });

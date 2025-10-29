@@ -190,7 +190,7 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
             const totalItems = orbitingItems.length;
             const anglePerItem = 360 / totalItems;
             const angle = -90 + (index * anglePerItem);
-            const radius = screenWidth * 0.33;
+            const radius = screenWidth * 0.32;
             const isActive = item.route === currentRoute;
             const itemAnimation = itemAnims[index];
 

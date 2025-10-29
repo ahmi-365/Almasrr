@@ -1,6 +1,4 @@
-// /src/screens/AddParcelWhatsappScreen.js
-
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react'; // Import useCallback
 import {
     View,
     Text,
@@ -8,7 +6,6 @@ import {
     StyleSheet,
     ScrollView,
     TouchableOpacity,
-    StatusBar,
     Modal,
     SafeAreaView,
     FlatList,
@@ -17,6 +14,7 @@ import {
     ActivityIndicator,
     KeyboardTypeOptions,
     Image,
+    Button,
 } from 'react-native';
 import {
     Store,
@@ -26,14 +24,15 @@ import {
     Calendar,
     Hash,
     ShoppingBag,
-    Clock, // Added for the time slot icon
+    Clock,
 } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import TopBar from '../../components/Entity/TopBarNew';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CustomAlert from '../../components/CustomAlert';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { useFocusEffect } from '@react-navigation/native'; // <-- 1. IMPORT useFocusEffect
 
 // --- Shimmer Placeholder Imports ---
 import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
@@ -85,18 +84,35 @@ export default function AddParcelWhatsappScreen() {
     const [storeSearchQuery, setStoreSearchQuery] = useState('');
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [isSending, setIsSending] = useState(false);
-
     const [orderDate, setOrderDate] = useState(new Date());
-    const [isDatePickerVisible, setDatePickerVisible] = useState(false);
-
+    const [isDatePickerVisibleAndroid, setDatePickerVisibleAndroid] = useState(false);
+    const [isDatePickerModalVisibleIOS, setDatePickerModalVisibleIOS] = useState(false);
     const [selectedTimeSlot, setSelectedTimeSlot] = useState<string | null>(null);
     const [isTimeSlotModalVisible, setTimeSlotModalVisible] = useState(false);
-
-
     const [quantity, setQuantity] = useState('');
     const [productPrice, setProductPrice] = useState('');
-
     const [alertConfig, setAlertConfig] = useState({ isVisible: false, title: '', message: '', confirmText: 'حسناً', success: false, onConfirmAction: () => { } });
+
+    // --- FIX: State to trigger the invisible reset picker ---
+    const [resetToken, setResetToken] = useState<number | null>(null);
+
+    // --- FIX: This effect runs every time the screen comes into focus to clear the picker's state ---
+    useFocusEffect(
+        useCallback(() => {
+            // When the screen is focused, we set a new token.
+            // This forces our invisible <DateTimePicker> below to render with a new key.
+            // That new instance overwrites the faulty state left by the previous screen.
+            if (Platform.OS === 'ios') {
+                setResetToken(Date.now());
+            }
+
+            // When the user navigates away, we can clear the token.
+            return () => {
+                setResetToken(null);
+            };
+        }, [])
+    );
+
 
     const showAlert = (config) => {
         setAlertConfig({
@@ -143,19 +159,16 @@ export default function AddParcelWhatsappScreen() {
         [storeSearchQuery, stores]
     );
 
-    // --- UPDATED: Time slot filtering logic ---
     const availableTimeSlots = useMemo(() => {
         const now = new Date();
         const isSelectedDateToday = orderDate.getFullYear() === now.getFullYear() &&
             orderDate.getMonth() === now.getMonth() &&
             orderDate.getDate() === now.getDate();
 
-        // If selected date is not today (i.e., it's in the future), show all slots
         if (!isSelectedDateToday) {
             return TIME_SLOTS;
         }
 
-        // If it is today, filter out past time slots
         const currentHour = now.getHours();
         return TIME_SLOTS.filter(slot => {
             const endHour = parseInt(slot.split(' - ')[1].split(':')[0], 10);
@@ -176,18 +189,25 @@ export default function AddParcelWhatsappScreen() {
         setTimeSlotModalVisible(false);
     };
 
-    // --- UPDATED: Date change handler to reset time slot ---
-    const onDateChange = (event: any, selectedValue?: Date) => {
-        setDatePickerVisible(Platform.OS === 'ios'); // Keep visible on iOS until user confirms
-        if (event.type === 'set' && selectedValue) {
-            // Check if the date has actually changed
-            if (selectedValue.toDateString() !== orderDate.toDateString()) {
-                setSelectedTimeSlot(null); // Reset time slot if date changes
-            }
-            setOrderDate(selectedValue);
+    const showDatePicker = () => {
+        if (Platform.OS === 'ios') {
+            setDatePickerModalVisibleIOS(true);
+        } else {
+            setDatePickerVisibleAndroid(true);
         }
+    };
+
+    const onDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
         if (Platform.OS === 'android') {
-            setDatePickerVisible(false); // Always close on Android after selection
+            setDatePickerVisibleAndroid(false);
+        }
+
+        if (event.type === 'set') {
+            const currentDate = selectedDate || orderDate;
+            if (currentDate.toDateString() !== orderDate.toDateString()) {
+                setSelectedTimeSlot(null);
+            }
+            setOrderDate(currentDate);
         }
     };
 
@@ -228,27 +248,14 @@ export default function AddParcelWhatsappScreen() {
 
             const parsedUser = JSON.parse(userDataString);
             const userId = parsedUser?.userId;
-            // const entitycode = userId;
             const entitycode = selectedStore.intEntityCode ?? userId;
             const qty = quantity;
             const amount = productPrice;
-            // --- UPDATED: Extract only the start time from the selected slot ---
-            // For example, "16:00 - 18:00" becomes "16:00"
             const startTime = selectedTimeSlot.split(' - ')[0];
 
-            // const apiUrl = `https://tanmia-group.com:84/courierApi/parcels/RequestParcelWhatsapp/${entitycode}/${apiDateTime}/${qty}/${amount}`;
             const apiUrl = `https://tanmia-group.com:84/courierApi/parcels/RequestParcelWhatsapp/${entitycode}/${formattedDate}/${qty}/${amount}?strTimeSlot=${startTime}`;
-            console.log('🟠 Sending Request with the following data:');
-            console.log('User ID / Entity Code:', entitycode);
-            console.log('Order Date (yyyy-MM-dd):', formattedDate);
-            console.log('Quantity:', qty);
-            console.log('Product Price:', amount);
-            console.log('Constructed API URL:', apiUrl);
 
             const response = await axios.post(apiUrl, {});
-
-            console.log('✅ API Response Status:', response.status);
-            console.log('✅ API Response Data:', response.data);
 
             if (response.status === 200) {
                 showAlert({
@@ -278,6 +285,17 @@ export default function AddParcelWhatsappScreen() {
 
     return (
         <View style={styles.container}>
+            {/* --- FIX: The Invisible Reset Picker --- */}
+            {Platform.OS === 'ios' && resetToken && (
+                <DateTimePicker
+                    key={String(resetToken)}
+                    value={new Date()}
+                    onChange={() => { }} // Dummy, does nothing
+                    style={{ position: 'absolute', left: -10000, top: -10000 }} // Hide it
+                // NOTE: NO minimumDate or maximumDate props. This is a neutral reset.
+                />
+            )}
+
             <TopBar title="إضافة طلب واتساب" />
 
             <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
@@ -290,9 +308,9 @@ export default function AddParcelWhatsappScreen() {
                         <View style={styles.rowContainer}>
                             <View style={styles.halfWidthInput}>
                                 <Text style={styles.label}>تاريخ<Text style={styles.requiredStar}> *</Text></Text>
-                                <TouchableOpacity style={styles.inputWrapper} onPress={() => setDatePickerVisible(true)}>
+                                <TouchableOpacity style={styles.inputWrapper} onPress={showDatePicker}>
                                     <Text style={styles.input}>
-                                        {orderDate.toLocaleDateString('ar-EG-u-nu-latn', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+                                        {orderDate.toLocaleDateString('en', { year: 'numeric', month: '2-digit', day: '2-digit' })}
                                     </Text>
                                     <Calendar color="#A1A1AA" size={20} />
                                 </TouchableOpacity>
@@ -330,22 +348,50 @@ export default function AddParcelWhatsappScreen() {
                 </TouchableOpacity>
             </View>
 
-            {isDatePickerVisible && (
+            {Platform.OS === 'android' && isDatePickerVisibleAndroid && (
                 <DateTimePicker
                     value={orderDate}
                     mode={'date'}
-                    is24Hour={true}
                     display="default"
                     onChange={onDateChange}
-                    minimumDate={new Date()} // --- UPDATED: Disable past dates
+                    minimumDate={new Date()} // Disable past dates
                 />
+            )}
+
+            {/* The actual, visible iOS picker is now safe to render */}
+            {Platform.OS === 'ios' && (
+                <Modal
+                    transparent={true}
+                    animationType="slide"
+                    visible={isDatePickerModalVisibleIOS}
+                    onRequestClose={() => setDatePickerModalVisibleIOS(false)}
+                >
+                    <TouchableWithoutFeedback onPress={() => setDatePickerModalVisibleIOS(false)}>
+                        <View style={styles.iosModalOverlay}>
+                            <TouchableWithoutFeedback>
+                                <View style={styles.iosDatePickerContainer}>
+                                    <DateTimePicker
+                                        value={orderDate}
+                                        mode="date"
+                                        display="inline"
+                                        onChange={onDateChange}
+                                        minimumDate={new Date()} // This is now safe to apply
+                                        textColor='#FF6B35'
+                                        accentColor='#FF6B35'
+                                        themeVariant="light"
+                                    />
+                                    <Button title="Done" onPress={() => setDatePickerModalVisibleIOS(false)} color="#FF6B35" />
+                                </View>
+                            </TouchableWithoutFeedback>
+                        </View>
+                    </TouchableWithoutFeedback>
+                </Modal>
             )}
 
             <CustomAlert isVisible={alertConfig.isVisible} title={alertConfig.title} message={alertConfig.message} confirmText={alertConfig.confirmText} onConfirm={handleAlertConfirm} cancelText={null} success={alertConfig.success} onCancel={undefined} />
 
             <Modal visible={isStoreModalVisible} animationType="fade" transparent={true} onRequestClose={() => setStoreModalVisible(false)}><TouchableWithoutFeedback onPress={() => setStoreModalVisible(false)}><View style={styles.modalOverlay}><TouchableWithoutFeedback><SafeAreaView style={styles.modernModalContent}><Text style={styles.modalTitle}>اختيار المتجر</Text><View style={styles.modernModalSearchContainer}><Search color="#9CA3AF" size={20} style={styles.modalSearchIcon} /><TextInput style={styles.modernModalSearchInput} placeholder="ابحث عن متجر..." placeholderTextColor="#9CA3AF" value={storeSearchQuery} onChangeText={setStoreSearchQuery} /></View><FlatList data={displayedStores} keyExtractor={(item) => item.intEntityCode.toString()} renderItem={({ item }) => (<TouchableOpacity style={styles.modernModalItem} onPress={() => handleSelectStore(item)}><View style={styles.modalItemContent}><Text style={[styles.modernModalItemText, selectedStore?.intEntityCode === item.intEntityCode && styles.modalItemSelected]}>{item.strEntityName}</Text><Text style={styles.modalItemCode}>{item.strEntityCode}</Text></View>{selectedStore?.intEntityCode === item.intEntityCode && <Check color="#FF6B35" size={20} />}</TouchableOpacity>)} /></SafeAreaView></TouchableWithoutFeedback></View></TouchableWithoutFeedback></Modal>
 
-            {/* --- UPDATED: Time Slot Modal now uses filtered data --- */}
             <Modal visible={isTimeSlotModalVisible} animationType="fade" transparent={true} onRequestClose={() => setTimeSlotModalVisible(false)}>
                 <TouchableWithoutFeedback onPress={() => setTimeSlotModalVisible(false)}>
                     <View style={styles.modalOverlay}>
@@ -382,7 +428,7 @@ const styles = StyleSheet.create({
     inputContainer: { marginBottom: 20 },
     label: { fontSize: 14, color: '#3F3F46', marginBottom: 8, textAlign: 'right', fontWeight: '500' },
     inputWrapper: { flexDirection: 'row-reverse', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 8, borderWidth: 1, borderColor: '#D4D4D8', paddingHorizontal: 12, minHeight: 48 },
-    input: { flex: 1, paddingVertical: 12, fontSize: 16, color: '#18181B', textAlign: 'right' },
+    input: { flex: 1, paddingVertical: 0, fontSize: 16, color: '#18181B', textAlign: 'right' },
     placeholderText: { color: '#A1A1AA' },
     submitButton: { backgroundColor: '#F97316', paddingVertical: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
     submitButtonText: { color: '#FFFFFF', fontSize: 18, fontWeight: 'bold' },
@@ -410,11 +456,22 @@ const styles = StyleSheet.create({
     halfWidthInput: {
         width: '48%',
     },
-    emptyListText: { // Added style for empty list message
+    emptyListText: {
         textAlign: 'center',
         color: '#6B7280',
         fontSize: 16,
         padding: 20,
+    },
+    iosModalOverlay: {
+        flex: 1,
+        justifyContent: 'flex-end',
+    },
+    iosDatePickerContainer: {
+        backgroundColor: '#FFFFFF',
+        paddingBottom: 20,
+        borderTopRightRadius: 16,
+        borderTopLeftRadius: 16,
+        paddingHorizontal: 8,
     },
 });
 

@@ -24,7 +24,7 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
   };
 
   const { width, height: screenHeight } = useWindowDimensions();
-  const HEADER_HEIGHT = screenHeight * 0.28; // Set header height to 30% of the screen height
+  const HEADER_HEIGHT = screenHeight * 0.30; // Set header height to 30% of the screen height
 
 
   const navigateToNotifications = () => {
