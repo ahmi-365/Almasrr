@@ -225,8 +225,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row-reverse',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 10,
-        marginTop: 10
+        paddingVertical: Platform.OS === 'ios' ? 10 : 16,
+        marginTop: Platform.OS === 'ios' ? 10 : 32,
     },
     title: {
         fontSize: 24,

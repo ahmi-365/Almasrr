@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, useWindowDimensions, Platform } from 'react-native';
 import { Bell, Menu, Search } from 'lucide-react-native';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,8 +23,9 @@ const ModernTopBar: React.FC<ModernTopBarProps> = ({
     navigation.navigate('SearchScreen' as never, { allParcels } as never);
   };
 
+  const percent = Platform.OS === 'ios' ? 0.30 : 0.29
   const { width, height: screenHeight } = useWindowDimensions();
-  const HEADER_HEIGHT = screenHeight * 0.30; // Set header height to 30% of the screen height
+  const HEADER_HEIGHT = screenHeight * percent; // Set header height to 30% of the screen height
 
 
   const navigateToNotifications = () => {
@@ -197,7 +198,6 @@ const styles = StyleSheet.create({
   },
   searchContainerWrapper: {
     marginTop: 20,
-
   },
   searchButton: {
     flexDirection: 'row-reverse',
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingHorizontal: 15,
-    paddingVertical: 10,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 12,
     borderWidth: 2,
     borderColor: '#E9ECEF',
     elevation: 2,

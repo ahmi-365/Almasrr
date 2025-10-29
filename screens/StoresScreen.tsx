@@ -787,7 +787,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: hexToRgba("#27AE60", 0.1),
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 12,
     borderRadius: 8,
     gap: 6,
     flex: 1,
