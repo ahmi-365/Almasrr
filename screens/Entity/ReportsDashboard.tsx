@@ -749,7 +749,7 @@ export default function ReportsDashboard() {
               <View style={styles.iosDatePickerContainer}>
 
                 <DateTimePicker
-                  key={String(new Date())} 
+                  key={String(new Date())}
                   value={datePickerVisible === "from" ? fromDate : toDate}
                   mode="date"
                   display="inline"
@@ -1115,7 +1115,7 @@ const styles = StyleSheet.create({
     color: "#1F2937",
     textAlign: "right",
     marginBottom: 16,
-    marginHorizontal:20,
+    marginHorizontal: 20,
   },
   modernModalSearchContainer: {
     flexDirection: "row-reverse",
@@ -1126,7 +1126,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    marginHorizontal:20,
+    marginHorizontal: 20,
   },
   modalSearchIcon: { marginLeft: 8 },
   modernModalSearchInput: {
@@ -1144,7 +1144,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderBottomWidth: 1,
     borderBottomColor: "#F3F4F6",
-    marginHorizontal:20,    
+    marginHorizontal: 20,
   },
   modalItemContent: { flex: 1 },
   modernModalItemText: {
@@ -1181,6 +1181,6 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderTopRightRadius: 16,
     borderTopLeftRadius: 16,
-    paddingHorizontal: 8,
+    paddingHorizontal: 20,
   },
 });
