@@ -362,7 +362,7 @@ const LoginScreen = () => {
         setUser(responseData);
         setDcBalance(String(responseData?.DCBalance?.toFixed(2) ?? '0.00'));
         await AsyncStorage.setItem('user', JSON.stringify(responseData));
-        navigation.navigate('MainTabs');
+        navigation.replace('MainTabs');
       } else {
         setAlertTitle('خطأ في تسجيل الدخول');
         setAlertMessage(responseData.message || 'يرجى التحقق من بياناتك');
