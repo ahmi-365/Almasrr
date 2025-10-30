@@ -79,6 +79,10 @@
 	<key>UIStatusBarStyle</key>
 	<string>UIStatusBarStyleDefault</string>
 
+	<!-- This key opts the app out of iPad multitasking, resolving the validation error. -->
+	<key>UIRequiresFullScreen</key>
+	<true/>
+
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
