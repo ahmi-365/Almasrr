@@ -29,6 +29,8 @@ import { createShimmerPlaceholder } from 'react-native-shimmer-placeholder';
 import { LinearGradient } from 'expo-linear-gradient';
 import { navigate } from '../../navigation/NavigationService';
 import { useNotifications } from '../../Context/NotificationContext';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { TabParamList } from '../../navigation/MainTabNavigator';
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const HEADER_EXPANDED_HEIGHT = 1;
@@ -173,6 +175,8 @@ export default function DriverDashboard() {
 
 
   const navigation = useNavigation();
+  const navigationstack = useNavigation<BottomTabNavigationProp<TabParamList>>();
+
   const { setCurrentRoute } = useDashboard(); // Get the setter function
   useFocusEffect(
     React.useCallback(() => {
@@ -404,7 +408,7 @@ export default function DriverDashboard() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#E67E22']} tintColor={'#E67E22'} />}
       >
         <>
-          <TouchableOpacity style={styles.balanceCard} activeOpacity={0.95}>
+          <TouchableOpacity style={styles.balanceCard} activeOpacity={0.95} onPress={() => navigationstack.navigate('ReportsTab')}>
             <AnimatedBalanceBackground />
             <View style={styles.balanceContent}>
               <View style={styles.balanceHeader}>
@@ -417,6 +421,7 @@ export default function DriverDashboard() {
               <View style={styles.balanceFooter}><Text style={styles.tapHint}>اضغط للمزيد من التفاصيل</Text></View>
             </View>
           </TouchableOpacity>
+
           <View style={styles.imageSliderContainer}>
             <FlatList
               ref={imageSliderRef}

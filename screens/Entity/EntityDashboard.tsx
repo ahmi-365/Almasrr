@@ -39,6 +39,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import CustomAlert from "../../components/CustomAlert";
 import { navigate } from "../../navigation/NavigationService";
 import { useNotifications } from '../../Context/NotificationContext';
+import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import { TabParamList } from "../../navigation/MainTabNavigator";
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const HEADER_EXPANDED_HEIGHT = 1;
@@ -330,6 +332,7 @@ export default function EntityDashboard() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const imageSliderRef = useRef(null);
   const navigation = useNavigation();
+  const navigationstack = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const { setCurrentRoute } = useDashboard(); // Get the setter
   // ✅ REPLACE WITH THIS SINGLE HOOK
 
@@ -625,7 +628,11 @@ export default function EntityDashboard() {
       >
         <>
           {/* Balance Card */}
-          <TouchableOpacity style={styles.balanceCard} activeOpacity={0.95}>
+          <TouchableOpacity
+            style={styles.balanceCard}
+            activeOpacity={0.95}
+            onPress={() => navigationstack.navigate('ReportsTab')}
+          >
             <AnimatedBalanceBackground />
             <View style={styles.balanceContent}>
               <View style={styles.balanceHeader}>
