@@ -23,6 +23,8 @@ import ReturnedParcelsScreen from '../screens/Entity/EntityReturnedParcelScreen'
 import PendingApprovalScreen from '../screens/Entity/PendingParcelScreen';
 import AtBranchScreen from '../screens/Entity/AtBranchScreen';
 import OnTheWayScreen from '../screens/Entity/OnTheWayScreen';
+import TrackShipment from '../screens/Entity/TrackShipments';
+
 import ReportsDashboard from '../screens/Entity/ReportsDashboard';
 import ParcelDetailsScreen from '../components/ParcelDetailsScreen';
 import SearchScreen from '../components/SearchScreen';
@@ -59,6 +61,7 @@ export type RootStackParamList = {
   PendingApprovalScreen: undefined
   AtBranchScreen: undefined
   OnTheWayScreen: undefined
+  TrackShipment: undefined
   ParcelDetailsScreen: undefined,
   NotificationsScreen: undefined
   EntityReports: { entityCode: number };
@@ -125,6 +128,8 @@ const AppContent = () => {
         <Stack.Screen name="PendingApprovalScreen" component={PendingApprovalScreen} />
         <Stack.Screen name="AtBranchScreen" component={AtBranchScreen} />
         <Stack.Screen name="OnTheWayScreen" component={OnTheWayScreen} />
+        <Stack.Screen name="TrackShipment" component={TrackShipment} />
+
 
         {/* 3. REGISTER THE SEARCH SCREEN AND SET ITS PRESENTATION TO MODAL */}
         <Stack.Screen

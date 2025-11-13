@@ -27,6 +27,7 @@ import {
   Search,
   X,
   Package,
+  Wallet2,
 } from "lucide-react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -126,23 +127,23 @@ const ImageBanner = ({ item }) => (
 // Promo Slider Data
 const PROMO_SLIDER_DATA = [
   {
-    title: "تتبع شحناتك بسهولة",
-    description: "احصل على تحديثات فورية ومباشرة.",
+    title: "تبع شحناتك بسهوله",
+    description: "احصل على تحديثات فورية عن موقع شحنتك وموعد تسليمها",
     icon: TruckIconLucide,
     color: "#3498DB",
   },
-  {
-    title: "إحصائيات متقدمة",
-    description: "حلل أداءك من خلال لوحة تحكم تفصيلية.",
-    icon: BarChart,
-    color: "#2ECC71",
-  },
-  {
-    title: "خدمة عملاء مميزة",
-    description: "فريقنا جاهز لمساعدتك على مدار الساعة.",
-    icon: HelpCircle,
-    color: "#E67E22",
-  },
+  // {
+  //   title: "إحصائيات متقدمة",
+  //   description: "حلل أداءك من خلال لوحة تحكم تفصيلية.",
+  //   icon: BarChart,
+  //   color: "#2ECC71",
+  // },
+  // {
+  //   title: "خدمة عملاء مميزة",
+  //   description: "فريقنا جاهز لمساعدتك على مدار الساعة.",
+  //   icon: HelpCircle,
+  //   color: "#E67E22",
+  // },
 ];
 
 // Promo Slider Item Component
@@ -626,6 +627,29 @@ export default function EntityDashboard() {
           />
         }
       >
+        {/* Promo Slider */}
+        <TouchableOpacity
+          activeOpacity={0.95}
+          onPress={() => navigation.navigate('TrackShipment' as never)}>
+          <View style={styles.promoSliderContainer}>
+            <FlatList
+              data={PROMO_SLIDER_DATA}
+              renderItem={({ item }) => <PromoSliderItem item={item} />}
+              keyExtractor={(item) => item.title}
+              horizontal
+              decelerationRate="fast"
+              snapToInterval={SLIDER_WIDTH + 15}
+              snapToAlignment="start"
+              showsHorizontalScrollIndicator={false}
+              ItemSeparatorComponent={() => <View style={{ width: 15 }} />}
+              getItemLayout={(data, index) => ({
+                length: SLIDER_WIDTH + 15,
+                offset: (SLIDER_WIDTH + 15) * index,
+                index,
+              })}
+            />
+          </View>
+        </TouchableOpacity>
         <>
           {/* Balance Card */}
           <TouchableOpacity
@@ -637,7 +661,7 @@ export default function EntityDashboard() {
             <View style={styles.balanceContent}>
               <View style={styles.balanceHeader}>
                 <View style={styles.iconWrapper}>
-                  <Wallet color="#FFFFFF" size={24} strokeWidth={2} />
+                  <Wallet2 color="#FFFFFF" size={34} strokeWidth={2} />
                 </View>
                 <View style={styles.balanceInfo}>
                   <Text style={styles.balanceTitle}>المبلغ المستحق</Text>
@@ -694,25 +718,7 @@ export default function EntityDashboard() {
             />
           </View>
 
-          {/* Promo Slider */}
-          {/* <View style={styles.promoSliderContainer}>
-            <FlatList
-              data={PROMO_SLIDER_DATA}
-              renderItem={({ item }) => <PromoSliderItem item={item} />}
-              keyExtractor={(item) => item.title}
-              horizontal
-              decelerationRate="fast"
-              snapToInterval={SLIDER_WIDTH + 15}
-              snapToAlignment="start"
-              showsHorizontalScrollIndicator={false}
-              ItemSeparatorComponent={() => <View style={{ width: 15 }} />}
-              getItemLayout={(data, index) => ({
-                length: SLIDER_WIDTH + 15,
-                offset: (SLIDER_WIDTH + 15) * index,
-                index,
-              })}
-            />
-          </View> */}
+
         </>
       </Animated.ScrollView>
 
@@ -726,7 +732,7 @@ export default function EntityDashboard() {
         onConfirm={() => setAlertVisible(false)}
         onCancel={() => setAlertVisible(false)}
       />
-    </View>
+    </View >
   );
 }
 
@@ -755,8 +761,8 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   promoSliderContainer: {
-    height: 90,
-    marginBottom: 30,
+    height: 70,
+    marginBottom: 10,
   },
   promoSliderItem: {
     width: SLIDER_WIDTH,
@@ -855,6 +861,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   balanceCard: {
+    padding: 8,
     backgroundColor: "#FF6B35",
     borderRadius: 8,
     marginBottom: 28,
