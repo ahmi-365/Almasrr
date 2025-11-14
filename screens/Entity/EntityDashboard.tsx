@@ -128,7 +128,7 @@ const ImageBanner = ({ item }) => (
 const PROMO_SLIDER_DATA = [
   {
     title: "تبع شحناتك بسهوله",
-    description: "احصل على تحديثات فورية عن موقع شحنتك وموعد تسليمها",
+    // description: "احصل على تحديثات فورية عن موقع شحنتك وموعد تسليمها",
     icon: TruckIconLucide,
     color: "#3498DB",
   },
@@ -152,7 +152,7 @@ const PromoSliderItem = ({ item }) => (
     <item.icon color="#FFF" size={28} style={styles.promoSliderIcon} />
     <View style={styles.promoSliderInfo}>
       <Text style={styles.promoSliderTitle}>{item.title}</Text>
-      <Text style={styles.promoSliderDescription}>{item.description}</Text>
+      {/* <Text style={styles.promoSliderDescription}>{item.description}</Text> */}
     </View>
   </View>
 );
@@ -761,7 +761,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   promoSliderContainer: {
-    height: 70,
+    height: 60,
     marginBottom: 10,
   },
   promoSliderItem: {
@@ -780,10 +780,11 @@ const styles = StyleSheet.create({
   },
   promoSliderTitle: {
     color: "#FFF",
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: "bold",
     marginBottom: 2,
     textAlign: "right",
+    alignItems: 'center'
   },
   promoSliderDescription: {
     color: "rgba(255, 255, 255, 0.9)",
