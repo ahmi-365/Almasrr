@@ -170,7 +170,7 @@ export default function App() {
         if (requiredVersion && parseInt(currentVersion) < parseInt(requiredVersion)) {
           // --- IMPORTANT: REPLACE WITH YOUR ACTUAL STORE URLS ---
           const storeUrl = Platform.OS === 'ios'
-            ? 'https://apps.apple.com/us/app/your-app-name/idcom.ALMASAR.ALMASAR'
+            ? 'https://apps.apple.com/us/app/المسار-للشحن/id6754100392'
             : 'https://play.google.com/store/apps/details?id=com.ALMASAR.ALMASAR';
 
           setAlertInfo({
