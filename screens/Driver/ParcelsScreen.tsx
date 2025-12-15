@@ -483,7 +483,7 @@ const ParcelsScreen = ({ route }) => {
 
   const fetchEntities = async (usrId) => {
     try {
-      const apiUrl = `https://tanmia-group.com:84/courierApi/Entity/GetHistoryEntities/${usrId}/${statusCode}`;
+      const apiUrl = `http://tanmia-group.com:90/courierApi/Entity/GetHistoryEntities/${usrId}/${statusCode}`;
       console.log('Fetching entities from:', apiUrl);
       const response = await fetch(apiUrl);
       if (!response.ok) {
@@ -516,9 +516,9 @@ const ParcelsScreen = ({ route }) => {
 
       if (role === 'Entity') {
         // Use the selected entity ID for the API call
-        apiUrl = `https://tanmia-group.com:84/courierApi/parcels/details/${entId}/${statusCode}`;
+        apiUrl = `http://tanmia-group.com:90/courierApi/parcels/details/${entId}/${statusCode}`;
       } else if (role === 'Driver') {
-        apiUrl = `https://tanmia-group.com:84/courierApi/Driverparcels/details/${usrId}/${statusCode}`;
+        apiUrl = `http://tanmia-group.com:90/courierApi/Driverparcels/details/${usrId}/${statusCode}`;
       } else {
         throw new Error(`Invalid user role: ${role}`);
       }

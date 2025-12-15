@@ -228,7 +228,7 @@ const ParcelDetailsScreen = () => {
     try {
       // Assuming the user is a driver; adjust if logic needs to be different for entities.
       const response = await axios.get(
-        `https://tanmia-group.com:84/courierApi/parcels/DriverParcels/${user.userId}`
+        `http://tanmia-group.com:90/courierApi/parcels/DriverParcels/${user.userId}`
       );
 
       if (response.data && response.data.Parcels && Array.isArray(response.data.Parcels)) {
@@ -256,7 +256,7 @@ const ParcelDetailsScreen = () => {
     setIsProcessing(true);
     try {
       await axios.post(
-        `https://tanmia-group.com:84/courierApi/Parcel/Driver/UpdateStatus/${parcel.intParcelCode}/${parcel.intStatusCode}`
+        `http://tanmia-group.com:90/courierApi/Parcel/Driver/UpdateStatus/${parcel.intParcelCode}/${parcel.intStatusCode}`
       );
 
       setAlertTitle("نجاح");
@@ -281,7 +281,7 @@ const ParcelDetailsScreen = () => {
     setIsProcessing(true);
     try {
       await axios.post(
-        `https://tanmia-group.com:84/courierApi/Parcel/Driver/ReturnOnTheWay/${parcel.intParcelCode}`
+        `http://tanmia-group.com:90/courierApi/Parcel/Driver/ReturnOnTheWay/${parcel.intParcelCode}`
       );
 
       setAlertTitle("نجاح");
@@ -306,7 +306,7 @@ const ParcelDetailsScreen = () => {
     setIsProcessing(true);
     try {
       await axios.post(
-        `https://tanmia-group.com:84/courierApi/Parcel/Driver/AddRemarks/${parcel.intParcelCode}/${encodeURIComponent(remark)}`
+        `http://tanmia-group.com:90/courierApi/Parcel/Driver/AddRemarks/${parcel.intParcelCode}/${encodeURIComponent(remark)}`
       );
 
       setAlertTitle("نجاح");
@@ -350,7 +350,7 @@ const ParcelDetailsScreen = () => {
     setIsFetchingInvoices(true);
     try {
       const response = await fetch(
-        `https://tanmia-group.com:84/courierApi/parcels/GetAssignedInvoicesByParcel/${parcel.intParcelCode}`
+        `http://tanmia-group.com:90/courierApi/parcels/GetAssignedInvoicesByParcel/${parcel.intParcelCode}`
       );
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -428,7 +428,7 @@ const ParcelDetailsScreen = () => {
       params.append('entityRemarks', notificationRemarks);
 
       const response = await axios.post(
-        'https://tanmia-group.com:84/courierApi/notifications/entity-to-driver',
+        'http://tanmia-group.com:90/courierApi/notifications/entity-to-driver',
         params,
         {
           headers: {

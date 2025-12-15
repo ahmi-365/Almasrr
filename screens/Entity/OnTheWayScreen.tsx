@@ -207,7 +207,7 @@ export default function OnTheWayScreen() {
 
                     const statusIdForFilter = sortedStatusIds[2];
 
-                    const response = await axios.get(`https://tanmia-group.com:84/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
+                    const response = await axios.get(`http://tanmia-group.com:90/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
                     setEntities(response.data || []);
                 } catch (error) {
                     console.error("Failed to fetch filter entities:", error);
@@ -245,7 +245,7 @@ export default function OnTheWayScreen() {
             const statusId = sortedStatusIds[2];
             const targetId = selectedEntity ? selectedEntity.intEntityCode : parsedUser.userId;
 
-            const response = await axios.get(`https://tanmia-group.com:84/courierApi/parcels/details/${targetId}/${statusId}`);
+            const response = await axios.get(`http://tanmia-group.com:90/courierApi/parcels/details/${targetId}/${statusId}`);
             setAllParcels(response.data?.Parcels || []);
         } catch (error) {
             console.error("Failed to load on-the-way parcels:", error);
@@ -303,7 +303,7 @@ export default function OnTheWayScreen() {
             params.append('entityRemarks', entityRemarks);
 
             const response = await axios.post(
-                'https://tanmia-group.com:84/courierApi/notifications/entity-to-driver',
+                'http://tanmia-group.com:90/courierApi/notifications/entity-to-driver',
                 params,
                 {
                     headers: {
@@ -447,7 +447,7 @@ export default function OnTheWayScreen() {
                     </View>
                     {selectedParcel && (
                         <WebView
-                            source={{ uri: `https://tanmia-group.com:84/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
+                            source={{ uri: `http://tanmia-group.com:90/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
                             style={{ flex: 1 }}
                             startInLoadingState={true}
                             renderLoading={() => (
@@ -563,11 +563,11 @@ const styles = StyleSheet.create({
     },
     modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.5)", justifyContent: "center", alignItems: "center", padding: 20, },
     modalContent: { backgroundColor: "#FFFFFF", borderRadius: 8, width: "100%", maxHeight: "70%", padding: 20, },
-    modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginBottom: 8,marginHorizontal:20, },
+    modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginBottom: 8, marginHorizontal: 20, },
     modalSubTitle: { fontSize: 14, color: '#6B7280', textAlign: 'right', marginBottom: 16, lineHeight: 20 },
-    modalSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 8, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: "#E5E7EB", marginHorizontal:20,},
+    modalSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 8, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: "#E5E7EB", marginHorizontal: 20, },
     modalSearchInput: { flex: 1, color: "#1F2937", fontSize: 16, paddingVertical: Platform.OS === "ios" ? 12 : 8, textAlign: "right", },
-    modalItem: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 16, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: "#F3F4F6", marginHorizontal:20,},
+    modalItem: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 16, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: "#F3F4F6", marginHorizontal: 20, },
     modalItemContent: { flex: 1, },
     modalItemText: { color: "#1F2937", fontSize: 16, fontWeight: "500", textAlign: "right", marginBottom: 2, },
     modalItemCode: { color: "#6B7280", fontSize: 12, textAlign: "right", },

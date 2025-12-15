@@ -211,7 +211,7 @@ export default function ReturnedParcelScreen() {
             const statusId = sortedStatusIds[2];
 
             const response = await axios.get(
-                `https://tanmia-group.com:84/courierApi/Driverparcels/details/${parsedUser.userId}/${statusId}`
+                `http://tanmia-group.com:90/courierApi/Driverparcels/details/${parsedUser.userId}/${statusId}`
             );
 
             if (response.data && response.data.Parcels) {

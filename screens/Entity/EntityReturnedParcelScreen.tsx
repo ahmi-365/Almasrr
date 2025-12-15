@@ -244,7 +244,7 @@ export default function ReturnedParcelsScreen() {
     useEffect(() => {
         const fetchReturnStatuses = async () => {
             try {
-                const response = await axios.get(`https://tanmia-group.com:84/courierApi/parcels/GetSelectedStatuses`);
+                const response = await axios.get(`http://tanmia-group.com:90/courierApi/parcels/GetSelectedStatuses`);
                 const fetchedStatuses = Array.isArray(response.data?.Statuses) ? response.data.Statuses : [];
                 setReturnStatuses(fetchedStatuses);
             } catch (error) {
@@ -263,7 +263,7 @@ export default function ReturnedParcelsScreen() {
 
         try {
             const response = await axios.get(
-                `https://tanmia-group.com:84/courierApi/parcels/GetAssignedInvoicesByParcel/${parcel.intParcelCode}`
+                `http://tanmia-group.com:90/courierApi/parcels/GetAssignedInvoicesByParcel/${parcel.intParcelCode}`
             );
 
             if (response.data && response.data.length > 0) {
@@ -300,7 +300,7 @@ export default function ReturnedParcelsScreen() {
 
                     const statusIdForFilter = sortedStatusIds[4];
 
-                    const response = await axios.get(`https://tanmia-group.com:84/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
+                    const response = await axios.get(`http://tanmia-group.com:90/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
                     setEntities(response.data || []);
                 } catch (error) {
                     console.error("Failed to fetch filter entities:", error);
@@ -349,7 +349,7 @@ export default function ReturnedParcelsScreen() {
             const statusId = sortedStatusIds[4];
             const targetId = selectedEntity ? selectedEntity.intEntityCode : parsedUser.userId;
 
-            const response = await axios.get(`https://tanmia-group.com:84/courierApi/parcels/details/${targetId}/${statusId}`);
+            const response = await axios.get(`http://tanmia-group.com:90/courierApi/parcels/details/${targetId}/${statusId}`);
             let parcels = response.data?.Parcels || [];
             if (selectedReturnStatus?.Value) {
                 parcels = parcels.filter(parcel => parcel.intStatusCode.toString() === selectedReturnStatus.Value);
@@ -533,7 +533,7 @@ export default function ReturnedParcelsScreen() {
                     </View>
                     {selectedParcel && (
                         <WebView
-                            source={{ uri: `https://tanmia-group.com:84/admin/tracking/DirectReturnParcel?trackingNumber=${selectedParcel.ReferenceNo}` }}
+                            source={{ uri: `http://tanmia-group.com:90/admin/tracking/DirectReturnParcel?trackingNumber=${selectedParcel.ReferenceNo}` }}
                             style={{ flex: 1 }}
                             startInLoadingState={true}
                             renderLoading={() => (
@@ -641,10 +641,10 @@ const styles = StyleSheet.create({
 
     modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.5)", justifyContent: "center", alignItems: "center", padding: 20 },
     modernModalContent: { backgroundColor: "#FFFFFF", borderRadius: 8, width: "100%", maxHeight: "70%", padding: 20 },
-    modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginBottom: 16,marginHorizontal:20, },
-    modernModalSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 8, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: "#E5E7EB",marginHorizontal:20, },
+    modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginBottom: 16, marginHorizontal: 20, },
+    modernModalSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 8, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: "#E5E7EB", marginHorizontal: 20, },
     modalSearchIcon: { marginLeft: 8 },
-    modernModalItem: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 16, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: "#F3F4F6",marginHorizontal:20, },
+    modernModalItem: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 16, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: "#F3F4F6", marginHorizontal: 20, },
     modalItemContent: { flex: 1 },
     modernModalItemText: { color: "#1F2937", fontSize: 16, fontWeight: "500", textAlign: "right", marginBottom: 2 },
     modalItemCode: { color: "#6B7280", fontSize: 12, textAlign: "right" },

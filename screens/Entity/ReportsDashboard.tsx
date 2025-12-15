@@ -393,10 +393,10 @@ export default function ReportsDashboard() {
       let fileName = '';
 
       if (user?.roleName === 'Entity') {
-        url = `https://tanmia-group.com:84/courierApi/Entity/GenerateTransactionReportPdf/${selectedEntity.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
+        url = `http://tanmia-group.com:90/courierApi/Entity/GenerateTransactionReportPdf/${selectedEntity.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
         fileName = `Report-${selectedEntity.strEntityCode}-${formattedFromDate}-${Date.now()}.pdf`;
       } else if (user?.roleName === 'Driver') {
-        url = `https://tanmia-group.com:84/courierApi/Driver/GenerateTransactionReportPdf/${user.userId}/${formattedFromDate}/${formattedToDate}`;
+        url = `http://tanmia-group.com:90/courierApi/Driver/GenerateTransactionReportPdf/${user.userId}/${formattedFromDate}/${formattedToDate}`;
         fileName = `Report-Driver-${user.userId}-${formattedFromDate}-${Date.now()}.pdf`;
       } else {
         setIsDownloading(false);
@@ -526,9 +526,9 @@ export default function ReportsDashboard() {
       const formattedToDate = formatDate(toDate);
       let url = "";
       if (user.roleName === "Entity") {
-        url = `https://tanmia-group.com:84/courierApi/Entity/GetTransaction/${selectedEntity!.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
+        url = `http://tanmia-group.com:90/courierApi/Entity/GetTransaction/${selectedEntity!.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
       } else {
-        url = `https://tanmia-group.com:84/courierApi/Driver/GetTransaction/${user.userId}/${formattedFromDate}/${formattedToDate}`;
+        url = `http://tanmia-group.com:90/courierApi/Driver/GetTransaction/${user.userId}/${formattedFromDate}/${formattedToDate}`;
       }
       const response = await axios.get(url);
       setTransactions(response.data || []);
@@ -552,7 +552,7 @@ export default function ReportsDashboard() {
       await new Promise((res) => setTimeout(res, 1500));
       const formattedFromDate = formatDate(fromDate);
       const formattedToDate = formatDate(toDate);
-      const url = `https://tanmia-group.com:84/courierApi/Entity/GetTransaction/${entity.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
+      const url = `http://tanmia-group.com:90/courierApi/Entity/GetTransaction/${entity.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
       const response = await axios.get(url);
       setTransactions(response.data || []);
     } catch (error) {

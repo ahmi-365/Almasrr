@@ -349,18 +349,18 @@ export default function CreateParcelScreen() {
 
         await Promise.all([
           axios.get(
-            "https://tanmia-group.com:84/courierApi/parcels/GetParcelTypes"
+            "http://tanmia-group.com:90/courierApi/parcels/GetParcelTypes"
           ),
           axios.get(
-            `https://tanmia-group.com:84/courierApi/Entity/GetEntities/${userId}`
+            `http://tanmia-group.com:90/courierApi/Entity/GetEntities/${userId}`
           ),
           userCityCode
             ? axios.get(
-              `https://tanmia-group.com:84/courierApi/City/GetCityPrices/${userCityCode}`
+              `http://tanmia-group.com:90/courierApi/City/GetCityPrices/${userCityCode}`
             )
             : Promise.resolve({ data: [] }),
           axios.get( // New API call for delivery types
-            "https://tanmia-group.com:84/courierApi/parcels/GetDeliveryTypes"
+            "http://tanmia-group.com:90/courierApi/parcels/GetDeliveryTypes"
           ),
         ]).then(([parcelTypesResponse, storesResponse, cityPricesResponse, deliveryTypesResponse]) => {
           if (parcelTypesResponse.data?.ParcelTypes)
@@ -483,7 +483,7 @@ export default function CreateParcelScreen() {
 
     setIsApplyingPromo(true);
     try {
-      const response = await axios.post('https://tanmia-group.com:84/courierApi/promotion/validate', {
+      const response = await axios.post('http://tanmia-group.com:90/courierApi/promotion/validate', {
         promocode: promoCode,
         intCityCode: selectedCityData.intCityCode,
         intParentCityCode: userCityCode,
@@ -649,7 +649,7 @@ export default function CreateParcelScreen() {
     };
 
     try {
-      const response = await axios.post('https://tanmia-group.com:84/courierApi/parcels/saveparcel', payload);
+      const response = await axios.post('http://tanmia-group.com:90/courierApi/parcels/saveparcel', payload);
       if (response.data && response.status === 200) {
         showAlert({
           title: 'نجاح',

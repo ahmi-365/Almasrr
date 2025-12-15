@@ -177,7 +177,7 @@ export default function AssignedParcelScreen() {
             setStatusId(currentStatusId);
 
             const response = await axios.get(
-                `https://tanmia-group.com:84/courierApi/Driverparcels/details/${parsedUser.userId}/${currentStatusId}`
+                `http://tanmia-group.com:90/courierApi/Driverparcels/details/${parsedUser.userId}/${currentStatusId}`
             );
 
             if (response.data && response.data.Parcels) {
@@ -215,7 +215,7 @@ export default function AssignedParcelScreen() {
         setIsProcessing(true);
         try {
             await axios.post(
-                `https://tanmia-group.com:84/courierApi/Parcel/Driver/UpdateStatus/${selectedParcel.intParcelCode}/${statusId}`
+                `http://tanmia-group.com:90/courierApi/Parcel/Driver/UpdateStatus/${selectedParcel.intParcelCode}/${statusId}`
             );
 
             setAlertTitle("نجاح");
@@ -241,7 +241,7 @@ export default function AssignedParcelScreen() {
         setIsProcessing(true);
         try {
             await axios.post(
-                `https://tanmia-group.com:84/courierApi/Parcel/Driver/ReturnOnTheWay/${selectedParcel.intParcelCode}`
+                `http://tanmia-group.com:90/courierApi/Parcel/Driver/ReturnOnTheWay/${selectedParcel.intParcelCode}`
             );
 
             setAlertTitle("نجاح");
@@ -267,7 +267,7 @@ export default function AssignedParcelScreen() {
         setIsProcessing(true);
         try {
             await axios.post(
-                `https://tanmia-group.com:84/courierApi/Parcel/Driver/AddRemarks/${selectedParcel.intParcelCode}/${encodeURIComponent(remark)}`
+                `http://tanmia-group.com:90/courierApi/Parcel/Driver/AddRemarks/${selectedParcel.intParcelCode}/${encodeURIComponent(remark)}`
             );
 
             setAlertTitle("نجاح");

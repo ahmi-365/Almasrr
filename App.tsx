@@ -37,9 +37,9 @@ const updateFCMTokenOnServer = async (userId, roleName) => {
     }
 
     const endpoint = roleName === 'Entity'
-      ? 'https://tanmia-group.com:84/courierApi/entity/updateToken'
+      ? 'http://tanmia-group.com:90/courierApi/entity/updateToken'
       : roleName === 'Driver'
-        ? 'https://tanmia-group.com:84/courierApi/driver/updateToken'
+        ? 'http://tanmia-group.com:90/courierApi/driver/updateToken'
         : '';
 
     if (!endpoint) {
@@ -155,8 +155,8 @@ export default function App() {
       try {
         const currentVersion = DeviceInfo.getBuildNumber();
         const apiUrl = Platform.OS === 'ios'
-          ? 'https://tanmia-group.com:84/api/checkUpdate/AL_MASAR_IOS'
-          : 'https://tanmia-group.com:84/api/checkUpdate/AL_MASAR_ANDROID';
+          ? 'http://tanmia-group.com:90/api/checkUpdate/AL_MASAR_IOS'
+          : 'http://tanmia-group.com:90/api/checkUpdate/AL_MASAR_ANDROID';
 
         const response = await fetch(apiUrl);
         if (!response.ok) throw new Error('Server returned an error.');

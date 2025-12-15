@@ -204,7 +204,7 @@ export default function DriverDashboard() {
       const branchCode = userData.intFromBranchCode || userData.branchCode || userData.BranchCode;
       if (branchCode) {
         try {
-          const response = await axios.get(`https://tanmia-group.com:84/courierapi/promoimages/${branchCode}`);
+          const response = await axios.get(`http://tanmia-group.com:90/courierapi/promoimages/${branchCode}`);
           setImageBanners(response.data);
         } catch (error) {
           console.error("Failed to fetch promo images for driver:", error);
@@ -269,7 +269,7 @@ export default function DriverDashboard() {
 
     try {
       const intSenderEntityCode = user.userId;
-      const url = `https://tanmia-group.com:84/courierApi/parcels/DriverParcels/${intSenderEntityCode}`;
+      const url = `http://tanmia-group.com:90/courierApi/parcels/DriverParcels/${intSenderEntityCode}`;
 
       const response = await axios.get(url);
 
@@ -296,7 +296,7 @@ export default function DriverDashboard() {
     const userId = user.userId;
     try {
       const response = await axios.get(
-        `https://tanmia-group.com:84/courierApi/driverparcels/DashboardData/${userId}`
+        `http://tanmia-group.com:90/courierApi/driverparcels/DashboardData/${userId}`
       );
       if (response.data) {
         setDashboardData(response.data);
