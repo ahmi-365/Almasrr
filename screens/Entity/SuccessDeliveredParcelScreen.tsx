@@ -13,6 +13,7 @@ import {
     FlatList,
     RefreshControl,
     Image,
+    Linking, // Added for dialer
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -28,11 +29,12 @@ import {
     ChevronDown,
     Check,
     Store as StoreIcon,
-    ChevronLeft, // Import for WebView back button
+    ChevronLeft,
+    CreditCard, // Added for payment icon
 } from "lucide-react-native";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
-import { WebView } from "react-native-webview"; // Import WebView
+import { WebView } from "react-native-webview";
 import { useDashboard } from "../../Context/DashboardContext";
 import CustomAlert from "../../components/CustomAlert";
 import TopBar from "../../components/Entity/TopBarNew";
@@ -77,6 +79,10 @@ interface Parcel {
     Remarks: string;
     Total: number;
     strDriverRemarks: string;
+    // New Fields
+    strDriverPhone?: string;
+    bolIsOnlinePayment?: boolean;
+    strOnlinePaymentStatus?: string | null;
 }
 
 const formatDateTime = (isoString: string) => {
@@ -92,7 +98,11 @@ const formatDateTime = (isoString: string) => {
     } catch (e) { return isoString; }
 };
 
-// --- MODIFIED ParcelCard to handle tracking press ---
+// Dialer Helper
+const openDialer = (phone: string) => {
+    if (phone) Linking.openURL(`tel:${phone}`);
+};
+
 const ParcelCard = ({ item, onTrackPress }: { item: Parcel, onTrackPress: (parcel: Parcel) => void }) => (
     <View style={styles.modernTransactionItem}>
         <TouchableOpacity onPress={() => onTrackPress(item)} activeOpacity={0.7}>
@@ -107,16 +117,48 @@ const ParcelCard = ({ item, onTrackPress }: { item: Parcel, onTrackPress: (parce
                 <Text style={styles.parcelTotal}>{item.Total.toFixed(2)} د.ل</Text>
             </View>
         </TouchableOpacity>
+
         <View style={styles.parcelDetailsRow}>
+            {/* Right Column: Recipient & Driver Contact */}
             <View style={styles.parcelColumn}>
                 {item.RecipientName && (
                     <View style={styles.parcelInfoRow}><User size={14} color="#6B7280" /><Text style={styles.parcelInfoText}>{item.RecipientName}</Text></View>
                 )}
-                <View style={styles.parcelInfoRow}><Phone size={14} color="#6B7280" /><Text style={styles.parcelInfoText}>{item.RecipientPhone}</Text></View>
+                <TouchableOpacity onPress={() => openDialer(item.RecipientPhone)} style={styles.parcelInfoRow}>
+                    <Phone size={14} color="#27AE60" />
+                    <Text style={[styles.parcelInfoText, { color: '#27AE60', fontWeight: 'bold' }]}>{item.RecipientPhone}</Text>
+                </TouchableOpacity>
+
+                {/* NEW: Driver Phone */}
+                {item.strDriverPhone ? (
+                    <TouchableOpacity onPress={() => openDialer(item.strDriverPhone!)} style={[styles.parcelInfoRow, { marginTop: 4 }]}>
+                        <Phone size={14} color="#FF6B35" />
+                        <Text style={[styles.parcelInfoText, { color: '#FF6B35', fontWeight: 'bold' }]}>المندوب: {item.strDriverPhone}</Text>
+                    </TouchableOpacity>
+                ) : null}
+
                 <View style={styles.parcelInfoRow}><Box size={14} color="#6B7280" /><Text style={styles.parcelInfoText}>الكمية: {item.Quantity}</Text></View>
             </View>
+
+            {/* Left Column: Remarks & Online Payment */}
             <View style={styles.parcelColumn}>
                 <View style={styles.parcelInfoRow}><FileText size={14} color="#6B7280" /><Text style={styles.parcelInfoText}>{item.Remarks || 'لا توجد ملاحظات'}</Text></View>
+
+                {/* NEW: Electronic Payment Badge */}
+                {item.bolIsOnlinePayment && (
+                    <View style={[styles.parcelInfoRow, { marginTop: 4 }]}>
+                        <CreditCard size={14} color="#6B7280" />
+                        <View style={styles.paymentContainer}>
+                            <Text style={styles.paymentTitle}>الدفع الإلكتروني:</Text>
+                            <View style={[styles.paymentBadge, item.strOnlinePaymentStatus === "Success" ? styles.paidBadge : styles.unpaidBadge]}>
+                                <Text style={item.strOnlinePaymentStatus === "Success" ? styles.paidText : styles.unpaidText}>
+                                    {item.strOnlinePaymentStatus === "Success" ? "مدفوع" : "غير مدفوع"}
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+                )}
+
                 {item.strDriverRemarks && (<Text style={styles.transactionRemarks}>ملاحظات المندوب: {item.strDriverRemarks}</Text>)}
             </View>
         </View>
@@ -168,11 +210,8 @@ export default function SuccessfulDeliveryScreen() {
     const [alertMessage, setAlertMessage] = useState('');
     const [alertSuccess, setAlertSuccess] = useState(false);
 
-    // --- State for WebView Modal ---
     const [webViewVisible, setWebViewVisible] = useState(false);
     const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
-
-    // --- ADDED: State to track if the initial fetch has been done ---
     const [initialFetchDone, setInitialFetchDone] = useState(false);
 
     useFocusEffect(
@@ -183,20 +222,14 @@ export default function SuccessfulDeliveryScreen() {
                     const dashboardDataString = await AsyncStorage.getItem("dashboard_data");
                     if (!dashboardDataString) throw new Error("لم يتم العثور على بيانات لوحة التحكم");
                     const dashboardData = JSON.parse(dashboardDataString);
-
                     const countKeys = Object.keys(dashboardData).filter(key => key.startsWith('Count'));
                     const sortedStatusIds = countKeys.map(key => parseInt(key.slice(5), 10)).filter(num => !isNaN(num)).sort((a, b) => a - b);
                     if (sortedStatusIds.length < 4) throw new Error("بيانات غير كافية لتحديد الحالة");
-
                     const statusIdForFilter = sortedStatusIds[3];
-
                     const response = await axios.get(`http://tanmia-group.com:90/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
                     setEntities(response.data || []);
                 } catch (error) {
                     console.error("Failed to fetch filter entities:", error);
-                    setAlertTitle("خطأ");
-                    setAlertMessage("فشل في تحميل قائمة المتاجر للفلتر.");
-                    setAlertVisible(true);
                 }
             };
             fetchFilterEntities();
@@ -215,24 +248,17 @@ export default function SuccessfulDeliveryScreen() {
                 parsedUser = JSON.parse(userDataString);
                 setUser(parsedUser);
             }
-
             const dashboardDataString = await AsyncStorage.getItem("dashboard_data");
-            if (!dashboardDataString) throw new Error("لم يتم العثور على بيانات لوحة التحكم");
-            const dashboardData = JSON.parse(dashboardDataString);
-
+            const dashboardData = JSON.parse(dashboardDataString!);
             const countKeys = Object.keys(dashboardData).filter(key => key.startsWith('Count'));
-            const sortedStatusIds = countKeys.map(key => parseInt(key.slice(5), 10)).filter(num => !isNaN(num)).sort((a, b) => a - b);
-            if (sortedStatusIds.length < 4) throw new Error("بيانات لوحة التحكم غير كافية");
-
+            const sortedStatusIds = countKeys.map(key => parseInt(key.slice(5), 10)).sort((a, b) => a - b);
             const statusId = sortedStatusIds[3];
             const targetId = selectedEntity ? selectedEntity.intEntityCode : parsedUser.userId;
-
             const response = await axios.get(`http://tanmia-group.com:90/courierApi/parcels/details/${targetId}/${statusId}`);
             setAllParcels(response.data?.Parcels || []);
         } catch (error) {
-            console.error("Failed to load successful delivery parcels:", error);
             setAlertTitle("خطأ");
-            setAlertMessage(error.message || "فشل تحميل الطرود.");
+            setAlertMessage("فشل تحميل الطرود.");
             setAlertVisible(true);
         } finally {
             setLoading(false);
@@ -240,11 +266,10 @@ export default function SuccessfulDeliveryScreen() {
         }
     }, [user, setUser, selectedEntity]);
 
-    // --- ADDED: This useEffect will run once when the component mounts ---
     useEffect(() => {
         if (user && !initialFetchDone) {
             handleSearch();
-            setInitialFetchDone(true); // Mark that the initial fetch has been done
+            setInitialFetchDone(true);
         }
     }, [user, handleSearch, initialFetchDone]);
 
@@ -253,7 +278,6 @@ export default function SuccessfulDeliveryScreen() {
         handleSearch();
     }, [handleSearch]);
 
-    // --- Handler for opening the WebView ---
     const handleTrackPress = (parcel: Parcel) => {
         setSelectedParcel(parcel);
         setWebViewVisible(true);
@@ -314,7 +338,6 @@ export default function SuccessfulDeliveryScreen() {
                         <View style={styles.emptyContainer}>
                             <Image source={require("../../assets/images/empty-reports.png")} style={styles.emptyImage} />
                             <Text style={styles.emptyText}>{allParcels.length === 0 ? "لا توجد طرود لعرضها" : ""}</Text>
-                            <Text style={styles.emptySubText}>يرجى تحديد فلتر والضغط على بحث</Text>
                         </View>
                     )
                 }
@@ -334,18 +357,9 @@ export default function SuccessfulDeliveryScreen() {
                                     data={[allStoresOption, ...displayedEntities]}
                                     keyExtractor={(item) => item.intEntityCode.toString()}
                                     renderItem={({ item }) => (
-                                        <TouchableOpacity
-                                            style={styles.modernModalItem}
-                                            onPress={() => {
-                                                setSelectedEntity(item.intEntityCode === 0 ? null : item);
-                                                setEntityModalVisible(false);
-                                                setModalSearchQuery("");
-                                            }}
-                                            activeOpacity={0.7}
-                                        >
+                                        <TouchableOpacity style={styles.modernModalItem} onPress={() => { setSelectedEntity(item.intEntityCode === 0 ? null : item); setEntityModalVisible(false); setModalSearchQuery(""); }}>
                                             <View style={styles.modalItemContent}>
                                                 <Text style={[styles.modernModalItemText, (selectedEntity?.intEntityCode === item.intEntityCode || (!selectedEntity && item.intEntityCode === 0)) && styles.modalItemSelected]}>{item.strEntityName}</Text>
-                                                {item.intEntityCode !== 0 && <Text style={styles.modalItemCode}>{item.strStatus}</Text>}
                                             </View>
                                             {(selectedEntity?.intEntityCode === item.intEntityCode || (!selectedEntity && item.intEntityCode === 0)) && (<Check color="#FF6B35" size={20} />)}
                                         </TouchableOpacity>
@@ -357,16 +371,13 @@ export default function SuccessfulDeliveryScreen() {
                 </TouchableWithoutFeedback>
             </Modal>
 
-            {/* --- WebView Modal for Tracking --- */}
             <Modal visible={webViewVisible} animationType="slide" onRequestClose={() => setWebViewVisible(false)}>
                 <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
                     <View style={styles.modalHeader}>
                         <TouchableOpacity onPress={() => setWebViewVisible(false)} style={styles.modalBackButton}>
                             <ChevronLeft size={24} color="#1F2937" />
                         </TouchableOpacity>
-                        <Text style={styles.modalHeaderTitle}>
-                            {selectedParcel ? `تتبع: ${selectedParcel.ReferenceNo}` : 'تتبع الشحنة'}
-                        </Text>
+                        <Text style={styles.modalHeaderTitle}>{selectedParcel ? `تتبع: ${selectedParcel.ReferenceNo}` : 'تتبع الشحنة'}</Text>
                         <View style={{ width: 40 }} />
                     </View>
                     {selectedParcel && (
@@ -374,13 +385,6 @@ export default function SuccessfulDeliveryScreen() {
                             source={{ uri: `http://tanmia-group.com:90/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
                             style={{ flex: 1 }}
                             startInLoadingState={true}
-                            renderLoading={() => (
-                                <ActivityIndicator
-                                    color="#27AE60" // Match the screen's theme color
-                                    size="large"
-                                    style={{ position: 'absolute', width: '100%', height: '100%' }}
-                                />
-                            )}
                         />
                     )}
                 </SafeAreaView>
@@ -390,11 +394,10 @@ export default function SuccessfulDeliveryScreen() {
         </View>
     );
 }
-// Styles remain unchanged
+
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#F8F9FA" },
     listContentContainer: { paddingHorizontal: 12, paddingBottom: 120 },
-
     modernFilterSection: { backgroundColor: "#FFFFFF", borderRadius: 8, padding: 20, marginVertical: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 },
     modernDropdown: { marginBottom: 16 },
     modernDropdownContent: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 8, padding: 16, borderWidth: 1, borderColor: "#E5E7EB" },
@@ -404,12 +407,10 @@ const styles = StyleSheet.create({
     modernDropdownValue: { color: "#1F2937", fontSize: 16, fontWeight: "600", textAlign: "right" },
     modernSearchButton: { backgroundColor: "#FF6B35", borderRadius: 8, padding: 16, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8 },
     modernSearchButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "600" },
-
     resultsHeader: { marginBottom: 10 },
     sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", marginBottom: 16, textAlign: "right" },
     parcelSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: "#E5E7EB" },
     modernModalSearchInput: { flex: 1, color: "#1F2937", fontSize: 16, paddingVertical: Platform.OS === "ios" ? 12 : 8, textAlign: "right" },
-
     modernTransactionItem: { backgroundColor: "#FFFFFF", borderRadius: 8, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: "#F3F4F6" },
     transactionHeader: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
     parcelHeaderContent: { flexDirection: "row-reverse", alignItems: "center", gap: 12, flex: 1 },
@@ -420,49 +421,35 @@ const styles = StyleSheet.create({
     parcelTotal: { color: "#27AE60", fontSize: 16, fontWeight: "bold" },
     parcelDetailsRow: { flexDirection: "row-reverse", justifyContent: "space-between", marginTop: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 12 },
     parcelColumn: { flex: 1, paddingHorizontal: 6 },
-    parcelInfoRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 6 },
+    parcelInfoRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 12 },
     parcelInfoText: { color: "#4B5563", fontSize: 14, flex: 1, textAlign: "right" },
     transactionRemarks: { color: "#9CA3AF", fontSize: 12, fontStyle: "italic", textAlign: "right", marginTop: 4 },
     dateFooter: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'flex-start', marginTop: 12, gap: 6 },
     dateFooterText: { fontSize: 12, color: '#9CA3AF' },
 
+    // NEW Payment Styles
+    paymentContainer: { flex: 1, flexDirection: 'row-reverse', alignItems: 'center', gap: 4 },
+    paymentTitle: { fontSize: 12, color: '#6B7280', textAlign: 'right' },
+    paymentBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
+    paidBadge: { backgroundColor: '#DEF7EC' },
+    unpaidBadge: { backgroundColor: '#FDE8E8' },
+    paidText: { color: '#03543F', fontSize: 10, fontWeight: 'bold' },
+    unpaidText: { color: '#9B1C1C', fontSize: 10, fontWeight: 'bold' },
+
     emptyContainer: { backgroundColor: "#FFFFFF", borderRadius: 8, paddingVertical: 40, paddingHorizontal: 20, alignItems: "center", marginTop: 20 },
     emptyImage: { width: 200, height: 120, marginBottom: 16, opacity: 0.7 },
     emptyText: { color: "#374151", fontSize: 18, fontWeight: "600", marginBottom: 4 },
-    emptySubText: { color: "#6B7280", fontSize: 14, textAlign: "center", lineHeight: 20 },
     cardSkeleton: { height: 180, width: "100%", borderRadius: 8, marginBottom: 12 },
-
     modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.5)", justifyContent: "center", alignItems: "center", padding: 20 },
     modernModalContent: { backgroundColor: "#FFFFFF", borderRadius: 8, width: "100%", maxHeight: "70%", padding: 20 },
-    modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginBottom: 16, marginHorizontal: 20, },
-    modernModalSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 8, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: "#E5E7EB", marginHorizontal: 20, },
+    modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginBottom: 16 },
+    modernModalSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 8, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: "#E5E7EB" },
     modalSearchIcon: { marginLeft: 8 },
-    modernModalItem: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 16, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: "#F3F4F6", marginHorizontal: 20, },
+    modernModalItem: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
     modalItemContent: { flex: 1 },
-    modernModalItemText: { color: "#1F2937", fontSize: 16, fontWeight: "500", textAlign: "right", marginBottom: 2 },
-    modalItemCode: { color: "#6B7280", fontSize: 12, textAlign: "right" },
+    modernModalItemText: { color: "#1F2937", fontSize: 16, fontWeight: "500", textAlign: "right" },
     modalItemSelected: { color: "#FF6B35", fontWeight: "bold" },
-
-    // --- Styles for WebView Modal Header ---
-    modalHeader: {
-        height: 60,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
-        backgroundColor: '#FFFFFF',
-    },
-    modalBackButton: {
-        padding: 10,
-    },
-    modalHeaderTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#1F2937',
-        textAlign: 'center',
-        flex: 1,
-        marginHorizontal: 10,
-    },
+    modalHeader: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', backgroundColor: '#FFFFFF' },
+    modalBackButton: { padding: 10 },
+    modalHeaderTitle: { fontSize: 16, fontWeight: '600', color: '#1F2937', textAlign: 'center', flex: 1 },
 });

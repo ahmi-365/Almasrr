@@ -699,7 +699,50 @@ export default function EntityDashboard() {
           </View>
 
           {/* Stats Section */}
+          {/* Stats Section */}
           <View style={styles.statsSection}>
+            <Text style={styles.sectionTitle}>ملخص الطرود</Text>
+            {/* 
+                This View acts as a custom container to ensure the grid items 
+                flow from right to left (RTL) regardless of device settings. 
+                Using flexWrap + row-reverse forces content to start from right.
+            */}
+            <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 10 }}>
+              {statsData.map((item, index) => (
+                <StatCounterCard
+                  key={item.label}
+                  item={item}
+                  onPress={() =>
+                    item.navigateTo &&
+                    navigation.navigate(item.navigateTo as never)
+                  }
+                />
+              ))}
+            </View>
+          </View>
+          {/* <View style={styles.statsSection}>
+            <Text style={styles.sectionTitle}>ملخص الطرود</Text>
+            <FlatList
+              data={statsData}
+              renderItem={({ item }) => (
+                <StatCounterCard
+                  item={item}
+                  onPress={() =>
+                    item.navigateTo &&
+                    navigation.navigate(item.navigateTo as never)
+                  }
+                />
+              )}
+              keyExtractor={(item) => item.label}
+              numColumns={3} // Set to 3 columns
+              columnWrapperStyle={styles.statGridRow} // Spacing between rows
+              scrollEnabled={false} // Disable nested scrolling
+              showsVerticalScrollIndicator={false}
+            />
+          </View> */}
+
+          {/* Stats Section */}
+          {/* <View style={styles.statsSection}>
             <Text style={styles.sectionTitle}>ملخص الطرود</Text>
             <FlatList
               data={statsData}
@@ -716,7 +759,7 @@ export default function EntityDashboard() {
               horizontal
               showsHorizontalScrollIndicator={false}
             />
-          </View>
+          </View> */}
 
 
         </>
@@ -793,7 +836,14 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   statsSection: {
-    marginBottom: 50
+    marginBottom: 30, // Adjusted from 50
+    paddingHorizontal: 0,
+  },
+  statGridRow: {
+    justifyContent: "flex-end",
+    flexDirection: "row-reverse", // Align from right for Arabic layout
+    gap: 10, // Space between columns
+    marginBottom: 10, // Space between rows
   },
   sectionTitle: {
     fontSize: 18,
@@ -803,23 +853,24 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   statCounterCard: {
-    width: 110,
+    // Dynamic width calculation: (Screen - ContainerPadding - Gaps) / 3
+    width: (screenWidth - 30 - 20) / 3,
     paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4, // Reduced padding to fit 3 items
     borderRadius: 8,
     alignItems: "center",
-    marginRight: 10,
+    // Remove marginRight: 10 as it's handled by gap in statGridRow
   },
   statImageContainer: {
-    width: 60,
-    height: 60,
+    width: 50, // Slightly smaller to fit grid
+    height: 50,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 8,
   },
   statImage: {
-    width: 65,
-    height: 65,
+    width: 50,
+    height: 50,
     resizeMode: "contain",
   },
   badgeContainer: {
@@ -917,4 +968,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: "italic",
   },
+
 });

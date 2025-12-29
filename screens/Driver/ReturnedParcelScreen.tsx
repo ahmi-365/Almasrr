@@ -15,6 +15,7 @@ import {
     RefreshControl,
     Image,
     Dimensions,
+    Linking, // 1. Added Linking for dialer
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
@@ -73,6 +74,7 @@ interface Parcel {
     Total: number;
     strDriverRemarks: string;
     strEntityName: string;
+    strEntityPhone: string; // 2. Added from response
 }
 
 // Helper function to format date and time
@@ -87,7 +89,14 @@ const formatDateTime = (isoString: string) => {
         const minutes = String(date.getMinutes()).padStart(2, '0');
         return `${day}-${month}-${year} ${hours}:${minutes}`;
     } catch (e) {
-        return isoString; // Fallback to original string if format is invalid
+        return isoString;
+    }
+};
+
+// 3. Dialer Helper Function
+const handlePhonePress = (phoneNumber: string) => {
+    if (phoneNumber) {
+        Linking.openURL(`tel:${phoneNumber}`);
     }
 };
 
@@ -96,8 +105,6 @@ const ParcelCard = ({ item }: { item: Parcel }) => (
         {/* Header */}
         <View style={styles.transactionHeader}>
             <View style={styles.parcelHeaderContent}>
-
-                {/* Remember to adjust the icon/color for each screen */}
                 <View style={[styles.parcelIconBackground, { backgroundColor: '#F59E0B' }]}>
                     <Package color="#fff" size={20} />
                 </View>
@@ -120,6 +127,18 @@ const ParcelCard = ({ item }: { item: Parcel }) => (
                     <Text style={styles.parcelInfoText}>{item.strEntityName}</Text>
                 </View>
             )}
+            {/* 4. Clickable Store Phone */}
+            {item.strEntityPhone && (
+                <TouchableOpacity
+                    onPress={() => handlePhonePress(item.strEntityPhone)}
+                    style={styles.parcelInfoRow}
+                >
+                    <Text style={styles.dateFooterText}>رقم المتجر :</Text>
+                    <Text style={[styles.parcelInfoText, { color: '#FF6B35', fontWeight: 'bold' }]}>
+                        {item.strEntityPhone}
+                    </Text>
+                </TouchableOpacity>
+            )}
         </View>
 
         {/* Details Section */}
@@ -132,17 +151,23 @@ const ParcelCard = ({ item }: { item: Parcel }) => (
                         <Text style={styles.parcelInfoText}>{item.RecipientName}</Text>
                     </View>
                 )}
-                <View style={styles.parcelInfoRow}>
-                    <Phone size={14} color="#6B7280" />
-                    <Text style={styles.parcelInfoText}>{item.RecipientPhone}</Text>
-                </View>
+                {/* 5. Clickable Recipient Phone */}
+                <TouchableOpacity
+                    onPress={() => handlePhonePress(item.RecipientPhone)}
+                    style={styles.parcelInfoRow}
+                >
+                    <Phone size={14} color="#FF6B35" />
+                    <Text style={[styles.parcelInfoText, { color: '#FF6B35', fontWeight: 'bold' }]}>
+                        {item.RecipientPhone}
+                    </Text>
+                </TouchableOpacity>
                 <View style={styles.parcelInfoRow}>
                     <Box size={14} color="#6B7280" />
                     <Text style={styles.parcelInfoText}>الكمية: {item.Quantity}</Text>
                 </View>
             </View>
 
-            {/* Right Column (DATE IS REMOVED FROM HERE) */}
+            {/* Right Column */}
             <View style={styles.parcelColumn}>
                 <View style={styles.parcelInfoRow}>
                     <FileText size={14} color="#6B7280" />
@@ -158,7 +183,7 @@ const ParcelCard = ({ item }: { item: Parcel }) => (
             </View>
         </View>
 
-        {/* Date Footer (Placed as the last item) */}
+        {/* Date Footer */}
         <View style={styles.dateFooter}>
             <Calendar size={12} color="#9CA3AF" />
             <Text style={styles.dateFooterText}>{formatDateTime(item.CreatedAt)}</Text>
@@ -173,7 +198,6 @@ export default function ReturnedParcelScreen() {
     const [searchQuery, setSearchQuery] = useState("");
     const { user, setUser } = useDashboard();
 
-    // State for Custom Alert
     const [isAlertVisible, setAlertVisible] = useState(false);
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
@@ -195,7 +219,7 @@ export default function ReturnedParcelScreen() {
             const dashboardData = JSON.parse(dashboardDataString);
 
             const countKeys = Object.keys(dashboardData).filter(key => key.startsWith('Count'));
-            if (countKeys.length < 3) { // Need at least three counts for this screen
+            if (countKeys.length < 3) {
                 throw new Error("لا يمكن تحديد معرف حالة الطرود المرتجعة");
             }
             const sortedStatusIds = countKeys
@@ -204,10 +228,9 @@ export default function ReturnedParcelScreen() {
                 .sort((a, b) => a - b);
 
             if (sortedStatusIds.length < 3) {
-                throw new Error("بيانات لوحة التحكم غير كافية لجلب الطرود المرتجعة");
+                throw new Error("بيانات لوحة التحكم غير كافية");
             }
 
-            // MODIFICATION: Take the THIRD status ID from the sorted list (e.g., 14)
             const statusId = sortedStatusIds[2];
 
             const response = await axios.get(
@@ -258,7 +281,6 @@ export default function ReturnedParcelScreen() {
                 source={require("../../assets/images/empty-reports.png")}
                 style={styles.emptyImage}
             />
-            {/* MODIFICATION: Updated empty state text */}
             <Text style={styles.emptyText}>
                 {allParcels.length === 0 && !searchQuery
                     ? "لا توجد طرود مرتجعة حاليًا"
@@ -269,8 +291,6 @@ export default function ReturnedParcelScreen() {
 
     return (
         <View style={styles.container}>
-            {/* MODIFICATION: Updated Title */}
-
             <TopBar title="الطرود المرتجعة" />
 
             {isLoading ? (
@@ -281,11 +301,7 @@ export default function ReturnedParcelScreen() {
                         <View style={styles.modernFilterSection}>
                             <Text style={styles.filterSectionTitle}>البحث في الطرود</Text>
                             <View style={styles.modernModalSearchContainer}>
-                                <Search
-                                    color="#9CA3AF"
-                                    size={20}
-                                    style={styles.modalSearchIcon}
-                                />
+                                <Search color="#9CA3AF" size={20} style={styles.modalSearchIcon} />
                                 <TextInput
                                     style={styles.modernModalSearchInput}
                                     placeholder="ابحث بالرقم المرجعي، الهاتف، أو المدينة..."
@@ -294,7 +310,6 @@ export default function ReturnedParcelScreen() {
                                     onChangeText={setSearchQuery}
                                 />
                             </View>
-                            {/* MODIFICATION: Updated section title */}
                             <Text style={styles.sectionTitle}>
                                 الطرود المرتجعة ({filteredParcels.length})
                             </Text>
@@ -325,11 +340,8 @@ export default function ReturnedParcelScreen() {
                 title={alertTitle}
                 message={alertMessage}
                 confirmText="حسنًا"
-                cancelText=""
                 onConfirm={() => setAlertVisible(false)}
-                onCancel={() => setAlertVisible(false)}
-                success={alertSuccess}
-            />
+                success={alertSuccess} cancelText={undefined} onCancel={undefined} />
         </View>
     );
 }
@@ -339,7 +351,6 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#F8F9FA",
     },
-
     headerContainer: {
         paddingHorizontal: 12,
     },
@@ -434,7 +445,7 @@ const styles = StyleSheet.create({
         textAlign: "right",
     },
     parcelTotal: {
-        color: "#E74C3C", // Red for returned/money owed
+        color: "#E74C3C",
         fontSize: 16,
         fontWeight: "bold",
     },
@@ -505,13 +516,12 @@ const styles = StyleSheet.create({
     dateFooter: {
         flexDirection: 'row-reverse',
         alignItems: 'center',
-        justifyContent: 'flex-start', // Aligns to the right
+        justifyContent: 'flex-start',
         marginTop: 12,
         gap: 6,
     },
     dateFooterText: {
         fontSize: 12,
-        color: '#9CA3AF', // Lighter color for metadata
+        color: '#9CA3AF',
     },
-
 });

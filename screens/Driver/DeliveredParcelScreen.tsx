@@ -14,7 +14,7 @@ import {
     FlatList,
     RefreshControl,
     Image,
-    Dimensions,
+    Linking, // Added for dialer functionality
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
@@ -26,9 +26,7 @@ import {
     Box,
     Calendar,
     User,
-    SendHorizonal,
 } from "lucide-react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
 import { useDashboard } from "../../Context/DashboardContext";
@@ -36,8 +34,6 @@ import CustomAlert from "../../components/CustomAlert";
 import TopBar from "../../components/Entity/TopBarNew";
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
-
-
 
 const ParcelsSkeleton = () => {
     const shimmerColors = ["#FDF1EC", "#FEF8F5", "#FDF1EC"];
@@ -74,7 +70,7 @@ interface Parcel {
     Total: number;
     strDriverRemarks: string;
     strEntityName: string;
-
+    strEntityPhone: string; // Added field
 }
 
 // Helper function to format date and time
@@ -89,7 +85,14 @@ const formatDateTime = (isoString: string) => {
         const minutes = String(date.getMinutes()).padStart(2, '0');
         return `${day}-${month}-${year} ${hours}:${minutes}`;
     } catch (e) {
-        return isoString; // Fallback to original string if format is invalid
+        return isoString;
+    }
+};
+
+// Helper to open Dialer
+const openDialer = (phone: string) => {
+    if (phone) {
+        Linking.openURL(`tel:${phone}`);
     }
 };
 
@@ -98,7 +101,6 @@ const ParcelCard = ({ item }: { item: Parcel }) => (
         {/* Header */}
         <View style={styles.transactionHeader}>
             <View style={styles.parcelHeaderContent}>
-                {/* Remember to adjust the icon/color for each screen */}
                 <View style={styles.parcelIconBackground}>
                     <Package color="#fff" size={20} />
                 </View>
@@ -114,6 +116,7 @@ const ParcelCard = ({ item }: { item: Parcel }) => (
             </Text>
         </View>
 
+        {/* Store Information */}
         <View style={[styles.parcelNameContainer, { marginTop: 12 }]}>
             {item.strEntityName && (
                 <View style={styles.parcelInfoRow}>
@@ -121,12 +124,22 @@ const ParcelCard = ({ item }: { item: Parcel }) => (
                     <Text style={styles.parcelInfoText}>{item.strEntityName}</Text>
                 </View>
             )}
+            {item.strEntityPhone && (
+                <TouchableOpacity
+                    onPress={() => openDialer(item.strEntityPhone)}
+                    style={styles.parcelInfoRow}
+                >
+                    <Text style={styles.dateFooterText}>رقم المتجر :</Text>
+                    <Text style={[styles.parcelInfoText, { color: '#FF6B35', fontWeight: 'bold' }]}>
+                        {item.strEntityPhone}
+                    </Text>
+                </TouchableOpacity>
+            )}
         </View>
-
 
         {/* Details Section */}
         <View style={styles.parcelDetailsRow}>
-            {/* Left Column */}
+            {/* Column 1: Recipient Contact */}
             <View style={styles.parcelColumn}>
                 {item.RecipientName && (
                     <View style={styles.parcelInfoRow}>
@@ -134,17 +147,22 @@ const ParcelCard = ({ item }: { item: Parcel }) => (
                         <Text style={styles.parcelInfoText}>{item.RecipientName}</Text>
                     </View>
                 )}
-                <View style={styles.parcelInfoRow}>
-                    <Phone size={14} color="#6B7280" />
-                    <Text style={styles.parcelInfoText}>{item.RecipientPhone}</Text>
-                </View>
+                <TouchableOpacity
+                    onPress={() => openDialer(item.RecipientPhone)}
+                    style={styles.parcelInfoRow}
+                >
+                    <Phone size={14} color="#FF6B35" />
+                    <Text style={[styles.parcelInfoText, { color: '#FF6B35', fontWeight: 'bold' }]}>
+                        {item.RecipientPhone}
+                    </Text>
+                </TouchableOpacity>
                 <View style={styles.parcelInfoRow}>
                     <Box size={14} color="#6B7280" />
                     <Text style={styles.parcelInfoText}>الكمية: {item.Quantity}</Text>
                 </View>
             </View>
 
-            {/* Right Column (DATE IS REMOVED FROM HERE) */}
+            {/* Column 2: Remarks */}
             <View style={styles.parcelColumn}>
                 <View style={styles.parcelInfoRow}>
                     <FileText size={14} color="#6B7280" />
@@ -160,7 +178,7 @@ const ParcelCard = ({ item }: { item: Parcel }) => (
             </View>
         </View>
 
-        {/* Date Footer (Placed as the last item) */}
+        {/* Date Footer */}
         <View style={styles.dateFooter}>
             <Calendar size={12} color="#9CA3AF" />
             <Text style={styles.dateFooterText}>{formatDateTime(item.CreatedAt)}</Text>
@@ -175,7 +193,6 @@ export default function DeliveredParcelScreen() {
     const [searchQuery, setSearchQuery] = useState("");
     const { user, setUser } = useDashboard();
 
-    // State for Custom Alert
     const [isAlertVisible, setAlertVisible] = useState(false);
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
@@ -197,19 +214,15 @@ export default function DeliveredParcelScreen() {
             const dashboardData = JSON.parse(dashboardDataString);
 
             const countKeys = Object.keys(dashboardData).filter(key => key.startsWith('Count'));
-            if (countKeys.length < 2) { // Need at least two counts for this screen
-                throw new Error("لا يمكن تحديد معرف حالة الطرود المسلمة");
-            }
             const sortedStatusIds = countKeys
                 .map(key => parseInt(key.slice(5), 10))
                 .filter(num => !isNaN(num))
                 .sort((a, b) => a - b);
 
             if (sortedStatusIds.length < 2) {
-                throw new Error("بيانات لوحة التحكم غير كافية لجلب الطرود المسلمة");
+                throw new Error("بيانات لوحة التحكم غير كافية");
             }
 
-            // MODIFICATION: Take the SECOND status ID from the sorted list (e.g., 7)
             const statusId = sortedStatusIds[1];
 
             const response = await axios.get(
@@ -246,11 +259,12 @@ export default function DeliveredParcelScreen() {
 
     const filteredParcels = useMemo(() => {
         if (!searchQuery) return allParcels;
+        const lowerQuery = searchQuery.toLowerCase();
         return allParcels.filter(
             (parcel) =>
-                parcel.ReferenceNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                parcel.ReferenceNo.toLowerCase().includes(lowerQuery) ||
                 parcel.RecipientPhone.includes(searchQuery) ||
-                parcel.CityName.toLowerCase().includes(searchQuery.toLowerCase())
+                parcel.CityName.toLowerCase().includes(lowerQuery)
         );
     }, [allParcels, searchQuery]);
 
@@ -270,8 +284,6 @@ export default function DeliveredParcelScreen() {
 
     return (
         <View style={styles.container}>
-            {/* MODIFICATION: Updated Title */}
-
             <TopBar title="الطرود المسلمة" />
 
             {isLoading ? (
@@ -282,11 +294,7 @@ export default function DeliveredParcelScreen() {
                         <View style={styles.modernFilterSection}>
                             <Text style={styles.filterSectionTitle}>البحث في الطرود</Text>
                             <View style={styles.modernModalSearchContainer}>
-                                <Search
-                                    color="#9CA3AF"
-                                    size={20}
-                                    style={styles.modalSearchIcon}
-                                />
+                                <Search color="#9CA3AF" size={20} style={styles.modalSearchIcon} />
                                 <TextInput
                                     style={styles.modernModalSearchInput}
                                     placeholder="ابحث بالرقم المرجعي، الهاتف، أو المدينة..."
@@ -325,28 +333,16 @@ export default function DeliveredParcelScreen() {
                 title={alertTitle}
                 message={alertMessage}
                 confirmText="حسنًا"
-                cancelText=""
                 onConfirm={() => setAlertVisible(false)}
-                onCancel={() => setAlertVisible(false)}
-                success={alertSuccess}
-            />
+                success={alertSuccess} cancelText={undefined} onCancel={undefined} />
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#F8F9FA",
-    },
-
-    headerContainer: {
-        paddingHorizontal: 12,
-    },
-    listContentContainer: {
-        paddingHorizontal: 12,
-        paddingBottom: 120
-    },
+    container: { flex: 1, backgroundColor: "#F8F9FA" },
+    headerContainer: { paddingHorizontal: 12 },
+    listContentContainer: { paddingHorizontal: 12, paddingBottom: 120 },
     modernFilterSection: {
         backgroundColor: "#FFFFFF",
         borderRadius: 8,
@@ -359,13 +355,7 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 3,
     },
-    filterSectionTitle: {
-        fontSize: 18,
-        fontWeight: "bold",
-        color: "#1F2937",
-        marginBottom: 16,
-        textAlign: "right",
-    },
+    filterSectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", marginBottom: 16, textAlign: "right" },
     modernModalSearchContainer: {
         flexDirection: "row-reverse",
         alignItems: "center",
@@ -384,13 +374,7 @@ const styles = StyleSheet.create({
         paddingVertical: Platform.OS === "ios" ? 12 : 8,
         textAlign: "right",
     },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: "bold",
-        color: "#1F2937",
-        marginBottom: 0,
-        textAlign: "right",
-    },
+    sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", textAlign: "right" },
     modernTransactionItem: {
         backgroundColor: "#FFFFFF",
         borderRadius: 8,
@@ -399,46 +383,20 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: "#F3F4F6",
     },
-    transactionHeader: {
-        flexDirection: "row-reverse",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 12,
-    },
-    parcelHeaderContent: {
-        flexDirection: "row-reverse",
-        alignItems: "center",
-        gap: 12,
-        flex: 1,
-    },
+    transactionHeader: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+    parcelHeaderContent: { flexDirection: "row-reverse", alignItems: "center", gap: 12, flex: 1 },
     parcelIconBackground: {
         width: 40,
         height: 40,
-        backgroundColor: "#27AE60", // Green for delivered
+        backgroundColor: "#27AE60",
         borderRadius: 8,
         justifyContent: "center",
         alignItems: "center",
     },
-    parcelNameContainer: {
-        flex: 1,
-    },
-    transactionDate: {
-        color: "#1F2937",
-        fontSize: 16,
-        fontWeight: "600",
-        textAlign: "right",
-        marginBottom: 2,
-    },
-    runningTotalLabel: {
-        color: "#6B7280",
-        fontSize: 12,
-        textAlign: "right",
-    },
-    parcelTotal: {
-        color: "#27AE60",
-        fontSize: 16,
-        fontWeight: "bold",
-    },
+    parcelNameContainer: { flex: 1 },
+    transactionDate: { color: "#1F2937", fontSize: 16, fontWeight: "600", textAlign: "right", marginBottom: 2 },
+    runningTotalLabel: { color: "#6B7280", fontSize: 12, textAlign: "right" },
+    parcelTotal: { color: "#27AE60", fontSize: 16, fontWeight: "bold" },
     parcelDetailsRow: {
         flexDirection: "row-reverse",
         justifyContent: "space-between",
@@ -447,73 +405,15 @@ const styles = StyleSheet.create({
         borderTopColor: '#F3F4F6',
         paddingTop: 12,
     },
-    parcelColumn: {
-        flex: 1,
-        paddingHorizontal: 6,
-    },
-    parcelInfoRow: {
-        flexDirection: "row-reverse",
-        alignItems: "center",
-        gap: 8,
-        marginBottom: 6,
-    },
-    parcelInfoText: {
-        color: "#4B5563",
-        fontSize: 14,
-        flex: 1,
-        fontWeight: "500",
-        textAlign: "right",
-    },
-    transactionRemarks: {
-        color: "#9CA3AF",
-        fontSize: 12,
-        fontStyle: "italic",
-        textAlign: "right",
-        marginTop: 4,
-    },
-    emptyContainer: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 8,
-        paddingVertical: 40,
-        paddingHorizontal: 20,
-        alignItems: "center",
-        marginTop: 20,
-    },
-    emptyImage: {
-        width: 200,
-        height: 120,
-        marginBottom: 16,
-        opacity: 0.7
-    },
-    emptyText: {
-        color: "#374151",
-        fontSize: 18,
-        fontWeight: "600",
-        marginBottom: 4,
-        textAlign: "center",
-    },
-    searchSkeleton: {
-        height: 180,
-        borderRadius: 8,
-        width: "100%",
-        marginBottom: 12,
-    },
-    cardSkeleton: {
-        height: 180, // Adjusted height since footer is removed
-        width: "100%",
-        borderRadius: 8,
-        marginBottom: 12,
-    },
-
-    dateFooter: {
-        flexDirection: 'row-reverse',
-        alignItems: 'center',
-        justifyContent: 'flex-start', // Aligns to the right
-        marginTop: 12,
-        gap: 6,
-    },
-    dateFooterText: {
-        fontSize: 12,
-        color: '#9CA3AF', // Lighter color for metadata
-    },
+    parcelColumn: { flex: 1, paddingHorizontal: 6 },
+    parcelInfoRow: { flexDirection: "row-reverse", alignItems: "center", gap: 8, marginBottom: 6 },
+    parcelInfoText: { color: "#4B5563", fontSize: 14, flex: 1, fontWeight: "500", textAlign: "right" },
+    transactionRemarks: { color: "#9CA3AF", fontSize: 12, fontStyle: "italic", textAlign: "right", marginTop: 4 },
+    emptyContainer: { backgroundColor: "#FFFFFF", borderRadius: 8, paddingVertical: 40, paddingHorizontal: 20, alignItems: "center", marginTop: 20 },
+    emptyImage: { width: 200, height: 120, marginBottom: 16, opacity: 0.7 },
+    emptyText: { color: "#374151", fontSize: 18, fontWeight: "600", marginBottom: 4, textAlign: "center" },
+    searchSkeleton: { height: 180, borderRadius: 8, width: "100%", marginBottom: 12 },
+    cardSkeleton: { height: 180, width: "100%", borderRadius: 8, marginBottom: 12 },
+    dateFooter: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'flex-start', marginTop: 12, gap: 6 },
+    dateFooterText: { fontSize: 12, color: '#9CA3AF' },
 });

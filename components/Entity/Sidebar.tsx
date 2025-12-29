@@ -70,7 +70,8 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
     const allItems: DialerMenuItem[] = isDriver
       ? [
         { image: images.deliveredParcels, title: 'الطرود المسلمة', route: 'DeliverdParcel' },
-        { image: images.returnedParcels, title: 'الطرود المرتجعة', route: 'ReturnedParcel' }
+        { image: images.returnedParcels, title: 'الطرود المرتجعة', route: 'ReturnedParcel' },
+        { image: images.history, title: 'الفواتير', route: 'DriverInvoices' }
       ]
       : [
         { image: images.cityRates, title: 'الأسعار حسب المدينة', route: 'CityRates' },

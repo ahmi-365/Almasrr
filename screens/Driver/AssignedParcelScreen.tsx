@@ -17,6 +17,7 @@ import {
     Image,
     Dimensions,
     Modal,
+    Linking,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
@@ -94,6 +95,7 @@ interface Parcel {
     Total: number;
     strDriverRemarks: string;
     strEntityName: string;
+    strEntityPhone: string;
 }
 
 const formatDateTime = (isoString: string) => {
@@ -138,6 +140,12 @@ export default function AssignedParcelScreen() {
 
     const { setCurrentRoute } = useDashboard(); // Get the setter function
 
+
+    const handlePhoneCall = (phoneNumber: string) => {
+        if (phoneNumber) {
+            Linking.openURL(`tel:${phoneNumber}`);
+        }
+    };
 
 
     useFocusEffect(
@@ -262,12 +270,17 @@ export default function AssignedParcelScreen() {
     };
 
     const handleAddRemarks = async (remark: string) => {
-        if (!selectedParcel || !remark.trim()) return;
+        const trimmedRemark = remark.trim();
+        if (!selectedParcel || !trimmedRemark) return; // Also updated condition to check trimmedRemark
 
         setIsProcessing(true);
         try {
             await axios.post(
-                `http://tanmia-group.com:90/courierApi/Parcel/Driver/AddRemarks/${selectedParcel.intParcelCode}/${encodeURIComponent(remark)}`
+                `http://tanmia-group.com:90/courierApi/Parcel/Driver/AddRemarks`,
+                {
+                    parcelID: selectedParcel.intParcelCode,
+                    strRemarks: trimmedRemark
+                }
             );
 
             setAlertTitle("نجاح");
@@ -279,7 +292,7 @@ export default function AssignedParcelScreen() {
             setCustomRemark("");
             setSelectedRemarkOption("");
             loadData();
-            console.log('Remarks added:', remark);
+            console.log('Remarks added:', trimmedRemark);
         } catch (error) {
             setAlertTitle("خطأ");
             setAlertMessage("فشل في إضافة الملاحظات");
@@ -334,14 +347,27 @@ export default function AssignedParcelScreen() {
                 </Text>
             </View>
 
-            <View style={[styles.parcelNameContainer, { marginTop: 12 }]}>
+            <View style={[styles.parcelNameContainer, { marginTop: 12, marginBottom: 12 }]}>
                 {item.strEntityName && (
                     <View style={styles.parcelInfoRow}>
                         <Text style={styles.dateFooterText}>اسم المتجر :</Text>
                         <Text style={styles.parcelInfoText}>{item.strEntityName}</Text>
                     </View>
                 )}
+                {/* 3. Render Store Phone - Clickable */}
+                {item.strEntityPhone && (
+                    <TouchableOpacity onPress={() => handlePhoneCall(item.strEntityPhone)}>
+                        <View style={styles.parcelInfoRow}>
+                            <Phone size={14} color="#6B7280" />
+                            <Text style={styles.dateFooterText}>رقم المتجر :</Text>
+                            <Text style={[styles.parcelInfoText, { color: '#FF6B35', fontWeight: 'bold' }]}>
+                                {item.strEntityPhone}
+                            </Text>
+                        </View>
+                    </TouchableOpacity>
+                )}
             </View>
+
 
             <View style={styles.parcelDetailsRow}>
                 <View style={styles.parcelColumn}>
@@ -351,10 +377,14 @@ export default function AssignedParcelScreen() {
                             <Text style={styles.parcelInfoText}>{item.RecipientName}</Text>
                         </View>
                     )}
-                    <View style={styles.parcelInfoRow}>
-                        <Phone size={14} color="#6B7280" />
-                        <Text style={styles.parcelInfoText}>{item.RecipientPhone}</Text>
-                    </View>
+                    <TouchableOpacity onPress={() => handlePhoneCall(item.RecipientPhone)}>
+                        <View style={styles.parcelInfoRow}>
+                            <Phone size={14} color="#6B7280" />
+                            <Text style={[styles.parcelInfoText, { color: '#FF6B35', fontWeight: 'bold' }]}>
+                                {item.RecipientPhone}
+                            </Text>
+                        </View>
+                    </TouchableOpacity>
                     <View style={styles.parcelInfoRow}>
                         <Box size={14} color="#6B7280" />
                         <Text style={styles.parcelInfoText}>الكمية: {item.Quantity}</Text>

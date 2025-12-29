@@ -230,8 +230,11 @@ export default function AddParcelWhatsappScreen() {
         if (!quantity.trim() || !(parseInt(quantity, 10) > 0)) {
             return showAlert({ title: 'قيمة غير صالحة', message: 'يرجى إدخال كمية صحيحة أكبر من صفر.' });
         }
-        if (!productPrice.trim() || !(parseFloat(productPrice) > 0)) {
-            return showAlert({ title: 'قيمة غير صالحة', message: 'يرجى إدخال سعر منتج صحيح أكبر من صفر.' });
+        if ((parseFloat(productPrice) < 0) || !(parseInt(quantity, 10) >= 0)) {
+            return showAlert({
+                title: "قيم غير صالحة",
+                message: "لا يمكن أن يكون السعر أو الكمية أقل من صفر.",
+            });
         }
 
         setIsSending(true);

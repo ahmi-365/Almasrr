@@ -32,6 +32,8 @@ import EntityDashboard from '../screens/Entity/EntityDashboard';
 import ParcelsScreen from '../screens/Driver/ParcelsScreen';
 import AssignedParcelScreen from '../screens/Driver/AssignedParcelScreen';
 import NotificationsScreen from '../components/Entity/NotificationsScreen';
+import DriverInvoicesScreen from '../screens/Driver/driverinvoices';
+
 // --- THIS IS THE FIX ---
 // Add all possible screen names, including the new Driver tabs, to the master list.
 export type RootStackParamList = {
@@ -66,7 +68,7 @@ export type RootStackParamList = {
   NotificationsScreen: undefined
   EntityReports: { entityCode: number };
   SearchScreen: { allParcels: any[] };
-
+  DriverInvoices: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -129,6 +131,7 @@ const AppContent = () => {
         <Stack.Screen name="AtBranchScreen" component={AtBranchScreen} />
         <Stack.Screen name="OnTheWayScreen" component={OnTheWayScreen} />
         <Stack.Screen name="TrackShipment" component={TrackShipment} />
+        <Stack.Screen name="DriverInvoices" component={DriverInvoicesScreen} />
 
 
         {/* 3. REGISTER THE SEARCH SCREEN AND SET ITS PRESENTATION TO MODAL */}

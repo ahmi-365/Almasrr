@@ -444,6 +444,24 @@ export default function DriverDashboard() {
               renderItem={({ item }) => (
                 <StatCounterCard
                   item={item}
+                  onPress={() =>
+                    item.navigateTo && navigation.navigate(item.navigateTo as never)
+                  }
+                />
+              )}
+              keyExtractor={(item) => item.label}
+              numColumns={3} // Set to 3 columns
+              scrollEnabled={false} // Disable internal scroll
+              columnWrapperStyle={styles.statGridRow} // Spacing between columns
+            />
+          </View>
+          {/* <View style={styles.statsSection}>
+            <Text style={styles.sectionTitle}>ملخص المهام</Text>
+            <FlatList
+              data={statsData}
+              renderItem={({ item }) => (
+                <StatCounterCard
+                  item={item}
                   onPress={() => item.navigateTo && navigation.navigate(item.navigateTo as never)}
                 />
               )}
@@ -451,7 +469,7 @@ export default function DriverDashboard() {
               horizontal
               showsHorizontalScrollIndicator={false}
             />
-          </View>
+          </View> */}
           {/* <View style={styles.promoSliderContainer}>
             <FlatList
               data={PROMO_SLIDER_DATA}
@@ -532,7 +550,13 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     textAlign: 'right',
   },
-  statsSection: { marginBottom: 50 },
+  statsSection: {
+    marginBottom: 40 // Adjusted slightly
+  },
+  statGridRow: {
+    justifyContent: 'space-between', // Distribute 3 cards evenly
+    flexDirection: 'row-reverse', // Matches Arabic RTL layout
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -541,23 +565,26 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   statCounterCard: {
-    width: 120,
+    // Logic: (Screen - HorizontalPadding - Gaps) / 3
+    // 30 = total horizontal padding (15 left + 15 right)
+    // 20 = gap between cards (10 + 10)
+    width: (screenWidth - 30 - 20) / 3,
     paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4, // Reduced to fit content
     borderRadius: 8,
     alignItems: 'center',
-    marginRight: 10,
+    // Remove marginRight: 10 as gaps are handled by statGridRow
   },
   statImageContainer: {
-    width: 60,
-    height: 60,
+    width: 50, // Slightly smaller for grid
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
   },
   statImage: {
-    width: 65,
-    height: 65,
+    width: 50,
+    height: 50,
     resizeMode: 'contain',
   },
   badgeContainer: {

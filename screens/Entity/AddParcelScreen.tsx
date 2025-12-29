@@ -31,23 +31,19 @@ import {
   ShoppingBag,
   Search,
   Check,
-  Tag, // Import Tag icon for promo code
+  Tag,
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import TopBar from "../../components/Entity/TopBarNew";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import CustomAlert from "../../components/CustomAlert";
-
-// --- Shimmer Placeholder Imports ---
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
 
 const ShimmerPlaceholder = createShimmerPlaceholder(LinearGradient);
 
-
-
-// --- Type Definitions ---
+// ... [Keep interfaces and static constants SAME as before] ...
 interface Entity {
   intEntityCode: number;
   strEntityName: string;
@@ -64,26 +60,24 @@ interface ParcelType {
   Text: string;
   Value: string;
 }
-// New interface for DeliveryType
 interface DeliveryType {
   Disabled: boolean;
-  Group: any; // Can be null or specific type if known
+  Group: any;
   Selected: boolean;
   Text: string;
   Value: string;
 }
-// New interface for Discount Info
 interface DiscountInfo {
   discount_type: string;
   discount_value: number;
   promotion_id: number;
 }
 
+const PAYMENT_METHODS = ["المرسل", "المستلم", "الدفع الإلكتروني"];
+const COUNTRY_CODE = "+218";
 
-const PAYMENT_METHODS = ["المرسل", "المستلم"];
-const COUNTRY_CODE = "+218"; // Define the static country code
+// ... [Keep Reusable UI Components (FormInput, FormPicker, etc) SAME as before] ...
 
-// --- Reusable UI Components ---
 const FormInput = ({
   label,
   icon: Icon,
@@ -93,7 +87,7 @@ const FormInput = ({
   keyboardType = "default",
   editable = true,
   required = false,
-  rightComponent = null, // Make rightComponent optional with a default value
+  rightComponent = null,
 }) => (
   <View style={styles.inputContainer}>
     <Text style={styles.label}>
@@ -115,6 +109,8 @@ const FormInput = ({
     </View>
   </View>
 );
+
+// ... [Keep FormPicker, DimensionInput, PriceOptionCard, SelectionModal, FormSkeleton SAME as before] ...
 const FormPicker = ({
   label,
   icon: Icon,
@@ -201,7 +197,7 @@ const SelectionModal = ({
     visible={visible}
     animationType="fade"
     transparent={true}
-    onRequestClose={() => { }} // Handle closing via the overlay touch
+    onRequestClose={() => { }}
   >
     <TouchableWithoutFeedback onPress={() => onSelect(selectedValue)}>
       <View style={styles.modalOverlay}>
@@ -212,7 +208,7 @@ const SelectionModal = ({
             <Text style={styles.modalTitle}>{title}</Text>
             <FlatList
               data={options}
-              keyExtractor={(item) => item.Value || item} // Handle both object and string options
+              keyExtractor={(item) => item.Value || item}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.modernModalItem}
@@ -239,7 +235,6 @@ const SelectionModal = ({
   </Modal>
 );
 const shimmerColors = ["#FDF1EC", "#FEF8F5", "#FDF1EC"];
-// --- Skeleton Component for Initial Loading ---
 const FormSkeleton = () => (
   <View>
     {[...Array(6)].map((_, index) => (
@@ -258,6 +253,7 @@ const FormSkeleton = () => (
     <ShimmerPlaceholder style={skeletonStyles.button} />
   </View>
 );
+
 
 export default function CreateParcelScreen() {
   const insets = useSafeAreaInsets();
@@ -281,16 +277,14 @@ export default function CreateParcelScreen() {
   const [isPromoApplied, setIsPromoApplied] = useState(false);
   const [discountInfo, setDiscountInfo] = useState<DiscountInfo | null>(null);
 
-
   const [parcelTypes, setParcelTypes] = useState<ParcelType[]>([]);
   const [selectedParcelType, setSelectedParcelType] =
     useState<ParcelType | null>(null);
   const [isParcelTypeModalVisible, setParcelTypeModalVisible] = useState(false);
 
-  const [deliveryTypes, setDeliveryTypes] = useState<DeliveryType[]>([]); // New state for delivery types
-  const [selectedDeliveryType, setSelectedDeliveryType] = useState<DeliveryType | null>(null); // New state for selected delivery type
-  const [isDeliveryTypeModalVisible, setDeliveryTypeModalVisible] = useState(false); // New state for delivery type modal visibility
-
+  const [deliveryTypes, setDeliveryTypes] = useState<DeliveryType[]>([]);
+  const [selectedDeliveryType, setSelectedDeliveryType] = useState<DeliveryType | null>(null);
+  const [isDeliveryTypeModalVisible, setDeliveryTypeModalVisible] = useState(false);
 
   const [stores, setStores] = useState<Entity[]>([]);
   const [selectedStore, setSelectedStore] = useState<Entity | null>(null);
@@ -328,7 +322,7 @@ export default function CreateParcelScreen() {
       message: config.message,
       confirmText: config.confirmText || "حسناً",
       onConfirmAction: config.onConfirm || (() => { }),
-      success: config.success || false, // Default to false (error state)
+      success: config.success || false,
     });
   };
 
@@ -359,7 +353,7 @@ export default function CreateParcelScreen() {
               `http://tanmia-group.com:90/courierApi/City/GetCityPrices/${userCityCode}`
             )
             : Promise.resolve({ data: [] }),
-          axios.get( // New API call for delivery types
+          axios.get(
             "http://tanmia-group.com:90/courierApi/parcels/GetDeliveryTypes"
           ),
         ]).then(([parcelTypesResponse, storesResponse, cityPricesResponse, deliveryTypesResponse]) => {
@@ -368,14 +362,10 @@ export default function CreateParcelScreen() {
           if (storesResponse.data) setStores(storesResponse.data);
           if (cityPricesResponse.data)
             setAllCityPrices(cityPricesResponse.data);
-          if (deliveryTypesResponse.data?.DeliveryTypes) { // Handle delivery types
+          if (deliveryTypesResponse.data?.DeliveryTypes) {
             setDeliveryTypes(deliveryTypesResponse.data.DeliveryTypes);
-            // Optionally pre-select 'سريع' if it exists and there's no other default logic
-            // Re-select 'سريع' if it was the default behavior
             const fastDelivery = deliveryTypes.find(dt => dt.Value === "سريع");
             if (fastDelivery) {
-              setSelectedDeliveryType(fastDelivery);
-            } if (fastDelivery) {
               setSelectedDeliveryType(fastDelivery);
             }
           }
@@ -415,18 +405,30 @@ export default function CreateParcelScreen() {
       return 0;
     }
     if (discountInfo.discount_type === 'percent') {
-      // CORRECT: Now uses the base shippingPrice for the calculation
       return (shippingPrice * discountInfo.discount_value) / 100;
     } else {
-      // Fixed amount discount remains the same
       return discountInfo.discount_value;
     }
   }, [isPromoApplied, discountInfo, shippingPrice]);
 
+  const electronicPaymentSurcharge = useMemo(() => {
+    if (paymentMethod === "الدفع الإلكتروني") {
+      // Calculate base total before surcharge
+      const baseTotal = productTotal + displayedShippingPrice - discountAmount;
+      return baseTotal * 0.02; // 2% surcharge
+    }
+    return 0;
+  }, [paymentMethod, productTotal, displayedShippingPrice, discountAmount]);
+
   const totalAmount = useMemo(
-    () => productTotal + displayedShippingPrice - discountAmount,
-    [productTotal, displayedShippingPrice, discountAmount]
+    () => productTotal + displayedShippingPrice - discountAmount + electronicPaymentSurcharge,
+    [productTotal, displayedShippingPrice, discountAmount, electronicPaymentSurcharge]
   );
+
+  // const totalAmount = useMemo(
+  //   () => productTotal + displayedShippingPrice - discountAmount,
+  //   [productTotal, displayedShippingPrice, discountAmount]
+  // );
 
   const displayedStores = useMemo(
     () =>
@@ -445,9 +447,9 @@ export default function CreateParcelScreen() {
     [citySearchQuery, allCityPrices]
   );
 
-  const handleSetParcelType = (parcelTypeObject: ParcelType) => { // <-- Change parameter type
+  const handleSetParcelType = (parcelTypeObject: ParcelType) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setSelectedParcelType(parcelTypeObject); // <-- Set the object directly
+    setSelectedParcelType(parcelTypeObject);
     setParcelTypeModalVisible(false);
   };
   const handleSetDeliveryType = (deliveryTypeObject: DeliveryType) => {
@@ -477,7 +479,7 @@ export default function CreateParcelScreen() {
 
   const handleApplyPromoCode = async () => {
     const userDataString = await AsyncStorage.getItem("user");
-    if (!userDataString) return; // Should not happen if user is logged in
+    if (!userDataString) return;
     const parsedUser = JSON.parse(userDataString);
     const userCityCode = parsedUser?.intCityCode;
 
@@ -505,8 +507,6 @@ export default function CreateParcelScreen() {
         title: 'خطأ',
         message: error.message,
       });
-      // Clear field on error if desired
-      // setPromoCode(""); 
     } finally {
       setIsApplyingPromo(false);
     }
@@ -533,7 +533,7 @@ export default function CreateParcelScreen() {
     setHeight("");
     setPaymentMethod("");
     setSelectedParcelType(null);
-    setSelectedDeliveryType(null); // Reset delivery type
+    setSelectedDeliveryType(null);
     setSelectedStore(null);
     setSelectedCityData(null);
     setSelectedShippingType(null);
@@ -545,7 +545,6 @@ export default function CreateParcelScreen() {
     setDiscountInfo(null);
     setIsPromoApplied(false);
 
-    // Re-select 'سريع' if it was the default behavior
     const fastDelivery = deliveryTypes.find(dt => dt.Value === "سريع");
     if (fastDelivery) {
       setSelectedDeliveryType(fastDelivery);
@@ -553,15 +552,15 @@ export default function CreateParcelScreen() {
   };
 
   const handleSave = async () => {
+    // --- UPDATED VALIDATION: Removed Name and Phone checks ---
     if (
-      !recipientName.trim() ||
-      !recipientPhone.trim() ||
-      !recipientAddress.trim()
+      !recipientPhone.trim()
     )
       return showAlert({
         title: "حقول مطلوبة",
-        message: "يرجى ملء جميع معلومات المستلم.",
+        message: "يرجى إدخال رقم هاتف المستلم."
       });
+
     if (!selectedStore)
       return showAlert({ title: "حقول مطلوبة", message: "يرجى اختيار متجر." });
     if (!selectedParcelType)
@@ -589,18 +588,21 @@ export default function CreateParcelScreen() {
         title: "حقول مطلوبة",
         message: "يرجى اختيار سعر الشحن.",
       });
-    if (!(parseFloat(productPrice) > 0) || !(parseInt(quantity, 10) >= 0)) {
+
+    // --- UPDATED VALIDATION: Allow Product Price to be 0 ---
+    if ((parseFloat(productPrice) < 0) || !(parseInt(quantity, 10) >= 0)) {
       return showAlert({
         title: "قيم غير صالحة",
-        message: "يجب أن يكون سعر المنتج والكمية أكبر من صفر.",
+        message: "لا يمكن أن يكون السعر أو الكمية أقل من صفر.",
       });
     }
+
     if (!paymentMethod)
       return showAlert({
         title: "حقول مطلوبة",
         message: "يرجى اختيار طريقة الدفع.",
       });
-    if (!selectedDeliveryType && parseInt(quantity, 10) > 1) // New validation for delivery type
+    if (!selectedDeliveryType && parseInt(quantity, 10) > 1)
       return showAlert({
         title: "حقول مطلوبة",
         message: "يرجى اختيار نوع التسليم.",
@@ -619,13 +621,16 @@ export default function CreateParcelScreen() {
       outskirts: "OutSkirt",
     };
 
-    // Construct the phone number with the static country code
-    const fullRecipientPhone = COUNTRY_CODE + recipientPhone;
+    // --- UPDATED LOGIC: Only append country code if phone is not empty ---
+    const fullRecipientPhone = recipientPhone.trim() ? (COUNTRY_CODE + recipientPhone) : "";
+
+    // --- UPDATED LOGIC: Use selected store EntityCode, fallback to userId ---
+    const senderEntityCode = selectedStore?.intEntityCode ?? userId;
 
     const payload = {
-      intSenderEntityCode: userId,
+      intSenderEntityCode: senderEntityCode, // Use variable from above
       strRecipientName: recipientName,
-      strRecipientPhone: fullRecipientPhone, // Use the full phone number here
+      strRecipientPhone: fullRecipientPhone,
       strRecipientAddress: recipientAddress,
       intParcelTypeCode: selectedParcelType.Value,
       dcFee: totalAmount,
@@ -644,38 +649,51 @@ export default function CreateParcelScreen() {
         ? strCityPriceNameMap[selectedShippingType]
         : "",
       strDeliveryType: selectedDeliveryType?.Value || "",
-      // --- Add Promotion ID to payload ---
       intPromotionId: isPromoApplied ? discountInfo.promotion_id : null,
     };
 
     try {
       const response = await axios.post('http://tanmia-group.com:90/courierApi/parcels/saveparcel', payload);
-      if (response.data && response.status === 200) {
+
+      // Check if API call was successful AND if the Logic Success is true
+      // We check response.data.Success !== false to handle your specific JSON structure
+      if (response.status === 200 && response.data?.Success !== false) {
         showAlert({
           title: 'نجاح',
-          message: response.data.message || 'تم حفظ الطرد بنجاح!',
+          // Handle Capital 'M' Message or lowercase 'm' message
+          message: response.data?.Message || response.data?.message || 'تم حفظ الطرد بنجاح!',
           confirmText: 'إضافة طرد جديد',
           onConfirm: resetForm,
-          success: true, // --- Set success to true ---
+          success: true,
         });
-        // console.log('Parcel saved successfully:', response.data);
       } else {
-        throw new Error(response.data?.message || 'فشل حفظ الطرد');
+        // If status is 200 but Success is false, throw error with the API message
+        const failMessage = response.data?.Message || response.data?.message || 'فشل حفظ الطرد';
+        throw new Error(failMessage);
       }
     } catch (error) {
-      console.error(
-        "Save parcel error:",
-        error.response?.data || error.message
-      );
+      console.error("Save parcel error:", error.response?.data || error.message);
+
+      // --- FIX: Handle Capital 'M' Message here ---
+      const apiData = error.response?.data;
+
+      // We check apiData.Message (Capital) first, then apiData.message (lowercase)
+      const apiErrorMessage =
+        apiData?.Message ||
+        apiData?.message ||
+        error.message ||
+        "فشل حفظ الطرد. يرجى المحاولة مرة أخرى.";
+
       showAlert({
         title: "خطأ في الحفظ",
-        message: "فشل حفظ الطرد. يرجى المحاولة مرة أخرى.",
-        success: false, // Explicitly set to false, though it's the default
+        message: apiErrorMessage,
+        success: false,
       });
     } finally {
       setIsSaving(false);
     }
   };
+
   useEffect(() => {
     if (parseInt(quantity, 10) <= 1) {
       setSelectedDeliveryType(null);
@@ -702,7 +720,7 @@ export default function CreateParcelScreen() {
               value={recipientName}
               onChangeText={setRecipientName}
               editable={!isSaving}
-              required
+              required={false} // <-- Changed to false
             />
             <FormInput
               label="هاتف المستلم"
@@ -712,8 +730,8 @@ export default function CreateParcelScreen() {
               onChangeText={setRecipientPhone}
               keyboardType="phone-pad"
               editable={!isSaving}
-              required
-              rightComponent={<Text style={styles.countryCodeText}>{COUNTRY_CODE}</Text>} // Pass the country code component
+              required // <-- Changed to false
+              rightComponent={<Text style={styles.countryCodeText}>{COUNTRY_CODE}</Text>}
             />
             <FormInput
               label="عنوان المستلم"
@@ -722,7 +740,7 @@ export default function CreateParcelScreen() {
               value={recipientAddress}
               onChangeText={setRecipientAddress}
               editable={!isSaving}
-              required
+              required={false}
             />
             <FormPicker
               label="المتجر"
@@ -733,6 +751,7 @@ export default function CreateParcelScreen() {
               disabled={isSaving}
               required
             />
+            {/* ... Rest of the JSX remains the same ... */}
             <FormPicker
               label="نوع الطرد"
               icon={Package}
@@ -820,7 +839,7 @@ export default function CreateParcelScreen() {
                   onChangeText={setProductPrice}
                   keyboardType="numeric"
                   editable={!isSaving}
-                  required
+                  required // Keep required visual indicator, but allow 0 in logic
                 />
               </View>
               <View style={{ width: 16 }} />
@@ -847,8 +866,7 @@ export default function CreateParcelScreen() {
               disabled={isSaving}
               required
             />
-            {/* Delivery Type Picker - Only show when quantity > 1 */}
-            {/* Delivery Type Picker - Show when quantity >= 1 */}
+
             {parseInt(quantity, 10) > 1 && (
               <FormPicker
                 label="نوع التسليم"
@@ -857,10 +875,10 @@ export default function CreateParcelScreen() {
                 onPress={() => setDeliveryTypeModalVisible(true)}
                 placeholder="اختر نوع التسليم"
                 disabled={isSaving}
-                required={parseInt(quantity, 10) > 1} // true if >=1 else false
+                required={parseInt(quantity, 10) > 1}
               />
             )}
-            {/* --- Promo Code Section --- */}
+
             <View style={styles.promoContainer}>
               <View style={{ flex: 1 }}>
                 <FormInput
@@ -963,11 +981,11 @@ export default function CreateParcelScreen() {
         confirmText={alertConfig.confirmText}
         onConfirm={handleAlertConfirm}
         cancelText={null}
-        success={alertConfig.success} // --- Pass the success prop ---
+        success={alertConfig.success}
         onCancel={undefined}
       />
 
-      {/* Modals */}
+      {/* ... [Keep Modals SAME as before] ... */}
       <Modal
         visible={isStoreModalVisible}
         animationType="fade"
@@ -1090,8 +1108,8 @@ export default function CreateParcelScreen() {
       <SelectionModal
         visible={isParcelTypeModalVisible}
         title="اختر نوع الطرد"
-        options={parcelTypes} // Pass full objects
-        selectedValue={selectedParcelType} // <-- Change to pass the object
+        options={parcelTypes}
+        selectedValue={selectedParcelType}
         onSelect={handleSetParcelType}
       />
       <SelectionModal
@@ -1107,14 +1125,15 @@ export default function CreateParcelScreen() {
       <SelectionModal
         visible={isDeliveryTypeModalVisible}
         title="اختر نوع التسليم"
-        options={deliveryTypes} // Pass the array of DeliveryType objects
-        selectedValue={selectedDeliveryType} // Pass the selected DeliveryType object
-        onSelect={handleSetDeliveryType} // Pass the handler
+        options={deliveryTypes}
+        selectedValue={selectedDeliveryType}
+        onSelect={handleSetDeliveryType}
       />
     </View>
   );
 }
-// --- Stylesheet ---
+
+// ... [Keep Stylesheet SAME as before] ...
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8F9FA" },
   scrollContainer: {
@@ -1169,7 +1188,7 @@ const styles = StyleSheet.create({
   },
   priceLabel: { fontSize: 14, color: "#71717A" },
   priceValue: { fontSize: 14, color: "#3F3F46", fontWeight: "500" },
-  discountValue: { color: "#EF4444" }, // Style for the discount value text
+  discountValue: { color: "#EF4444" },
   divider: { height: 1, backgroundColor: "#E4E4E7", marginVertical: 8 },
   totalLabel: { fontSize: 16, color: "#18181B", fontWeight: "bold" },
   totalValue: { fontSize: 16, color: "#F97316", fontWeight: "bold" },
@@ -1339,22 +1358,19 @@ const styles = StyleSheet.create({
   disabledInput: { backgroundColor: "#F3F4F6", opacity: 0.7 },
   disabledButton: { backgroundColor: "#FDBA74" },
   requiredStar: { color: "#EF4444", fontWeight: "bold" },
-  // --- Promo Code Styles ---
   promoContainer: {
     flexDirection: "row-reverse",
-    alignItems: "center", // Align items to the bottom of the container
+    alignItems: "center",
     marginBottom: 10,
     marginTop: 10,
-
-
   },
   promoButton: {
     marginTop: 4,
-    backgroundColor: "#10B981", // A different color to distinguish
+    backgroundColor: "#10B981",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
-    height: 45, // Match input height
+    height: 45,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -1364,14 +1380,13 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   removePromoButton: {
-    backgroundColor: '#EF4444', // Red for removal
+    backgroundColor: '#EF4444',
   },
   removePromoButtonText: {
     color: '#FFFFFF',
   },
 });
 
-// --- Styles for the Skeleton Loader ---
 const skeletonStyles = StyleSheet.create({
   label: {
     width: "30%",
@@ -1392,5 +1407,3 @@ const skeletonStyles = StyleSheet.create({
     marginTop: 16,
   },
 });
-
-

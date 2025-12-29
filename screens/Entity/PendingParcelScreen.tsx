@@ -13,71 +13,52 @@ import {
     FlatList,
     RefreshControl,
     Image,
+    ScrollView,
+    Linking,
+    Clipboard,
+    LayoutAnimation, // Added for copying URL
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import {
     Search,
-    Phone,
-    FileText,
     Package,
-    Box,
     Calendar,
-    User,
     ChevronDown,
     Check,
     Store as StoreIcon,
-    ChevronLeft, // Import ChevronLeft for the back button
+    ChevronLeft,
+    Edit,
+    Trash2,
+    User,
+    Phone,
+    MapPin,
+    Hash,
+    ShoppingBag,
+    CreditCard,
+    FileText,
+    Box,
+    Copy, // Added for copy icon
+    X,
 } from "lucide-react-native";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
-import { WebView } from "react-native-webview"; // Import WebView
+import { WebView } from "react-native-webview";
 import { useDashboard } from "../../Context/DashboardContext";
 import CustomAlert from "../../components/CustomAlert";
 import TopBar from "../../components/Entity/TopBarNew";
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
+const COUNTRY_CODE = "+218";
 
+// --- HELPER FUNCTIONS ---
 const hexToRgba = (hex: string, opacity: number) => {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
     const b = parseInt(hex.slice(5, 7), 16);
     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
 };
-
-const ParcelsSkeleton = () => {
-    const shimmerColors = ["#FDF1EC", "#FEF8F5", "#FDF1EC"];
-    return (
-        <View style={{ paddingHorizontal: 12, marginTop: 20 }}>
-            <ShimmerPlaceHolder style={styles.cardSkeleton} shimmerColors={shimmerColors} />
-            <ShimmerPlaceHolder style={styles.cardSkeleton} shimmerColors={shimmerColors} />
-            <ShimmerPlaceHolder style={styles.cardSkeleton} shimmerColors={shimmerColors} />
-        </View>
-    );
-};
-
-interface EntityForFilter {
-    intEntityCode: number;
-    strEntityName: string;
-    strEntityCode: string;
-    strStatus: string;
-}
-interface Parcel {
-    intParcelCode: number;
-    dcFee: number;
-    ReferenceNo: string;
-    CityName: string;
-    StatusName: string;
-    TypeName: string;
-    RecipientName: string | null;
-    RecipientPhone: string;
-    Quantity: number;
-    CreatedAt: string;
-    Remarks: string;
-    Total: number;
-    strDriverRemarks: string;
-}
 
 const formatDateTime = (isoString: string) => {
     if (!isoString) return '';
@@ -92,95 +73,740 @@ const formatDateTime = (isoString: string) => {
     } catch (e) { return isoString; }
 };
 
-// --- FINAL Premium Parcel Card Component ---
-const ParcelCard = ({ item, onIconPress }: { item: Parcel, onIconPress: (parcel: Parcel) => void }) => (
-    <View style={styles.premiumCard}>
-        <View style={[styles.premiumCardHeader, { backgroundColor: '#FF6B35' }]}>
-            <View style={styles.premiumHeaderLeft}>
-                <TouchableOpacity onPress={() => onIconPress(item)}>
-                    <View style={styles.premiumIconBackground}>
-                        <Package size={18} color="#FFF" />
-                    </View>
-                </TouchableOpacity>
-                <View>
-                    <Text style={styles.premiumReferenceNo}>{item.ReferenceNo}</Text>
-                    <View style={styles.premiumDateContainer}>
-                        <Calendar size={12} color="#FFF" style={{ opacity: 0.8 }} />
-                        <Text style={styles.premiumDateText}>{formatDateTime(item.CreatedAt)}</Text>
+const openDialer = (phone: string) => {
+    if (phone) Linking.openURL(`tel:${phone}`);
+};
+
+// --- INTERFACES ---
+interface EntityForFilter {
+    intEntityCode: number;
+    strEntityName: string;
+    strEntityCode: string;
+    strStatus: string;
+}
+
+interface Parcel {
+    intParcelCode: number;
+    ReferenceNo: string;
+    CityName: string;
+    StatusName: string;
+    TypeName: string;
+    RecipientName: string | null;
+    RecipientPhone: string;
+    Quantity: number;
+    CreatedAt: string;
+    Remarks: string;
+    Total: number;
+    strDriverRemarks: string;
+    intSenderEntityCode: number;
+    dcFee: number;
+    dcEntityFees: number;
+    dcCompanyFees: number;
+    intParcelTypeCode: number;
+    strCityPriceName: string;
+    strPaymentBy: string;
+    strRecipientAddress: string;
+    strDeliveryType: string;
+    dcLength: number;
+    dcWidth: number;
+    dcHeight: number;
+    intToCityCode: number;
+    // New payment fields
+    bolIsOnlinePayment?: boolean;
+    strOnlinePaymentStatus?: string;
+    strOnlinePaymentURL?: string;
+}
+
+// ... (Other interfaces like CityPrice, ParcelType, etc. remain unchanged)
+
+interface CityPrice {
+    intCityCode: number;
+    strCityName: string;
+    DcOfficePrice: number;
+    DcInsideCityPrice: number;
+    DcOutSkirtPrice: number;
+}
+interface ParcelType { Text: string; Value: string; }
+interface DeliveryType { Text: string; Value: string; }
+
+// --- PARCEL CARD COMPONENT ---
+const ParcelCard = ({
+    item,
+    onIconPress,
+    onEdit,
+    onDelete,
+    onCopyLink
+}: {
+    item: Parcel,
+    onIconPress: (parcel: Parcel) => void,
+    onEdit: (parcel: Parcel) => void,
+    onDelete: (parcel: Parcel) => void,
+    onCopyLink: (url: string) => void
+}) => {
+    const isPaid = item.strOnlinePaymentStatus === "Success";
+
+    return (
+        <View style={styles.premiumCard}>
+            <View style={[styles.premiumCardHeader, { backgroundColor: '#FF6B35' }]}>
+                <View style={styles.premiumHeaderLeft}>
+                    <TouchableOpacity onPress={() => onIconPress(item)}>
+                        <View style={styles.premiumIconBackground}>
+                            <Package size={18} color="#FFF" />
+                        </View>
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.premiumReferenceNo}>{item.ReferenceNo}</Text>
+                        <View style={styles.premiumDateContainer}>
+                            <Calendar size={12} color="#FFF" style={{ opacity: 0.8 }} />
+                            <Text style={styles.premiumDateText}>{formatDateTime(item.CreatedAt)}</Text>
+                        </View>
                     </View>
                 </View>
+                <View style={styles.premiumStatusBadge}>
+                    <Text style={styles.premiumStatusText}>{item.CityName}</Text>
+                </View>
             </View>
-            <View style={styles.premiumStatusBadge}>
-                <Text style={styles.premiumStatusText}>{item.CityName}</Text>
-            </View>
-        </View>
 
-        <View style={styles.premiumCardBody}>
-            <View style={styles.premiumSection}>
-                <Text style={styles.premiumSectionTitle}>معلومات المستلم</Text>
-                {item.RecipientName && (
-                    <View style={styles.premiumInfoRow}>
-                        <Text style={styles.premiumInfoLabel}>الاسم:</Text>
-                        <Text style={styles.premiumInfoValue}>{item.RecipientName}</Text>
+            <View style={styles.premiumCardBody}>
+                <View style={styles.premiumSection}>
+                    <Text style={styles.premiumSectionTitle}>معلومات المستلم</Text>
+                    {item.RecipientName ? (
+                        <View style={styles.premiumInfoRow}>
+                            <Text style={styles.premiumInfoLabel}>الاسم:</Text>
+                            <Text style={styles.premiumInfoValue}>{item.RecipientName}</Text>
+                        </View>
+                    ) : null}
+                    <TouchableOpacity onPress={() => openDialer(item.RecipientPhone)} style={styles.premiumInfoRow}>
+                        <Text style={styles.premiumInfoLabel}>الهاتف:</Text>
+
+                        <Text style={[styles.premiumInfoValue, { color: '#FF6B35', fontWeight: 'bold', margin: 8 }]}>{item.RecipientPhone}</Text>
+
+                        <Phone size={14} color="#FF6B35" />
+
+                    </TouchableOpacity>
+                </View>
+
+
+                {/* Online Payment Logic */}
+                {item.bolIsOnlinePayment && (
+                    <View style={styles.premiumSection}>
+                        <Text style={styles.premiumSectionTitle}>الدفع الإلكتروني</Text>
+
+                        {!isPaid && (
+                            <TouchableOpacity
+                                style={styles.paymentButton}
+                                onPress={() => onCopyLink(item.strOnlinePaymentURL || "")}
+                            >
+                                <CreditCard size={14} color="#FFF" />
+                                <Text style={styles.paymentButtonText}>الدفع الإلكتروني</Text>
+                            </TouchableOpacity>
+                        )}
+                        <View style={[styles.paymentStatusBadge, isPaid ? styles.paidBadge : styles.unpaidBadge]}>
+                            {isPaid ? <Check size={12} color="#065F46" /> : <X size={12} color="#991B1B" />}
+                            <Text style={isPaid ? styles.paidBadgeText : styles.unpaidBadgeText}>
+                                {isPaid ? "مدفوع" : "غير مدفوع"}
+                            </Text>
+                        </View>
                     </View>
                 )}
-                <View style={styles.premiumInfoRow}>
-                    <Text style={styles.premiumInfoLabel}>الهاتف:</Text>
-                    <Text style={styles.premiumInfoValue}>{item.RecipientPhone}</Text>
-                </View>
-            </View>
 
-            <View style={styles.premiumSection}>
-                <Text style={styles.premiumSectionTitle}>تفاصيل الطلب</Text>
-                <View style={styles.premiumInfoRow}>
-                    <Text style={styles.premiumInfoLabel}>الكمية:</Text>
-                    <Text style={styles.premiumInfoValue}>{item.Quantity}</Text>
-                </View>
-                <View style={styles.premiumInfoRow}>
-                    <Text style={styles.premiumInfoLabel}>نوع الطرد:</Text>
-                    <Text style={styles.premiumInfoValue}>{item.TypeName}</Text>
-                </View>
-            </View>
-
-            {(item.Remarks || item.strDriverRemarks) && (
                 <View style={styles.premiumSection}>
-                    <Text style={styles.premiumSectionTitle}>الملاحظات</Text>
-                    <View style={styles.premiumRemarksContainer}>
-                        {item.Remarks && <Text style={styles.premiumRemarksText}>{item.Remarks}</Text>}
-                        {item.strDriverRemarks && (
-                            <Text style={[styles.premiumRemarksText, item.Remarks ? { marginTop: 8 } : {}]}>
-                                <Text style={{ fontWeight: 'bold' }}>المندوب:</Text> {item.strDriverRemarks}
-                            </Text>
-                        )}
+                    <Text style={styles.premiumSectionTitle}>تفاصيل الطلب</Text>
+                    <View style={styles.premiumInfoRow}>
+                        <Text style={styles.premiumInfoLabel}>الكمية:</Text>
+                        <Text style={styles.premiumInfoValue}>{item.Quantity}</Text>
+                    </View>
+                    <View style={styles.premiumInfoRow}>
+                        <Text style={styles.premiumInfoLabel}>نوع الطرد:</Text>
+                        <Text style={styles.premiumInfoValue}>{item.TypeName}</Text>
                     </View>
                 </View>
-            )}
-            <View style={styles.premiumCardFooter}>
-                <Text style={styles.premiumTotalLabel}>الإجمالي</Text>
-                <Text style={[styles.premiumTotalValue, { color: '#3498DB' }]}>{item.Total.toFixed(2)} د.ل</Text>
+
+                {(item.Remarks || item.strDriverRemarks) && (
+                    <View style={styles.premiumSection}>
+                        <Text style={styles.premiumSectionTitle}>الملاحظات</Text>
+                        <View style={styles.premiumRemarksContainer}>
+                            {item.Remarks && <Text style={styles.premiumRemarksText}>{item.Remarks}</Text>}
+                            {item.strDriverRemarks && (
+                                <Text style={[styles.premiumRemarksText, item.Remarks ? { marginTop: 8 } : {}]}>
+                                    <Text style={{ fontWeight: 'bold' }}>المندوب:</Text> {item.strDriverRemarks}
+                                </Text>
+                            )}
+                        </View>
+                    </View>
+                )}
+
+                <View style={styles.premiumCardFooter}>
+                    <Text style={styles.premiumTotalLabel}>الإجمالي</Text>
+                    <Text style={[styles.premiumTotalValue, { color: '#3498DB' }]}>{item.Total.toFixed(2)} د.ل</Text>
+                </View>
+
+                {/* Hide Edit/Delete if status is Success */}
+                {!isPaid && (
+                    <View style={styles.actionButtonsContainer}>
+                        <TouchableOpacity style={styles.editButton} onPress={() => onEdit(item)}>
+                            <Edit color="#27AE60" size={16} />
+                            <Text style={styles.editButtonText}>تعديل</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.deleteButton} onPress={() => onDelete(item)}>
+                            <Trash2 color="#E74C3C" size={16} />
+                            <Text style={styles.deleteButtonText}>حذف</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
+        </View>
+    );
+};
+
+// ... (FormInput, FormPicker, PriceOptionCard, DimensionInput remain the same as your code)
+
+const FormInput = ({ label, icon: Icon, value, onChangeText, keyboardType = "default", editable = true, rightComponent = null, required = false }) => (
+    <View style={styles.inputContainer}>
+        <Text style={styles.label}>
+            {label}
+            {required && <Text style={{ color: "#EF4444" }}> *</Text>}
+        </Text>
+        <View style={[styles.inputWrapper, !editable && styles.disabledInput]}>
+            {rightComponent && <View style={styles.rightComponentWrapper}>{rightComponent}</View>}
+            <TextInput
+                style={styles.input}
+                value={value}
+                onChangeText={onChangeText}
+                editable={editable}
+                placeholderTextColor="#A1A1AA"
+                keyboardType={keyboardType as any}
+            />
+            {Icon && <Icon color="#A1A1AA" size={20} style={styles.leftIcon} />}
         </View>
     </View>
 );
 
-const FilterSection = ({ selectedEntity, setEntityModalVisible, handleSearch, loading }) => (
-    <View style={styles.modernFilterSection}>
-        <TouchableOpacity style={styles.modernDropdown} onPress={() => setEntityModalVisible(true)} activeOpacity={0.7}>
-            <View style={styles.modernDropdownContent}>
-                <View style={styles.modernDropdownIcon}><StoreIcon color="#FF6B35" size={20} /></View>
-                <View style={styles.modernDropdownText}>
-                    <Text style={styles.modernDropdownLabel}>المتجر المحدد</Text>
-                    <Text style={styles.modernDropdownValue}>{selectedEntity ? selectedEntity.strEntityName : "كل المتاجر"}</Text>
-                </View>
-                <ChevronDown color="#9CA3AF" size={20} />
-            </View>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.modernSearchButton} onPress={handleSearch} disabled={loading} activeOpacity={0.8}>
-            {loading ? <ActivityIndicator color="#FFF" size="small" /> : (<><Search size={20} color="#FFF" /><Text style={styles.modernSearchButtonText}>بحث عن الطرود</Text></>)}
+const FormPicker = ({ label, icon: Icon, value, onPress, placeholder, required = false }) => (
+    <View style={styles.inputContainer}>
+        <Text style={styles.label}>
+            {label}
+            {required && <Text style={{ color: "#EF4444" }}> *</Text>}
+        </Text>
+        <TouchableOpacity style={styles.inputWrapper} onPress={onPress}>
+            <Text style={[styles.input, !value && { color: "#A1A1AA" }]}>{value || placeholder}</Text>
+            {Icon && <ChevronDown color="#A1A1AA" size={20} />}
         </TouchableOpacity>
     </View>
 );
 
+const PriceOptionCard = ({ label, price, isSelected, onPress }) => (
+    <TouchableOpacity style={[styles.priceOptionCard, isSelected && styles.priceOptionCardSelected]} onPress={onPress}>
+        <View style={[styles.radioCircle, isSelected && styles.radioCircleSelected]}>
+            {isSelected && <View style={styles.radioInnerCircle} />}
+        </View>
+        <Text style={styles.priceOptionLabel}>{label}</Text>
+        <Text style={styles.priceOptionValue}>{price?.toFixed(2) ?? "0.00"}</Text>
+    </TouchableOpacity>
+);
+
+const DimensionInput = ({ label, value, onChangeText, required = false }) => (
+    <View style={styles.dimensionInputContainer}>
+        <Text style={styles.dimensionLabel}>
+            {label}
+            {required && <Text style={{ color: "#EF4444" }}> *</Text>}
+        </Text>
+        <TextInput
+            style={styles.dimensionInput}
+            placeholder="0"
+            value={value}
+            onChangeText={onChangeText}
+            keyboardType="numeric"
+        />
+    </View>
+);
+
+// ... (EditParcelModal logic remains the same)
+
+const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError }) => {
+    const [isLoading, setIsLoading] = useState(false);
+
+    // Lists
+    const [parcelTypes, setParcelTypes] = useState<ParcelType[]>([]);
+    const [cityPrices, setCityPrices] = useState<CityPrice[]>([]);
+    const [deliveryTypes, setDeliveryTypes] = useState<DeliveryType[]>([]);
+
+    // Form Fields
+    const [recipientName, setRecipientName] = useState("");
+    const [recipientPhone, setRecipientPhone] = useState("");
+    const [recipientAddress, setRecipientAddress] = useState("");
+    const [quantity, setQuantity] = useState("1");
+    const [productPrice, setProductPrice] = useState("");
+    const [notes, setNotes] = useState("");
+    const [paymentMethod, setPaymentMethod] = useState("المستلم");
+
+    // Dimensions
+    const [length, setLength] = useState("");
+    const [width, setWidth] = useState("");
+    const [height, setHeight] = useState("");
+
+    // Selections
+    const [selectedParcelType, setSelectedParcelType] = useState<ParcelType | null>(null);
+    const [selectedDeliveryType, setSelectedDeliveryType] = useState<DeliveryType | null>(null);
+    const [selectedCity, setSelectedCity] = useState<CityPrice | null>(null);
+    const [shippingType, setShippingType] = useState<"office" | "inside" | "outskirts" | null>(null);
+    const [shippingPrice, setShippingPrice] = useState(0);
+
+    // Visibility
+    const [showTypeModal, setShowTypeModal] = useState(false);
+    const [showCityModal, setShowCityModal] = useState(false);
+    const [showPaymentModal, setShowPaymentModal] = useState(false);
+    const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+
+    const [isAlertVisible, setAlertVisible] = useState(false);
+    const [alertTitle, setAlertTitle] = useState('');
+    const [alertMessage, setAlertMessage] = useState('');
+    const [alertSuccess, setAlertSuccess] = useState(false);
+    const [alertConfirmAction, setAlertConfirmAction] = useState<(() => void) | undefined>(undefined);
+    const [alertCancelAction, setAlertCancelAction] = useState<(() => void) | undefined>(undefined);
+
+    useEffect(() => {
+        if (visible && parcel) {
+            loadDropdownsAndPopulate();
+        }
+    }, [visible, parcel]);
+
+    // --- LOGIC: Identical to CreateParcelScreen ---
+    const displayedShippingPrice = useMemo(() => {
+        let finalPrice = shippingPrice;
+        if (selectedParcelType?.Text === "طرد كبير") {
+            const l = parseFloat(length) || 0;
+            const w = parseFloat(width) || 0;
+            const h = parseFloat(height) || 0;
+            if (l > 0 && w > 0 && h > 0) finalPrice += (l * w * h) / 4000;
+        }
+        return finalPrice;
+    }, [shippingPrice, selectedParcelType, length, width, height]);
+
+    const electronicPaymentSurcharge = useMemo(() => {
+        if (paymentMethod === "الدفع الإلكتروني") {
+            const baseTotal = (parseFloat(productPrice) || 0) + displayedShippingPrice;
+            return baseTotal * 0.02; // 2% surcharge
+        }
+        return 0;
+    }, [paymentMethod, productPrice, displayedShippingPrice]);
+
+    const totalAmount = useMemo(() => {
+        return (parseFloat(productPrice) || 0) + displayedShippingPrice + electronicPaymentSurcharge;
+    }, [productPrice, displayedShippingPrice, electronicPaymentSurcharge]);
+
+    // const totalAmount = useMemo(() => {
+    //     return (parseFloat(productPrice) || 0) + displayedShippingPrice;
+    // }, [productPrice, displayedShippingPrice]);
+
+    const loadDropdownsAndPopulate = async () => {
+        setIsLoading(true);
+        try {
+            const userDataString = await AsyncStorage.getItem("user");
+            const parsedUser = JSON.parse(userDataString || "{}");
+
+            const [typesRes, citiesRes, deliveryRes] = await Promise.all([
+                axios.get("http://tanmia-group.com:90/courierApi/parcels/GetParcelTypes"),
+                axios.get(`http://tanmia-group.com:90/courierApi/City/GetCityPrices/${parsedUser?.intCityCode || 0}`),
+                axios.get("http://tanmia-group.com:90/courierApi/parcels/GetDeliveryTypes")
+            ]);
+
+            const types = typesRes.data?.ParcelTypes || [];
+            const cities = citiesRes.data || [];
+            const delTypes = deliveryRes.data?.DeliveryTypes || [];
+
+            setParcelTypes(types);
+            setCityPrices(cities);
+            setDeliveryTypes(delTypes);
+
+            // Populate Form Fields
+            setRecipientName(parcel.RecipientName || "");
+
+            // Format phone: remove country code
+            let phone = parcel.RecipientPhone || "";
+            if (phone.startsWith(COUNTRY_CODE)) phone = phone.replace(COUNTRY_CODE, "");
+            else if (phone.startsWith("218")) phone = phone.substring(3);
+            setRecipientPhone(phone);
+
+            setRecipientAddress(parcel.strRecipientAddress || "");
+            setQuantity(parcel.Quantity.toString());
+
+            // --- FIX: Map directly to Product Price (dcEntityFees) ---
+            setProductPrice(parcel.dcEntityFees.toString());
+
+            setNotes(parcel.Remarks || "");
+            setPaymentMethod(parcel.strPaymentBy || "المستلم");
+
+            setLength(parcel.dcLength?.toString() || "");
+            setWidth(parcel.dcWidth?.toString() || "");
+            setHeight(parcel.dcHeight?.toString() || "");
+
+            // 1. Parcel Type
+            const matchedType = types.find(t => t.Value.toString() === parcel.intParcelTypeCode.toString());
+            setSelectedParcelType(matchedType || types.find(t => t.Text === parcel.TypeName) || null);
+
+            // 2. City Matching
+            let matchedCity = null;
+            if (parcel.intToCityCode) {
+                matchedCity = cities.find(c => c.intCityCode === parcel.intToCityCode);
+            }
+            if (!matchedCity && parcel.CityName) {
+                const targetCityName = parcel.CityName.trim().toLowerCase();
+                matchedCity = cities.find(c => c.strCityName?.trim().toLowerCase() === targetCityName);
+            }
+            setSelectedCity(matchedCity || null);
+
+            // 3. Delivery Type
+            if (parcel.strDeliveryType) {
+                const matchedDelivery = delTypes.find(d => d.Value === parcel.strDeliveryType);
+                if (matchedDelivery) setSelectedDeliveryType(matchedDelivery);
+            }
+
+            // 4. Shipping Price & Type Logic
+
+            // A. Calculate Volumetric Weight from API data
+            let calculatedVolumetric = 0;
+            // Check for Large Parcel (Type Code 3 or Text "طرد كبير")
+            if (parcel.TypeName === "طرد كبير" || parcel.intParcelTypeCode === 3) {
+                const l = parseFloat(parcel.dcLength?.toString() || "0");
+                const w = parseFloat(parcel.dcWidth?.toString() || "0");
+                const h = parseFloat(parcel.dcHeight?.toString() || "0");
+                if (l > 0 && w > 0 && h > 0) {
+                    calculatedVolumetric = (l * w * h) / 4000;
+                }
+            }
+
+            // B. Reverse-Calculate Base Shipping Price
+            // Formula: API_Total = Product + (BaseShipping + Volumetric)
+            // Therefore: BaseShipping = API_Total - Product - Volumetric
+            const apiTotal = parcel.Total || 0;
+            const apiProduct = parcel.dcEntityFees || 0;
+
+            let localSurcharge = 0;
+            if (parcel.strPaymentBy === "الدفع الإلكتروني") {
+                // If 2% was added, then Total = BaseTotal * 1.02
+                // So BaseTotal = Total / 1.02
+                // Surcharge = Total - BaseTotal
+                const baseTotal = apiTotal / 1.02;
+                localSurcharge = apiTotal - baseTotal;
+            }
+
+            // Now subtract everything to get the raw base shipping (City Price)
+            // shipping = Total - Product - Volumetric - Surcharge
+            const derivedBaseShipping = apiTotal - apiProduct - calculatedVolumetric - localSurcharge;
+
+            setShippingPrice(derivedBaseShipping);
+
+            // C. Determine Shipping Type Selection (Visual Only)
+            let determinedType: "office" | "inside" | "outskirts" = "inside";
+            const rawPriceName = parcel.strCityPriceName || "";
+
+            if (rawPriceName === "Office") {
+                determinedType = "office";
+            } else if (rawPriceName === "OutSkirt") {
+                determinedType = "outskirts";
+            } else if (rawPriceName === "InsideCity") {
+                determinedType = "inside";
+            } else if (matchedCity) {
+                // Heuristic: Compare derived price to city prices to guess the radio button
+                // We use a small margin (e.g. < 5) to account for potential delivery fees included in the total
+                if (Math.abs(derivedBaseShipping - matchedCity.DcOfficePrice) < 5) determinedType = "office";
+                else if (Math.abs(derivedBaseShipping - matchedCity.DcOutSkirtPrice) < 5) determinedType = "outskirts";
+                else determinedType = "inside";
+            }
+
+            setShippingType(determinedType);
+
+        } catch (error) {
+            console.error("Error loading edit data", error);
+            onError("فشل تحميل بيانات الطرد");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSelectShipping = (type: "office" | "inside" | "outskirts") => {
+        setShippingType(type);
+        if (!selectedCity) return;
+        // --- FIX: Update shipping price exactly like CreateParcelScreen ---
+        if (type === "office") setShippingPrice(selectedCity.DcOfficePrice);
+        if (type === "inside") setShippingPrice(selectedCity.DcInsideCityPrice);
+        if (type === "outskirts") setShippingPrice(selectedCity.DcOutSkirtPrice);
+    };
+
+    const handleUpdate = async () => {
+
+        if (!recipientPhone.trim()) {
+            setAlertTitle("حقول مطلوبة");
+            setAlertMessage("يرجى إدخال رقم هاتف المستلم.");
+            setAlertVisible(true);
+        }
+
+        if (!selectedParcelType) return onError("يرجى اختيار نوع الطرد.");
+
+        if (selectedParcelType.Text === "طرد كبير") {
+            if (!(parseFloat(length) > 0) || !(parseFloat(width) > 0) || !(parseFloat(height) > 0)) {
+                return onError("للطرد الكبير، يجب أن تكون الأبعاد (الطول، العرض، الارتفاع) أكبر من صفر.");
+            }
+        }
+
+        if (!selectedCity) return onError("يرجى اختيار مدينة.");
+        if (!shippingType) return onError("يرجى اختيار سعر الشحن.");
+
+        if ((parseFloat(productPrice) < 0) || !(parseInt(quantity, 10) >= 0)) {
+            return onError("لا يمكن أن يكون السعر أو الكمية أقل من صفر.");
+        }
+
+        if (!paymentMethod) return onError("يرجى اختيار طريقة الدفع.");
+
+        if (!selectedDeliveryType && parseInt(quantity, 10) > 1) {
+            return onError("يرجى اختيار نوع التسليم.");
+        }
+
+        setIsLoading(true);
+        const strCityPriceNameMap = { office: "Office", inside: "InsideCity", outskirts: "OutSkirt" };
+        const fullRecipientPhone = recipientPhone.trim() ? (COUNTRY_CODE + recipientPhone) : "";
+        const prodPrice = parseFloat(productPrice) || 0;
+
+        // Use the displayedShippingPrice which already includes volumetric calculation
+        const companyFees = displayedShippingPrice;
+
+        const payload = {
+            intParcelCode: parcel.intParcelCode,
+            intSenderEntityCode: parcel.intSenderEntityCode,
+            strRecipientName: recipientName,
+            strRecipientPhone: fullRecipientPhone,
+            strRecipientAddress: recipientAddress,
+            intParcelTypeCode: selectedParcelType.Value,
+            dcFee: totalAmount, // Total Amount including everything
+            dcDriverFees: 0,
+            dcEntityFees: prodPrice, // Product Price
+            dcCompanyFees: companyFees, // Shipping Price (Base + Volumetric)
+            strPaymentBy: paymentMethod,
+            intToCityCode: selectedCity.intCityCode,
+            intQty: parseInt(quantity),
+            strRemarks: notes,
+            dcShippingCharge: shippingPrice, // Base shipping price before volumetric
+            strCityPriceName: strCityPriceNameMap[shippingType],
+            strDeliveryType: selectedDeliveryType?.Value || "",
+            dcLength: parseFloat(length) || 0,
+            dcWidth: parseFloat(width) || 0,
+            dcHeight: parseFloat(height) || 0,
+        };
+
+        try {
+            const response = await axios.post('http://tanmia-group.com:90/courierApi/parcels/updateparcel', payload);
+            if (response.data && response.data.Success !== false) {
+                onUpdateSuccess(response.data.Message || "تم تحديث الطرد بنجاح");
+            } else {
+                onError(response.data.Message || "فشل التحديث");
+            }
+        } catch (error) {
+            console.error("Update Error: ", error.response?.data);
+            onError("حدث خطأ أثناء التحديث");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+            <SafeAreaView style={{ flex: 1, backgroundColor: "#F8F9FA" }}>
+                <View style={styles.modalHeader}>
+                    <TouchableOpacity onPress={onClose} style={styles.modalBackButton}>
+                        <ChevronLeft size={24} color="#1F2937" />
+                    </TouchableOpacity>
+                    <Text style={styles.modalHeaderTitle}>تعديل الطرد</Text>
+                    <View style={{ width: 40 }} />
+                </View>
+
+                {isLoading && !selectedCity ? (
+                    <ActivityIndicator size="large" color="#FF6B35" style={{ marginTop: 50 }} />
+                ) : (
+                    <ScrollView contentContainerStyle={{ padding: 20 }}>
+                        <FormInput label="اسم المستلم" icon={User} value={recipientName} onChangeText={setRecipientName} />
+
+                        <FormInput
+                            label="هاتف المستلم"
+                            icon={Phone}
+                            value={recipientPhone}
+                            onChangeText={setRecipientPhone}
+                            keyboardType="phone-pad"
+                            required
+                            rightComponent={<Text style={styles.countryCodeText}>{COUNTRY_CODE}</Text>}
+                        />
+
+                        <FormInput label="العنوان" icon={MapPin} value={recipientAddress} onChangeText={setRecipientAddress} required={false} />
+
+                        <FormPicker
+                            label="المدينة"
+                            icon={Package}
+                            value={selectedCity?.strCityName}
+                            onPress={() => setShowCityModal(true)}
+                            placeholder="اختر المدينة"
+                            required
+                        />
+
+                        {selectedCity && (
+                            <View style={{ marginBottom: 20 }}>
+                                <Text style={styles.label}>
+                                    سعر الشحن
+                                    <Text style={{ color: "#EF4444" }}> *</Text>
+                                </Text>
+                                <View style={{ flexDirection: 'row-reverse', gap: 10 }}>
+                                    <PriceOptionCard label="مكتب" price={selectedCity.DcOfficePrice} isSelected={shippingType === "office"} onPress={() => handleSelectShipping("office")} />
+                                    <PriceOptionCard label="مدينة" price={selectedCity.DcInsideCityPrice} isSelected={shippingType === "inside"} onPress={() => handleSelectShipping("inside")} />
+                                    <PriceOptionCard label="ضواحي" price={selectedCity.DcOutSkirtPrice} isSelected={shippingType === "outskirts"} onPress={() => handleSelectShipping("outskirts")} />
+                                </View>
+                            </View>
+                        )}
+
+                        <FormPicker
+                            label="نوع الطرد"
+                            icon={Box}
+                            value={selectedParcelType?.Text}
+                            onPress={() => setShowTypeModal(true)}
+                            placeholder="اختر النوع"
+                            required
+                        />
+
+                        {selectedParcelType?.Text === "طرد كبير" && (
+                            <View style={styles.dimensionsRow}>
+                                <DimensionInput label="الارتفاع" value={height} onChangeText={setHeight} required />
+                                <DimensionInput label="العرض" value={width} onChangeText={setWidth} required />
+                                <DimensionInput label="الطول" value={length} onChangeText={setLength} required />
+                            </View>
+                        )}
+
+                        <View style={{ flexDirection: 'row-reverse', gap: 15 }}>
+                            <View style={{ flex: 1 }}>
+                                <FormInput label="سعر المنتج" icon={ShoppingBag} value={productPrice} onChangeText={setProductPrice} keyboardType="numeric" required />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <FormInput label="الكمية" icon={Hash} value={quantity} onChangeText={setQuantity} keyboardType="numeric" required />
+                            </View>
+                        </View>
+
+                        <FormPicker
+                            label="طريقة الدفع"
+                            icon={CreditCard}
+                            value={paymentMethod}
+                            onPress={() => setShowPaymentModal(true)}
+                            placeholder="اختر"
+                            required
+                        />
+
+                        {parseInt(quantity) > 1 && (
+                            <FormPicker
+                                label="نوع التسليم"
+                                icon={Package}
+                                value={selectedDeliveryType?.Text}
+                                onPress={() => setShowDeliveryModal(true)}
+                                placeholder="اختر نوع التسليم"
+                                required
+                            />
+                        )}
+
+                        <FormInput label="ملاحظات" icon={FileText} value={notes} onChangeText={setNotes} />
+
+                        {/* --- DETAILS CARD: Identical to CreateParcelScreen --- */}
+                        <View style={styles.detailsCard}>
+                            <Text style={styles.cardTitle}>تفاصيل المبلغ</Text>
+                            <View style={styles.priceRow}>
+                                <Text style={styles.priceLabel}>سعر المنتج</Text>
+                                <Text style={styles.priceValue}>{(parseFloat(productPrice) || 0).toFixed(2)} د.ل</Text>
+                            </View>
+                            <View style={styles.priceRow}>
+                                <Text style={styles.priceLabel}>سعر الشحن</Text>
+                                <Text style={styles.priceValue}>{displayedShippingPrice.toFixed(2)} د.ل</Text>
+                            </View>
+                            <View style={styles.divider} />
+                            <View style={styles.priceRow}>
+                                <Text style={styles.totalLabel}>المبلغ الإجمالي</Text>
+                                <Text style={styles.totalValue}>{totalAmount.toFixed(2)} د.ل</Text>
+                            </View>
+                        </View>
+
+                        <TouchableOpacity style={styles.saveButton} onPress={handleUpdate}>
+                            {isLoading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveButtonText}>حفظ التغييرات</Text>}
+                        </TouchableOpacity>
+                    </ScrollView>
+                )}
+
+                {/* City Modal */}
+                <Modal visible={showCityModal} transparent animationType="fade" onRequestClose={() => setShowCityModal(false)}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modernModalContent}>
+                            <FlatList
+                                data={cityPrices}
+                                keyExtractor={item => item.intCityCode.toString()}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity style={styles.modernModalItem} onPress={() => { setSelectedCity(item); setShippingType(null); setShippingPrice(0); setShowCityModal(false); }}>
+                                        <Text style={styles.modernModalItemText}>{item.strCityName}</Text>
+                                        {selectedCity?.intCityCode === item.intCityCode && <Check color="#FF6B35" size={20} />}
+                                    </TouchableOpacity>
+                                )}
+                            />
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Type Modal */}
+                <Modal visible={showTypeModal} transparent animationType="fade" onRequestClose={() => setShowTypeModal(false)}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modernModalContent}>
+                            <FlatList
+                                data={parcelTypes}
+                                keyExtractor={item => item.Value}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity style={styles.modernModalItem} onPress={() => { setSelectedParcelType(item); setShowTypeModal(false); }}>
+                                        <Text style={styles.modernModalItemText}>{item.Text}</Text>
+                                        {selectedParcelType?.Value === item.Value && <Check color="#FF6B35" size={20} />}
+                                    </TouchableOpacity>
+                                )}
+                            />
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Payment Modal */}
+                <Modal visible={showPaymentModal} transparent animationType="fade" onRequestClose={() => setShowPaymentModal(false)}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modernModalContent}>
+                            {["المرسل", "المستلم", "الدفع الإلكتروني"].map(item => (
+                                <TouchableOpacity key={item} style={styles.modernModalItem} onPress={() => { setPaymentMethod(item); setShowPaymentModal(false); }}>
+                                    <Text style={styles.modernModalItemText}>{item}</Text>
+                                    {paymentMethod === item && <Check color="#FF6B35" size={20} />}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Delivery Type Modal */}
+                <Modal visible={showDeliveryModal} transparent animationType="fade" onRequestClose={() => setShowDeliveryModal(false)}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modernModalContent}>
+                            <FlatList
+                                data={deliveryTypes}
+                                keyExtractor={item => item.Value}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity style={styles.modernModalItem} onPress={() => { setSelectedDeliveryType(item); setShowDeliveryModal(false); }}>
+                                        <Text style={styles.modernModalItemText}>{item.Text}</Text>
+                                        {selectedDeliveryType?.Value === item.Value && <Check color="#FF6B35" size={20} />}
+                                    </TouchableOpacity>
+                                )}
+                            />
+                        </View>
+                    </View>
+                </Modal>
+            </SafeAreaView>
+        </Modal>
+    );
+}
+
+// --- MAIN SCREEN ---
 export default function PendingApprovalScreen() {
     const [loading, setLoading] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -193,16 +819,22 @@ export default function PendingApprovalScreen() {
     const [modalSearchQuery, setModalSearchQuery] = useState("");
     const [parcelSearchQuery, setParcelSearchQuery] = useState("");
 
+    // Alert State
     const [isAlertVisible, setAlertVisible] = useState(false);
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
     const [alertSuccess, setAlertSuccess] = useState(false);
+    const [alertConfirmAction, setAlertConfirmAction] = useState<(() => void) | undefined>(undefined);
+    const [alertCancelAction, setAlertCancelAction] = useState<(() => void) | undefined>(undefined);
 
-    // State for WebView Modal
+    // WebView State
     const [webViewVisible, setWebViewVisible] = useState(false);
     const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
 
-    // --- ADDED: State to track if the initial fetch has been done ---
+    // Edit Modal State
+    const [editModalVisible, setEditModalVisible] = useState(false);
+    const [parcelToEdit, setParcelToEdit] = useState<Parcel | null>(null);
+
     const [initialFetchDone, setInitialFetchDone] = useState(false);
 
     useFocusEffect(
@@ -223,9 +855,6 @@ export default function PendingApprovalScreen() {
                     setEntities(response.data || []);
                 } catch (error) {
                     console.error("Failed to fetch filter entities:", error);
-                    setAlertTitle("خطأ");
-                    setAlertMessage("فشل في تحميل قائمة المتاجر للفلتر.");
-                    setAlertVisible(true);
                 }
             };
             fetchFilterEntities();
@@ -269,18 +898,85 @@ export default function PendingApprovalScreen() {
         }
     }, [user, setUser, selectedEntity]);
 
-    // --- ADDED: This useEffect will run once when the component mounts ---
     useEffect(() => {
         if (user && !initialFetchDone) {
             handleSearch();
-            setInitialFetchDone(true); // Mark that the initial fetch has been done
+            setInitialFetchDone(true);
         }
     }, [user, handleSearch, initialFetchDone]);
 
-    // Handler for opening the WebView
+    // --- ACTIONS ---
     const handleIconPress = (parcel: Parcel) => {
         setSelectedParcel(parcel);
         setWebViewVisible(true);
+    };
+
+    // --- ACTIONS ---
+    const handleDeletePress = (parcel: Parcel) => {
+        setAlertTitle("حذف الطرد");
+        setAlertMessage(`هل أنت متأكد من حذف الطرد ${parcel.ReferenceNo}؟`);
+        setAlertSuccess(false);
+        // We set the confirm action here
+        setAlertConfirmAction(() => () => confirmDelete(parcel.intParcelCode));
+        setAlertCancelAction(() => () => setAlertVisible(false));
+        setAlertVisible(true);
+    };
+
+    const confirmDelete = async (id: number) => {
+        // 1. Close the confirmation dialog immediately
+        setAlertVisible(false);
+        setAlertConfirmAction(undefined);
+        setAlertCancelAction(undefined);
+
+        try {
+            const response = await axios.post(`http://tanmia-group.com:90/courierApi/parcels/deleteparcel/${id}`);
+
+            if (response.data && response.data.parcelID) {
+                // 2. Animate the list update
+                LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
+                // 3. Update state (Using != instead of !== to handle potential string/number mismatches)
+                setAllParcels((prev) => prev.filter((p) => p.intParcelCode != id));
+
+                // 4. Show Success Alert after a brief delay so the user sees the item disappear first
+                setTimeout(() => {
+                    setAlertTitle("نجاح");
+                    setAlertMessage(response.data.Message || "تم حذف الطرد بنجاح");
+                    setAlertSuccess(true);
+                    setAlertVisible(true);
+                }, 400);
+            } else {
+                // Handle API error
+                setTimeout(() => {
+                    setAlertTitle("خطأ");
+                    setAlertMessage(response.data?.Message || "فشل الحذف");
+                    setAlertSuccess(false);
+                    setAlertVisible(true);
+                }, 400);
+            }
+        } catch (error) {
+            // Handle Network error
+            setTimeout(() => {
+                setAlertTitle("خطأ");
+                setAlertMessage("حدث خطأ أثناء الاتصال بالخادم");
+                setAlertSuccess(false);
+                setAlertVisible(true);
+            }, 400);
+        }
+    };
+
+    const handleEditPress = (parcel: Parcel) => {
+        setParcelToEdit(parcel);
+        setEditModalVisible(true);
+    };
+
+    const handleCopyLink = (url: string) => {
+        if (!url) return;
+        Clipboard.setString(url);
+        setAlertTitle("نجاح");
+        setAlertMessage("تم نسخ رابط الدفع بنجاح");
+        setAlertSuccess(true);
+        setAlertVisible(true);
     };
 
     const onRefresh = useCallback(() => {
@@ -288,6 +984,7 @@ export default function PendingApprovalScreen() {
         handleSearch();
     }, [handleSearch]);
 
+    // --- FILTERS ---
     const filteredParcels = useMemo(() => {
         if (!parcelSearchQuery) return allParcels;
         return allParcels.filter(p =>
@@ -307,15 +1004,40 @@ export default function PendingApprovalScreen() {
     return (
         <View style={styles.container}>
             <TopBar title="في انتظار التصديق" />
+
             <FlatList
                 data={filteredParcels}
-                renderItem={({ item }) => <ParcelCard item={item} onIconPress={handleIconPress} />}
+                extraData={allParcels}
+                renderItem={({ item }) => (
+                    <ParcelCard
+                        item={item}
+                        onIconPress={handleIconPress}
+                        onEdit={handleEditPress}
+                        onDelete={handleDeletePress}
+                        onCopyLink={handleCopyLink}
+                    />
+                )}
                 keyExtractor={(item) => item.intParcelCode.toString()}
                 contentContainerStyle={styles.listContentContainer}
                 refreshControl={<RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} colors={['#FF6B35']} tintColor="#FF6B35" />}
                 ListHeaderComponent={
                     <>
-                        <FilterSection selectedEntity={selectedEntity} setEntityModalVisible={setEntityModalVisible} handleSearch={handleSearch} loading={loading && !isRefreshing} />
+                        <View style={styles.modernFilterSection}>
+                            <TouchableOpacity style={styles.modernDropdown} onPress={() => setEntityModalVisible(true)} activeOpacity={0.7}>
+                                <View style={styles.modernDropdownContent}>
+                                    <View style={styles.modernDropdownIcon}><StoreIcon color="#FF6B35" size={20} /></View>
+                                    <View style={styles.modernDropdownText}>
+                                        <Text style={styles.modernDropdownLabel}>المتجر المحدد</Text>
+                                        <Text style={styles.modernDropdownValue}>{selectedEntity ? selectedEntity.strEntityName : "كل المتاجر"}</Text>
+                                    </View>
+                                    <ChevronDown color="#9CA3AF" size={20} />
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.modernSearchButton} onPress={handleSearch} disabled={loading && !isRefreshing} activeOpacity={0.8}>
+                                {loading && !isRefreshing ? <ActivityIndicator color="#FFF" size="small" /> : (<><Search size={20} color="#FFF" /><Text style={styles.modernSearchButtonText}>بحث عن الطرود</Text></>)}
+                            </TouchableOpacity>
+                        </View>
+
                         {allParcels.length > 0 && !loading && (
                             <View style={styles.resultsHeader}>
                                 <Text style={styles.sectionTitle}>الطرود قيد الانتظار ({filteredParcels.length})</Text>
@@ -328,17 +1050,18 @@ export default function PendingApprovalScreen() {
                     </>
                 }
                 ListEmptyComponent={
-                    loading ? <ParcelsSkeleton /> : (
+                    loading ? <View style={{ paddingHorizontal: 12, marginTop: 20 }}>
+                        <ShimmerPlaceHolder style={styles.cardSkeleton} shimmerColors={["#FDF1EC", "#FEF8F5", "#FDF1EC"]} />
+                    </View> : (
                         <View style={styles.emptyContainer}>
                             <Image source={require("../../assets/images/empty-reports.png")} style={styles.emptyImage} />
                             <Text style={styles.emptyText}>{allParcels.length === 0 ? "لا توجد طرود قيد الانتظار لعرضها" : ""}</Text>
-                            <Text style={styles.emptySubText}>يرجى تحديد فلتر والضغط على بحث</Text>
                         </View>
                     )
                 }
             />
 
-            {/* Entity Filter Modal */}
+            {/* Modals */}
             <Modal visible={entityModalVisible} animationType="fade" transparent={true} onRequestClose={() => setEntityModalVisible(false)}>
                 <TouchableWithoutFeedback onPress={() => setEntityModalVisible(false)}>
                     <View style={styles.modalOverlay}>
@@ -353,10 +1076,9 @@ export default function PendingApprovalScreen() {
                                     data={[allStoresOption, ...displayedEntities]}
                                     keyExtractor={(item) => item.intEntityCode.toString()}
                                     renderItem={({ item }) => (
-                                        <TouchableOpacity style={styles.modernModalItem} onPress={() => { setSelectedEntity(item.intEntityCode === 0 ? null : item); setEntityModalVisible(false); setModalSearchQuery(""); }} activeOpacity={0.7}>
+                                        <TouchableOpacity style={styles.modernModalItem} onPress={() => { setSelectedEntity(item.intEntityCode === 0 ? null : item); setEntityModalVisible(false); setModalSearchQuery(""); }}>
                                             <View style={styles.modalItemContent}>
                                                 <Text style={[styles.modernModalItemText, (selectedEntity?.intEntityCode === item.intEntityCode || (!selectedEntity && item.intEntityCode === 0)) && styles.modalItemSelected]}>{item.strEntityName}</Text>
-                                                {item.intEntityCode !== 0 && <Text style={styles.modalItemCode}>{item.strStatus}</Text>}
                                             </View>
                                             {(selectedEntity?.intEntityCode === item.intEntityCode || (!selectedEntity && item.intEntityCode === 0)) && (<Check color="#FF6B35" size={20} />)}
                                         </TouchableOpacity>
@@ -368,16 +1090,11 @@ export default function PendingApprovalScreen() {
                 </TouchableWithoutFeedback>
             </Modal>
 
-            {/* WebView Modal for Tracking */}
             <Modal visible={webViewVisible} animationType="slide" onRequestClose={() => setWebViewVisible(false)}>
                 <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
                     <View style={styles.modalHeader}>
-                        <TouchableOpacity onPress={() => setWebViewVisible(false)} style={styles.modalBackButton}>
-                            <ChevronLeft size={24} color="#1F2937" />
-                        </TouchableOpacity>
-                        <Text style={styles.modalHeaderTitle}>
-                            {selectedParcel ? `تتبع: ${selectedParcel.ReferenceNo}` : 'تتبع الشحنة'}
-                        </Text>
+                        <TouchableOpacity onPress={() => setWebViewVisible(false)} style={styles.modalBackButton}><ChevronLeft size={24} color="#1F2937" /></TouchableOpacity>
+                        <Text style={styles.modalHeaderTitle}>{selectedParcel ? `تتبع: ${selectedParcel.ReferenceNo}` : 'تتبع الشحنة'}</Text>
                         <View style={{ width: 40 }} />
                     </View>
                     {selectedParcel && (
@@ -385,30 +1102,52 @@ export default function PendingApprovalScreen() {
                             source={{ uri: `http://tanmia-group.com:90/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
                             style={{ flex: 1 }}
                             startInLoadingState={true}
-                            renderLoading={() => (
-                                <ActivityIndicator
-                                    color="#FF6B35"
-                                    size="large"
-                                    style={{ position: 'absolute', width: '100%', height: '100%' }}
-                                />
-                            )}
                         />
                     )}
                 </SafeAreaView>
             </Modal>
 
-            <CustomAlert isVisible={isAlertVisible} title={alertTitle} message={alertMessage} confirmText="حسنًا" onConfirm={() => setAlertVisible(false)} success={alertSuccess} cancelText={undefined} onCancel={undefined} />
+            {/* EDIT PARCEL MODAL COMPONENT */}
+            <EditParcelModal
+                visible={editModalVisible}
+                parcel={parcelToEdit}
+                onClose={() => setEditModalVisible(false)}
+                onUpdateSuccess={(msg) => {
+                    setEditModalVisible(false);
+                    setAlertTitle("نجاح");
+                    setAlertMessage(msg);
+                    setAlertSuccess(true);
+                    setAlertVisible(true);
+                    handleSearch(); // Refresh list
+                }}
+                onError={(msg) => {
+                    setAlertTitle("خطأ");
+                    setAlertMessage(msg);
+                    setAlertSuccess(false);
+                    setAlertVisible(true);
+                }}
+            />
+
+            <CustomAlert
+                isVisible={isAlertVisible}
+                title={alertTitle}
+                message={alertMessage}
+                confirmText={alertConfirmAction ? "نعم" : "حسنًا"}
+                cancelText={alertConfirmAction ? "إلغاء" : undefined}
+                onConfirm={() => {
+                    if (alertConfirmAction) alertConfirmAction();
+                    else setAlertVisible(false);
+                }}
+                onCancel={alertCancelAction}
+                success={alertSuccess}
+            />
         </View>
     );
 }
 
-
-// Styles remain unchanged
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#F8F9FA" },
     listContentContainer: { paddingHorizontal: 12, paddingBottom: 120 },
-
-    // Filter & Search Styles
     modernFilterSection: { backgroundColor: "#FFFFFF", borderRadius: 8, padding: 20, marginVertical: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3 },
     modernDropdown: { marginBottom: 16 },
     modernDropdownContent: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 8, padding: 16, borderWidth: 1, borderColor: "#E5E7EB" },
@@ -422,15 +1161,8 @@ const styles = StyleSheet.create({
     sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", marginBottom: 16, textAlign: "right" },
     parcelSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: "#E5E7EB" },
 
-    // Premium Card Styles
-    premiumCard: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 12,
-        marginBottom: 12,
-        overflow: "hidden",
-        borderWidth: 1,
-        borderColor: '#E5E7EB'
-    },
+    // Card Styles
+    premiumCard: { backgroundColor: "#FFFFFF", borderRadius: 12, marginBottom: 12, overflow: "hidden", borderWidth: 1, borderColor: '#E5E7EB' },
     premiumCardHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', padding: 16, },
     premiumHeaderLeft: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12, },
     premiumIconBackground: { width: 40, height: 40, borderRadius: 10, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center' },
@@ -447,15 +1179,21 @@ const styles = StyleSheet.create({
     premiumInfoValue: { color: '#1F2937', fontSize: 14, fontWeight: '500', flex: 1, textAlign: 'left' },
     premiumRemarksContainer: { backgroundColor: '#F9FAFB', borderRadius: 8, padding: 12 },
     premiumRemarksText: { color: '#4B5563', fontSize: 14, textAlign: 'right', lineHeight: 20 },
-    premiumCardFooter: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, marginTop: -1, }, // Simplified footer
+    premiumCardFooter: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, marginTop: -1, },
     premiumTotalLabel: { color: '#1F2937', fontSize: 16, fontWeight: '600' },
     premiumTotalValue: { fontSize: 20, fontWeight: 'bold' },
+
+    // Action Buttons
+    actionButtonsContainer: { flexDirection: 'row-reverse', gap: 10, marginTop: 15, borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingTop: 15 },
+    editButton: { flex: 1, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', backgroundColor: hexToRgba('#27AE60', 0.1), padding: 12, borderRadius: 8, gap: 6 },
+    editButtonText: { color: '#27AE60', fontWeight: '600' },
+    deleteButton: { flex: 1, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', backgroundColor: hexToRgba('#E74C3C', 0.1), padding: 12, borderRadius: 8, gap: 6 },
+    deleteButtonText: { color: '#E74C3C', fontWeight: '600' },
 
     // Empty State & Skeletons
     emptyContainer: { backgroundColor: "#FFFFFF", borderRadius: 8, paddingVertical: 40, paddingHorizontal: 20, alignItems: "center", marginTop: 20 },
     emptyImage: { width: 200, height: 120, marginBottom: 16, opacity: 0.7 },
     emptyText: { color: "#374151", fontSize: 18, fontWeight: "600", marginBottom: 4 },
-    emptySubText: { color: "#6B7280", fontSize: 14, textAlign: "center", lineHeight: 20 },
     cardSkeleton: { height: 300, width: "100%", borderRadius: 12, marginBottom: 12 },
 
     // Modal Styles
@@ -468,29 +1206,52 @@ const styles = StyleSheet.create({
     modernModalItem: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 16, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: "#F3F4F6", marginHorizontal: 20, },
     modalItemContent: { flex: 1 },
     modernModalItemText: { color: "#1F2937", fontSize: 16, fontWeight: "500", textAlign: "right", marginBottom: 2 },
-    modalItemCode: { color: "#6B7280", fontSize: 12, textAlign: "right" },
     modalItemSelected: { color: "#FF6B35", fontWeight: "bold" },
+    modalHeader: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', backgroundColor: '#FFFFFF', },
+    modalBackButton: { padding: 10 },
+    modalHeaderTitle: { fontSize: 16, fontWeight: '600', color: '#1F2937', textAlign: 'center', flex: 1, marginHorizontal: 10 },
 
-    // WebView Modal Header Styles
-    modalHeader: {
-        height: 60,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
-        backgroundColor: '#FFFFFF',
-    },
-    modalBackButton: {
-        padding: 10,
-    },
-    modalHeaderTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#1F2937',
-        textAlign: 'center',
-        flex: 1,
-        marginHorizontal: 10,
-    },
+    // Form Styles
+    inputContainer: { marginBottom: 16 },
+    label: { fontSize: 14, color: "#3F3F46", marginBottom: 8, textAlign: "right", fontWeight: "500" },
+    inputWrapper: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#FFFFFF", borderRadius: 8, borderWidth: 1, borderColor: "#D4D4D8", paddingHorizontal: 12, height: 48 },
+    input: { flex: 1, fontSize: 16, color: "#18181B", textAlign: "right" },
+    leftIcon: { marginRight: 8 },
+    disabledInput: { backgroundColor: "#F3F4F6" },
+    saveButton: { backgroundColor: "#FF6B35", borderRadius: 8, padding: 16, alignItems: "center", marginTop: 20, marginBottom: 40 },
+    saveButtonText: { color: "#FFF", fontSize: 16, fontWeight: "bold" },
+    priceOptionCard: { flex: 1, borderWidth: 1, borderColor: "#D4D4D8", borderRadius: 8, padding: 10, alignItems: "center", backgroundColor: "#FFFFFF" },
+    priceOptionCardSelected: { borderColor: "#F97316", backgroundColor: "#FFF7ED" },
+    radioCircle: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: "#D4D4D8", justifyContent: "center", alignItems: "center", marginBottom: 6 },
+    radioCircleSelected: { borderColor: "#F97316" },
+    radioInnerCircle: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#F97316" },
+    priceOptionLabel: { fontSize: 12, color: "#3F3F46", marginBottom: 2 },
+    priceOptionValue: { fontSize: 14, color: "#10B981", fontWeight: "bold" },
+    countryCodeText: { color: "#A1A1AA", fontSize: 16, marginLeft: 8, fontWeight: "500" },
+    rightComponentWrapper: { marginLeft: 8, justifyContent: "center", alignItems: "center" },
+
+    // Details Card
+    detailsCard: { backgroundColor: "#FFFFFF", borderRadius: 12, padding: 15, borderWidth: 1, borderColor: "#E4E4E7", marginBottom: 20 },
+    cardTitle: { fontSize: 16, fontWeight: "bold", color: "#27272A", textAlign: "right", marginBottom: 12 },
+    priceRow: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+    priceLabel: { fontSize: 14, color: "#71717A" },
+    priceValue: { fontSize: 14, color: "#3F3F46", fontWeight: "500" },
+    divider: { height: 1, backgroundColor: "#E4E4E7", marginVertical: 8 },
+    totalLabel: { fontSize: 16, color: "#18181B", fontWeight: "bold" },
+    totalValue: { fontSize: 16, color: "#F97316", fontWeight: "bold" },
+
+    // Dimensions
+    dimensionsRow: { flexDirection: "row-reverse", gap: 12, marginBottom: 20 },
+    dimensionInputContainer: { flex: 1, position: "relative" },
+    dimensionInput: { backgroundColor: "#FFFFFF", borderRadius: 8, borderWidth: 1, borderColor: "#D4D4D8", paddingHorizontal: 12, paddingVertical: 12, fontSize: 16, color: "#18181B", textAlign: "center" },
+    dimensionLabel: { position: "absolute", top: -10, alignSelf: "center", backgroundColor: "#F8F9FA", paddingHorizontal: 4, fontSize: 12, color: "#3F3F46", zIndex: 1 },
+
+    // Added Payment Styles
+    paymentButton: { backgroundColor: "#3498DB", borderRadius: 8, padding: 12, flexDirection: "row-reverse", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 8, },
+    paymentButtonText: { color: "#FFF", fontSize: 14, fontWeight: "bold" },
+    paymentStatusBadge: { alignSelf: "flex-end", flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, },
+    paidBadge: { backgroundColor: "#D1FAE5" },
+    unpaidBadge: { backgroundColor: "#FEE2E2" },
+    paidBadgeText: { color: "#065F46", fontSize: 12, fontWeight: "bold" },
+    unpaidBadgeText: { color: "#991B1B", fontSize: 12, fontWeight: "bold" },
 });

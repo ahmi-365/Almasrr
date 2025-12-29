@@ -15,7 +15,8 @@ import {
   ActivityIndicator,
   TextInput,
   Platform,
-  KeyboardAvoidingView, // Import KeyboardAvoidingView
+  KeyboardAvoidingView,
+  Linking, // Import KeyboardAvoidingView
 } from "react-native";
 import {
   ArrowLeft,
@@ -177,6 +178,10 @@ const ParcelDetailsScreen = () => {
     dates: true,
     remarks: true,
     driverRemarks: true,
+    // ADD THESE TWO LINES:
+    driverContact: true,
+    onlinePayment: true,
+    storeContact: true,
   });
 
   useEffect(() => {
@@ -306,7 +311,11 @@ const ParcelDetailsScreen = () => {
     setIsProcessing(true);
     try {
       await axios.post(
-        `http://tanmia-group.com:90/courierApi/Parcel/Driver/AddRemarks/${parcel.intParcelCode}/${encodeURIComponent(remark)}`
+        `http://tanmia-group.com:90/courierApi/Parcel/Driver/AddRemarks`,
+        {
+          parcelID: parcel.intParcelCode,
+          strRemarks: remark.trim()
+        }
       );
 
       setAlertTitle("نجاح");
@@ -344,38 +353,38 @@ const ParcelDetailsScreen = () => {
   };
 
 
-  const handleFetchInvoices = async () => {
-    if (isFetchingInvoices) return;
+  // const handleFetchInvoices = async () => {
+  //   if (isFetchingInvoices) return;
 
-    setIsFetchingInvoices(true);
-    try {
-      const response = await fetch(
-        `http://tanmia-group.com:90/courierApi/parcels/GetAssignedInvoicesByParcel/${parcel.intParcelCode}`
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
+  //   setIsFetchingInvoices(true);
+  //   try {
+  //     const response = await fetch(
+  //       `http://tanmia-group.com:90/courierApi/parcels/GetAssignedInvoicesByParcel/${parcel.intParcelCode}`
+  //     );
+  //     if (!response.ok) {
+  //       throw new Error(`HTTP error! status: ${response.status}`);
+  //     }
+  //     const data = await response.json();
 
-      if (data && data.length > 0) {
-        setInvoiceData(data);
-        setInvoiceModalVisible(true);
-      } else {
-        setAlertTitle("لا توجد فواتير");
-        setAlertMessage("لا توجد فواتير مرتبطة بهذا الطرد.");
-        setAlertSuccess(true);
-        setAlertVisible(true);
-      }
-    } catch (error) {
-      console.error("Failed to fetch invoices:", error);
-      setAlertTitle("خطأ");
-      setAlertMessage("فشل في جلب الفواتير. يرجى المحاولة مرة أخرى.");
-      setAlertSuccess(false);
-      setAlertVisible(true);
-    } finally {
-      setIsFetchingInvoices(false);
-    }
-  };
+  //     if (data && data.length > 0) {
+  //       setInvoiceData(data);
+  //       setInvoiceModalVisible(true);
+  //     } else {
+  //       setAlertTitle("لا توجد فواتير");
+  //       setAlertMessage("لا توجد فواتير مرتبطة بهذا الطرد.");
+  //       setAlertSuccess(true);
+  //       setAlertVisible(true);
+  //     }
+  //   } catch (error) {
+  //     console.error("Failed to fetch invoices:", error);
+  //     setAlertTitle("خطأ");
+  //     setAlertMessage("فشل في جلب الفواتير. يرجى المحاولة مرة أخرى.");
+  //     setAlertSuccess(false);
+  //     setAlertVisible(true);
+  //   } finally {
+  //     setIsFetchingInvoices(false);
+  //   }
+  // };
 
   const formatCurrency = (amount) => {
     return `${parseFloat(amount || 0).toFixed(2)} د.ل`;
@@ -389,17 +398,17 @@ const ParcelDetailsScreen = () => {
     }
   };
 
-  const formatInvoiceDate = (dateString) => {
-    try {
-      const date = new Date(dateString);
-      const day = String(date.getDate()).padStart(2, '0');
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const year = date.getFullYear();
-      return `${day}-${month}-${year}`;
-    } catch {
-      return dateString.split(' ')[0] || dateString;
-    }
-  };
+  // const formatInvoiceDate = (dateString) => {
+  //   try {
+  //     const date = new Date(dateString);
+  //     const day = String(date.getDate()).padStart(2, '0');
+  //     const month = String(date.getMonth() + 1).padStart(2, '0');
+  //     const year = date.getFullYear();
+  //     return `${day}-${month}-${year}`;
+  //   } catch {
+  //     return dateString.split(' ')[0] || dateString;
+  //   }
+  // };
 
   const statusConfig =
     STATUS_CONFIG[parcel.StatusName] || STATUS_CONFIG["غير مؤكد"];
@@ -488,6 +497,12 @@ const ParcelDetailsScreen = () => {
         </View>
       </TouchableOpacity>
     );
+  };
+
+  const handlePhonePress = (phone) => {
+    if (phone) {
+      Linking.openURL(`tel:${phone}`);
+    }
   };
 
   const renderDetailRow = (icon, label, value, show = true) => {
@@ -591,7 +606,7 @@ const ParcelDetailsScreen = () => {
             <View style={styles.statusTextContainer}>
               <View style={styles.inlineHeader}>
                 <Text style={styles.statusTitle}>حالة الطرد</Text>
-                {showDeliveredButtons && (
+                {/* {showDeliveredButtons && (
                   <View style={styles.inlineIcons}>
                     <TouchableOpacity
                       style={[
@@ -614,7 +629,7 @@ const ParcelDetailsScreen = () => {
                       <CheckCircle size={22} color="#7bc89bff" />
                     </View>
                   </View>
-                )}
+                )} */}
                 {(showNotifyButton || showConfirmButton) && (
                   <View>
                     {showNotifyButton && (
@@ -663,7 +678,16 @@ const ParcelDetailsScreen = () => {
                     backgroundColor: statusConfig.color,
                     width: fadeAnim.interpolate({
                       inputRange: [0, 1],
-                      outputRange: ["0%", "75%"],
+                      // Check if status is 1 or 14, set width to 100%, otherwise 75%
+                      outputRange: [
+                        "0%",
+                        (parcel.intStatusCode === 3 || parcel.intStatusCode === 7)
+                          ? "100%" :
+                          (parcel.intStatusCode === 0 || (parcel.intStatusCode === 4 && roleName === "Driver"))
+                            ? '25%' :
+                            (parcel.intStatusCode === 10 || parcel.intStatusCode === 14) ?
+                              "0%" : '75$',
+                      ],
                     }),
                   },
                 ]}
@@ -716,8 +740,8 @@ const ParcelDetailsScreen = () => {
           {renderSectionHeader("المعلومات الأساسية", "basic")}
           {expandedSections.basic && (
             <View style={styles.sectionContent}>
-              {renderDetailRow(null, "رقم الطرد:", `#${parcel.intParcelCode}`)}
-              {renderDetailRow(null, "المرجع:", parcel.ReferenceNo)}
+              {/* {renderDetailRow(null, "رقم الطرد:", `#${parcel.intParcelCode}`)} */}
+              {renderDetailRow(null, "رقم الباركود:", parcel.ReferenceNo)}
               {renderDetailRow(null, "نوع الطرد:", parcel.TypeName)}
               {renderDetailRow(
                 null,
@@ -750,7 +774,21 @@ const ParcelDetailsScreen = () => {
           )}
         </Animated.View>
 
-        <Animated.View
+        <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          {renderSectionHeader("معلومات المستلم", "recipient", parcel.RecipientName || parcel.RecipientPhone)}
+          {expandedSections.recipient && (
+            <View style={styles.sectionContent}>
+              {renderDetailRow(<User size={20} color={COLORS.primary} />, "اسم المستلم:", parcel.RecipientName, parcel.RecipientName)}
+
+              {/* Clickable Phone Number */}
+              <TouchableOpacity onPress={() => handlePhonePress(parcel.RecipientPhone)}>
+                {renderDetailRow(<Phone size={20} color={COLORS.success} />, "هاتف المستلم:", parcel.RecipientPhone, parcel.RecipientPhone)}
+              </TouchableOpacity>
+            </View>
+          )}
+        </Animated.View>
+
+        {/* <Animated.View
           style={[
             styles.section,
             {
@@ -781,7 +819,64 @@ const ParcelDetailsScreen = () => {
                 )}
               </View>
             )}
-        </Animated.View>
+        </Animated.View> */}
+
+        {/* --- Store Information for Driver Role --- */}
+        {roleName === "Driver" && parcel.strEntityPhone ? (
+          <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+            {renderSectionHeader("معلومات المتجر", "storeContact")}
+            {expandedSections.storeContact && (
+              <View style={styles.sectionContent}>
+                {/* Render Store Name if available */}
+                {parcel.strEntityName && renderDetailRow(null, "اسم المتجر:", parcel.strEntityName)}
+
+                {/* Clickable Store Phone Number */}
+                <TouchableOpacity onPress={() => handlePhonePress(parcel.strEntityPhone)}>
+                  {renderDetailRow(
+                    <Phone size={20} color={COLORS.info} />,
+                    "رقم المتجر:",
+                    parcel.strEntityPhone
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </Animated.View>
+        ) : null}
+
+        {roleName === "Entity" && parcel.intStatusCode !== 0 && parcel.intStatusCode !== 1 && parcel.strDriverPhone ? (
+          <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+            {renderSectionHeader("رقم المندوب", "driverContact")}
+            {expandedSections.driverContact !== false && (
+              <View style={styles.sectionContent}>
+                <TouchableOpacity onPress={() => handlePhonePress(parcel.strDriverPhone)}>
+                  {renderDetailRow(<User size={20} color={COLORS.info} />, "المندوب:", parcel.strDriverPhone)}
+                </TouchableOpacity>
+              </View>
+            )}
+          </Animated.View>
+        ) : null}
+
+        {parcel.bolIsOnlinePayment === true ? (
+          <Animated.View style={[styles.section, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+            {renderSectionHeader("الدفع الإلكتروني", "onlinePayment")}
+            {expandedSections.onlinePayment !== false && (
+              <View style={styles.sectionContent}>
+                <View style={styles.detailRow}>
+                  <View style={styles.detailIcon}><CreditCard size={20} color={COLORS.primary} /></View>
+                  <Text style={styles.detailLabel}>حالة الدفع:</Text>
+                  <View style={[
+                    styles.statusBadge,
+                    { backgroundColor: parcel.strOnlinePaymentStatus === "Success" ? COLORS.success : COLORS.danger }
+                  ]}>
+                    <Text style={styles.statusText}>
+                      {parcel.strOnlinePaymentStatus === "Success" ? "مدفوع" : "غير مدفوع"}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+          </Animated.View>
+        ) : null}
 
         <Animated.View
           style={[
@@ -872,7 +967,7 @@ const ParcelDetailsScreen = () => {
       </Animated.ScrollView>
 
       {/* Invoice Modal */}
-      <Modal
+      {/* <Modal
         animationType="slide"
         transparent={true}
         visible={isInvoiceModalVisible}
@@ -941,7 +1036,7 @@ const ParcelDetailsScreen = () => {
             </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>
-      </Modal>
+      </Modal> */}
 
       {/* Complete Confirmation Modal */}
       <Modal
@@ -1298,10 +1393,13 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     overflow: "hidden",
     marginBottom: 8,
+    flexDirection: "row-reverse",
+
   },
   progressFill: {
     height: "100%",
     borderRadius: 3,
+
   },
   progressLabels: {
     flexDirection: "row-reverse",

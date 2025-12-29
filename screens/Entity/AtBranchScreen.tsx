@@ -13,6 +13,7 @@ import {
     FlatList,
     RefreshControl,
     Image,
+    Linking, // Added for Dialer
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -28,11 +29,12 @@ import {
     ChevronDown,
     Check,
     Store as StoreIcon,
-    ChevronLeft, // Import for WebView back button
+    ChevronLeft,
+    CreditCard, // Added for payment icon
 } from "lucide-react-native";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
-import { WebView } from "react-native-webview"; // Import WebView
+import { WebView } from "react-native-webview";
 import { useDashboard } from "../../Context/DashboardContext";
 import CustomAlert from "../../components/CustomAlert";
 import TopBar from "../../components/Entity/TopBarNew";
@@ -63,6 +65,7 @@ interface EntityForFilter {
     strEntityCode: string;
     strStatus: string;
 }
+
 interface Parcel {
     intParcelCode: number;
     dcFee: number;
@@ -77,6 +80,9 @@ interface Parcel {
     Remarks: string;
     Total: number;
     strDriverRemarks: string;
+    // New payment fields
+    bolIsOnlinePayment?: boolean;
+    strOnlinePaymentStatus?: string | null;
 }
 
 const formatDateTime = (isoString: string) => {
@@ -92,76 +98,112 @@ const formatDateTime = (isoString: string) => {
     } catch (e) { return isoString; }
 };
 
-// --- MODIFIED ParcelCard to handle tracking press ---
-const ParcelCard = ({ item, onTrackPress }: { item: Parcel, onTrackPress: (parcel: Parcel) => void }) => (
-    <View style={styles.premiumCard}>
-        <View style={[styles.premiumCardHeader, { backgroundColor: '#E67E22' }]}>
-            <View style={styles.premiumHeaderLeft}>
-                <TouchableOpacity onPress={() => onTrackPress(item)}>
-                    <View style={styles.premiumIconBackground}>
-                        <Package size={18} color="#FFF" />
-                    </View>
-                </TouchableOpacity>
-                <View>
-                    <Text style={styles.premiumReferenceNo}>{item.ReferenceNo}</Text>
-                    <View style={styles.premiumDateContainer}>
-                        <Calendar size={12} color="#FFF" style={{ opacity: 0.8 }} />
-                        <Text style={styles.premiumDateText}>{formatDateTime(item.CreatedAt)}</Text>
+// --- MODIFIED ParcelCard to handle tracking press, dialer, and payment status ---
+const ParcelCard = ({ item, onTrackPress }: { item: Parcel, onTrackPress: (parcel: Parcel) => void }) => {
+
+    const handlePhonePress = (phone: string) => {
+        if (phone) Linking.openURL(`tel:${phone}`);
+    };
+
+    return (
+        <View style={styles.premiumCard}>
+            <View style={[styles.premiumCardHeader, { backgroundColor: '#E67E22' }]}>
+                <View style={styles.premiumHeaderLeft}>
+                    <TouchableOpacity onPress={() => onTrackPress(item)}>
+                        <View style={styles.premiumIconBackground}>
+                            <Package size={18} color="#FFF" />
+                        </View>
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.premiumReferenceNo}>{item.ReferenceNo}</Text>
+                        <View style={styles.premiumDateContainer}>
+                            <Calendar size={12} color="#FFF" style={{ opacity: 0.8 }} />
+                            <Text style={styles.premiumDateText}>{formatDateTime(item.CreatedAt)}</Text>
+                        </View>
                     </View>
                 </View>
+                <View style={styles.premiumStatusBadge}>
+                    <Text style={styles.premiumStatusText}>{item.CityName}</Text>
+                </View>
             </View>
-            <View style={styles.premiumStatusBadge}>
-                <Text style={styles.premiumStatusText}>{item.CityName}</Text>
-            </View>
-        </View>
 
-        <View style={styles.premiumCardBody}>
-            <View style={styles.premiumSection}>
-                <Text style={styles.premiumSectionTitle}>معلومات المستلم</Text>
-                {item.RecipientName && (
-                    <View style={styles.premiumInfoRow}>
-                        <Text style={styles.premiumInfoLabel}>الاسم:</Text>
-                        <Text style={styles.premiumInfoValue}>{item.RecipientName}</Text>
+            <View style={styles.premiumCardBody}>
+                <View style={styles.premiumSection}>
+                    <Text style={styles.premiumSectionTitle}>معلومات المستلم</Text>
+                    {item.RecipientName && (
+                        <View style={styles.premiumInfoRow}>
+                            <Text style={styles.premiumInfoLabel}>الاسم:</Text>
+                            <Text style={styles.premiumInfoValue}>{item.RecipientName}</Text>
+                        </View>
+                    )}
+                    <TouchableOpacity
+                        style={styles.premiumInfoRow}
+                        onPress={() => handlePhonePress(item.RecipientPhone)}
+                    >
+                        <Text style={styles.premiumInfoLabel}>الهاتف:</Text>
+
+                        <Text style={[styles.premiumInfoValue, { color: '#E67E22', fontWeight: 'bold', margin: 8 }]}>
+                            {item.RecipientPhone}
+                        </Text>
+                        <Phone size={14} color="#E67E22" />
+
+                    </TouchableOpacity>
+                </View>
+
+                {/* --- Online Payment Logic --- */}
+                {item.bolIsOnlinePayment && (
+                    <View style={styles.premiumSection}>
+                        <Text style={styles.premiumSectionTitle}>الدفع الإلكتروني</Text>
+                        <View style={styles.premiumInfoRow}>
+                            <CreditCard size={14} color="#6B7280" />
+                            <View style={[
+                                styles.paymentStatusBadge,
+                                item.strOnlinePaymentStatus === "Success" ? styles.paidBadge : styles.unpaidBadge
+                            ]}>
+                                <Text style={[
+                                    styles.paymentStatusText,
+                                    item.strOnlinePaymentStatus === "Success" ? styles.paidText : styles.unpaidText
+                                ]}>
+                                    {item.strOnlinePaymentStatus === "Success" ? "مدفوع" : "غير مدفوع"}
+                                </Text>
+                            </View>
+                        </View>
                     </View>
                 )}
-                <View style={styles.premiumInfoRow}>
-                    <Text style={styles.premiumInfoLabel}>الهاتف:</Text>
-                    <Text style={styles.premiumInfoValue}>{item.RecipientPhone}</Text>
-                </View>
-            </View>
 
-            <View style={styles.premiumSection}>
-                <Text style={styles.premiumSectionTitle}>تفاصيل الطلب</Text>
-                <View style={styles.premiumInfoRow}>
-                    <Text style={styles.premiumInfoLabel}>الكمية:</Text>
-                    <Text style={styles.premiumInfoValue}>{item.Quantity}</Text>
-                </View>
-                <View style={styles.premiumInfoRow}>
-                    <Text style={styles.premiumInfoLabel}>نوع الطرد:</Text>
-                    <Text style={styles.premiumInfoValue}>{item.TypeName}</Text>
-                </View>
-            </View>
-
-            {(item.Remarks || item.strDriverRemarks) && (
                 <View style={styles.premiumSection}>
-                    <Text style={styles.premiumSectionTitle}>الملاحظات</Text>
-                    <View style={styles.premiumRemarksContainer}>
-                        {item.Remarks && <Text style={styles.premiumRemarksText}>{item.Remarks}</Text>}
-                        {item.strDriverRemarks && (
-                            <Text style={[styles.premiumRemarksText, item.Remarks ? { marginTop: 8 } : {}]}>
-                                <Text style={{ fontWeight: 'bold' }}>المندوب:</Text> {item.strDriverRemarks}
-                            </Text>
-                        )}
+                    <Text style={styles.premiumSectionTitle}>تفاصيل الطلب</Text>
+                    <View style={styles.premiumInfoRow}>
+                        <Text style={styles.premiumInfoLabel}>الكمية:</Text>
+                        <Text style={styles.premiumInfoValue}>{item.Quantity}</Text>
+                    </View>
+                    <View style={styles.premiumInfoRow}>
+                        <Text style={styles.premiumInfoLabel}>نوع الطرد:</Text>
+                        <Text style={styles.premiumInfoValue}>{item.TypeName}</Text>
                     </View>
                 </View>
-            )}
-            <View style={styles.premiumCardFooter}>
-                <Text style={styles.premiumTotalLabel}>الإجمالي</Text>
-                <Text style={[styles.premiumTotalValue, { color: '#E67E22' }]}>{item.Total.toFixed(2)} د.ل</Text>
+
+                {(item.Remarks || item.strDriverRemarks) && (
+                    <View style={styles.premiumSection}>
+                        <Text style={styles.premiumSectionTitle}>الملاحظات</Text>
+                        <View style={styles.premiumRemarksContainer}>
+                            {item.Remarks && <Text style={styles.premiumRemarksText}>{item.Remarks}</Text>}
+                            {item.strDriverRemarks && (
+                                <Text style={[styles.premiumRemarksText, item.Remarks ? { marginTop: 8 } : {}]}>
+                                    <Text style={{ fontWeight: 'bold' }}>المندوب:</Text> {item.strDriverRemarks}
+                                </Text>
+                            )}
+                        </View>
+                    </View>
+                )}
+                <View style={styles.premiumCardFooter}>
+                    <Text style={styles.premiumTotalLabel}>الإجمالي</Text>
+                    <Text style={[styles.premiumTotalValue, { color: '#E67E22' }]}>{item.Total.toFixed(2)} د.ل</Text>
+                </View>
             </View>
         </View>
-    </View>
-);
+    );
+};
 
 const FilterSection = ({ selectedEntity, setEntityModalVisible, handleSearch, loading }) => (
     <View style={styles.modernFilterSection}>
@@ -198,13 +240,9 @@ export default function AtBranchScreen() {
     const [alertMessage, setAlertMessage] = useState('');
     const [alertSuccess, setAlertSuccess] = useState(false);
 
-    // --- State for WebView Modal ---
     const [webViewVisible, setWebViewVisible] = useState(false);
     const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
-
-    // Add a state to track if the initial fetch has been done
     const [initialFetchDone, setInitialFetchDone] = useState(false);
-
 
     useFocusEffect(
         useCallback(() => {
@@ -225,9 +263,6 @@ export default function AtBranchScreen() {
                     setEntities(response.data || []);
                 } catch (error) {
                     console.error("Failed to fetch filter entities:", error);
-                    setAlertTitle("خطأ");
-                    setAlertMessage("فشل في تحميل قائمة المتاجر للفلتر.");
-                    setAlertVisible(true);
                 }
             };
             fetchFilterEntities();
@@ -242,18 +277,14 @@ export default function AtBranchScreen() {
             let parsedUser = user;
             if (!parsedUser) {
                 const userDataString = await AsyncStorage.getItem("user");
-                if (!userDataString) throw new Error("لم يتم العثور على المستخدم");
-                parsedUser = JSON.parse(userDataString);
+                parsedUser = JSON.parse(userDataString!);
                 setUser(parsedUser);
             }
 
             const dashboardDataString = await AsyncStorage.getItem("dashboard_data");
-            if (!dashboardDataString) throw new Error("لم يتم العثور على بيانات لوحة التحكم");
-            const dashboardData = JSON.parse(dashboardDataString);
-
+            const dashboardData = JSON.parse(dashboardDataString!);
             const countKeys = Object.keys(dashboardData).filter(key => key.startsWith('Count'));
-            const sortedStatusIds = countKeys.map(key => parseInt(key.slice(5), 10)).filter(num => !isNaN(num)).sort((a, b) => a - b);
-            if (sortedStatusIds.length < 2) throw new Error("بيانات لوحة التحكم غير كافية");
+            const sortedStatusIds = countKeys.map(key => parseInt(key.slice(5), 10)).sort((a, b) => a - b);
 
             const statusId = sortedStatusIds[1];
             const targetId = selectedEntity ? selectedEntity.intEntityCode : parsedUser.userId;
@@ -261,9 +292,8 @@ export default function AtBranchScreen() {
             const response = await axios.get(`http://tanmia-group.com:90/courierApi/parcels/details/${targetId}/${statusId}`);
             setAllParcels(response.data?.Parcels || []);
         } catch (error) {
-            console.error("Failed to load at-branch parcels:", error);
             setAlertTitle("خطأ");
-            setAlertMessage(error.message || "فشل تحميل الطرود التي في الفرع.");
+            setAlertMessage("فشل تحميل الطرود.");
             setAlertVisible(true);
         } finally {
             setLoading(false);
@@ -271,21 +301,18 @@ export default function AtBranchScreen() {
         }
     }, [user, setUser, selectedEntity]);
 
-    // This useEffect will run once when the component mounts
     useEffect(() => {
         if (user && !initialFetchDone) {
             handleSearch();
-            setInitialFetchDone(true); // Mark that the initial fetch has been done
+            setInitialFetchDone(true);
         }
     }, [user, handleSearch, initialFetchDone]);
-
 
     const onRefresh = useCallback(() => {
         setIsRefreshing(true);
         handleSearch();
     }, [handleSearch]);
 
-    // --- Handler for opening the WebView ---
     const handleTrackPress = (parcel: Parcel) => {
         setSelectedParcel(parcel);
         setWebViewVisible(true);
@@ -335,7 +362,6 @@ export default function AtBranchScreen() {
                         <View style={styles.emptyContainer}>
                             <Image source={require("../../assets/images/empty-reports.png")} style={styles.emptyImage} />
                             <Text style={styles.emptyText}>{allParcels.length === 0 ? "لا توجد طرود في الفرع لعرضها" : ""}</Text>
-                            <Text style={styles.emptySubText}>يرجى تحديد فلتر والضغط على بحث</Text>
                         </View>
                     )
                 }
@@ -355,10 +381,9 @@ export default function AtBranchScreen() {
                                     data={[allStoresOption, ...displayedEntities]}
                                     keyExtractor={(item) => item.intEntityCode.toString()}
                                     renderItem={({ item }) => (
-                                        <TouchableOpacity style={styles.modernModalItem} onPress={() => { setSelectedEntity(item.intEntityCode === 0 ? null : item); setEntityModalVisible(false); setModalSearchQuery(""); }} activeOpacity={0.7}>
+                                        <TouchableOpacity style={styles.modernModalItem} onPress={() => { setSelectedEntity(item.intEntityCode === 0 ? null : item); setEntityModalVisible(false); setModalSearchQuery(""); }}>
                                             <View style={styles.modalItemContent}>
                                                 <Text style={[styles.modernModalItemText, (selectedEntity?.intEntityCode === item.intEntityCode || (!selectedEntity && item.intEntityCode === 0)) && styles.modalItemSelected]}>{item.strEntityName}</Text>
-                                                {item.intEntityCode !== 0 && <Text style={styles.modalItemCode}>{item.strStatus}</Text>}
                                             </View>
                                             {(selectedEntity?.intEntityCode === item.intEntityCode || (!selectedEntity && item.intEntityCode === 0)) && (<Check color="#FF6B35" size={20} />)}
                                         </TouchableOpacity>
@@ -370,16 +395,11 @@ export default function AtBranchScreen() {
                 </TouchableWithoutFeedback>
             </Modal>
 
-            {/* --- WebView Modal for Tracking --- */}
             <Modal visible={webViewVisible} animationType="slide" onRequestClose={() => setWebViewVisible(false)}>
                 <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
                     <View style={styles.modalHeader}>
-                        <TouchableOpacity onPress={() => setWebViewVisible(false)} style={styles.modalBackButton}>
-                            <ChevronLeft size={24} color="#1F2937" />
-                        </TouchableOpacity>
-                        <Text style={styles.modalHeaderTitle}>
-                            {selectedParcel ? `تتبع: ${selectedParcel.ReferenceNo}` : 'تتبع الشحنة'}
-                        </Text>
+                        <TouchableOpacity onPress={() => setWebViewVisible(false)} style={styles.modalBackButton}><ChevronLeft size={24} color="#1F2937" /></TouchableOpacity>
+                        <Text style={styles.modalHeaderTitle}>{selectedParcel ? `تتبع: ${selectedParcel.ReferenceNo}` : 'تتبع الشحنة'}</Text>
                         <View style={{ width: 40 }} />
                     </View>
                     {selectedParcel && (
@@ -387,13 +407,6 @@ export default function AtBranchScreen() {
                             source={{ uri: `http://tanmia-group.com:90/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
                             style={{ flex: 1 }}
                             startInLoadingState={true}
-                            renderLoading={() => (
-                                <ActivityIndicator
-                                    color="#E67E22" // Match the screen's theme color
-                                    size="large"
-                                    style={{ position: 'absolute', width: '100%', height: '100%' }}
-                                />
-                            )}
                         />
                     )}
                 </SafeAreaView>
@@ -403,7 +416,7 @@ export default function AtBranchScreen() {
         </View>
     );
 }
-// Your existing styles remain unchanged
+
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#F8F9FA" },
     listContentContainer: { paddingHorizontal: 12, paddingBottom: 120 },
@@ -437,6 +450,15 @@ const styles = StyleSheet.create({
     premiumInfoRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
     premiumInfoLabel: { color: '#6B7280', fontSize: 14 },
     premiumInfoValue: { color: '#1F2937', fontSize: 14, fontWeight: '500', flex: 1, textAlign: 'left' },
+
+    // Payment Badges
+    paymentStatusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+    paidBadge: { backgroundColor: '#D1FAE5' },
+    unpaidBadge: { backgroundColor: '#FEE2E2' },
+    paymentStatusText: { fontSize: 12, fontWeight: 'bold' },
+    paidText: { color: '#065F46' },
+    unpaidText: { color: '#991B1B' },
+
     premiumRemarksContainer: { backgroundColor: '#F9FAFB', borderRadius: 8, padding: 12 },
     premiumRemarksText: { color: '#4B5563', fontSize: 14, textAlign: 'right', lineHeight: 20 },
     premiumCardFooter: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#F9FAFB', borderBottomLeftRadius: 12, borderBottomRightRadius: 12, },
@@ -446,40 +468,18 @@ const styles = StyleSheet.create({
     emptyContainer: { backgroundColor: "#FFFFFF", borderRadius: 8, paddingVertical: 40, paddingHorizontal: 20, alignItems: "center", marginTop: 20 },
     emptyImage: { width: 200, height: 120, marginBottom: 16, opacity: 0.7 },
     emptyText: { color: "#374151", fontSize: 18, fontWeight: "600", marginBottom: 4 },
-    emptySubText: { color: "#6B7280", fontSize: 14, textAlign: "center", lineHeight: 20 },
     cardSkeleton: { height: 300, width: "100%", borderRadius: 12, marginBottom: 12 },
 
     modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.5)", justifyContent: "center", alignItems: "center", padding: 20 },
     modernModalContent: { backgroundColor: "#FFFFFF", borderRadius: 8, width: "100%", maxHeight: "70%", padding: 20 },
-    modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginBottom: 16, marginHorizontal: 20, },
-    modernModalSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 8, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: "#E5E7EB", marginHorizontal: 20, },
+    modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginBottom: 16 },
+    modernModalSearchContainer: { flexDirection: "row-reverse", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 8, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: "#E5E7EB" },
     modalSearchIcon: { marginLeft: 8 },
-    modernModalItem: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 16, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: "#F3F4F6", marginHorizontal: 20, },
+    modernModalItem: { flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
     modalItemContent: { flex: 1 },
-    modernModalItemText: { color: "#1F2937", fontSize: 16, fontWeight: "500", textAlign: "right", marginBottom: 2 },
-    modalItemCode: { color: "#6B7280", fontSize: 12, textAlign: "right" },
+    modernModalItemText: { color: "#1F2937", fontSize: 16, fontWeight: "500", textAlign: "right" },
     modalItemSelected: { color: "#FF6B35", fontWeight: "bold" },
-
-    // --- Styles for WebView Modal Header ---
-    modalHeader: {
-        height: 60,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
-        backgroundColor: '#FFFFFF',
-    },
-    modalBackButton: {
-        padding: 10,
-    },
-    modalHeaderTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#1F2937',
-        textAlign: 'center',
-        flex: 1,
-        marginHorizontal: 10,
-    },
+    modalHeader: { height: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, borderBottomWidth: 1, borderBottomColor: '#E5E7EB', backgroundColor: '#FFFFFF' },
+    modalBackButton: { padding: 10 },
+    modalHeaderTitle: { fontSize: 16, fontWeight: '600', color: '#1F2937', textAlign: 'center', flex: 1 },
 });

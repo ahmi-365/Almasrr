@@ -101,8 +101,8 @@ android {
         applicationId 'com.ALMASAR.ALMASAR'
         minSdkVersion 27
         targetSdkVersion 36
-        versionCode 8
-        versionName "1.3.5"
+        versionCode 9
+        versionName "1.3.6"
     }
     signingConfigs {
         // debug {
