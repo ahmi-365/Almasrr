@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Maps to /storage/emulated/0/Download/ -->
+    <external-path name="my_downloads" path="Download/" />
+    
+    <!-- Maps to /storage/emulated/0/ -->
+    <external-path name="external_files" path="." />
+</paths>

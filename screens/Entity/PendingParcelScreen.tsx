@@ -16,7 +16,7 @@ import {
     ScrollView,
     Linking,
     Clipboard,
-    LayoutAnimation, // Added for copying URL
+    LayoutAnimation,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -39,8 +39,9 @@ import {
     CreditCard,
     FileText,
     Box,
-    Copy, // Added for copy icon
+    Copy,
     X,
+    AlignLeft, // Added Icon
 } from "lucide-react-native";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
@@ -111,13 +112,11 @@ interface Parcel {
     dcWidth: number;
     dcHeight: number;
     intToCityCode: number;
-    // New payment fields
     bolIsOnlinePayment?: boolean;
     strOnlinePaymentStatus?: string;
     strOnlinePaymentURL?: string;
+    StrParcelCategory?: string; // Added Product Description
 }
-
-// ... (Other interfaces like CityPrice, ParcelType, etc. remain unchanged)
 
 interface CityPrice {
     intCityCode: number;
@@ -178,14 +177,21 @@ const ParcelCard = ({
                     ) : null}
                     <TouchableOpacity onPress={() => openDialer(item.RecipientPhone)} style={styles.premiumInfoRow}>
                         <Text style={styles.premiumInfoLabel}>الهاتف:</Text>
-
                         <Text style={[styles.premiumInfoValue, { color: '#FF6B35', fontWeight: 'bold', margin: 8 }]}>{item.RecipientPhone}</Text>
-
                         <Phone size={14} color="#FF6B35" />
-
                     </TouchableOpacity>
                 </View>
 
+                {/* Show Product Description if available */}
+                {item.StrParcelCategory ? (
+                    <View style={styles.premiumSection}>
+                        <Text style={styles.premiumSectionTitle}>تفاصيل المنتج</Text>
+                        <View style={styles.premiumInfoRow}>
+                            <Text style={styles.premiumInfoLabel}>الوصف:</Text>
+                            <Text style={styles.premiumInfoValue}>{item.StrParcelCategory}</Text>
+                        </View>
+                    </View>
+                ) : null}
 
                 {/* Online Payment Logic */}
                 {item.bolIsOnlinePayment && (
@@ -260,7 +266,7 @@ const ParcelCard = ({
     );
 };
 
-// ... (FormInput, FormPicker, PriceOptionCard, DimensionInput remain the same as your code)
+// ... (FormInput, FormPicker, PriceOptionCard, DimensionInput)
 
 const FormInput = ({ label, icon: Icon, value, onChangeText, keyboardType = "default", editable = true, rightComponent = null, required = false }) => (
     <View style={styles.inputContainer}>
@@ -322,8 +328,7 @@ const DimensionInput = ({ label, value, onChangeText, required = false }) => (
     </View>
 );
 
-// ... (EditParcelModal logic remains the same)
-
+// --- EDIT PARCEL MODAL ---
 const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError }) => {
     const [isLoading, setIsLoading] = useState(false);
 
@@ -340,6 +345,9 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
     const [productPrice, setProductPrice] = useState("");
     const [notes, setNotes] = useState("");
     const [paymentMethod, setPaymentMethod] = useState("المستلم");
+
+    // Added Description State
+    const [productDescription, setProductDescription] = useState("");
 
     // Dimensions
     const [length, setLength] = useState("");
@@ -359,20 +367,12 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [showDeliveryModal, setShowDeliveryModal] = useState(false);
 
-    const [isAlertVisible, setAlertVisible] = useState(false);
-    const [alertTitle, setAlertTitle] = useState('');
-    const [alertMessage, setAlertMessage] = useState('');
-    const [alertSuccess, setAlertSuccess] = useState(false);
-    const [alertConfirmAction, setAlertConfirmAction] = useState<(() => void) | undefined>(undefined);
-    const [alertCancelAction, setAlertCancelAction] = useState<(() => void) | undefined>(undefined);
-
     useEffect(() => {
         if (visible && parcel) {
             loadDropdownsAndPopulate();
         }
     }, [visible, parcel]);
 
-    // --- LOGIC: Identical to CreateParcelScreen ---
     const displayedShippingPrice = useMemo(() => {
         let finalPrice = shippingPrice;
         if (selectedParcelType?.Text === "طرد كبير") {
@@ -396,10 +396,6 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
         return (parseFloat(productPrice) || 0) + displayedShippingPrice + electronicPaymentSurcharge;
     }, [productPrice, displayedShippingPrice, electronicPaymentSurcharge]);
 
-    // const totalAmount = useMemo(() => {
-    //     return (parseFloat(productPrice) || 0) + displayedShippingPrice;
-    // }, [productPrice, displayedShippingPrice]);
-
     const loadDropdownsAndPopulate = async () => {
         setIsLoading(true);
         try {
@@ -407,9 +403,9 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
             const parsedUser = JSON.parse(userDataString || "{}");
 
             const [typesRes, citiesRes, deliveryRes] = await Promise.all([
-                axios.get("http://tanmia-group.com:90/courierApi/parcels/GetParcelTypes"),
-                axios.get(`http://tanmia-group.com:90/courierApi/City/GetCityPrices/${parsedUser?.intCityCode || 0}`),
-                axios.get("http://tanmia-group.com:90/courierApi/parcels/GetDeliveryTypes")
+                axios.get("https://tanmia-group.com:86/courierApi/parcels/GetParcelTypes"),
+                axios.get(`https://tanmia-group.com:86/courierApi/City/GetCityPrices/${parsedUser?.intCityCode || 0}`),
+                axios.get("https://tanmia-group.com:86/courierApi/parcels/GetDeliveryTypes")
             ]);
 
             const types = typesRes.data?.ParcelTypes || [];
@@ -423,7 +419,6 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
             // Populate Form Fields
             setRecipientName(parcel.RecipientName || "");
 
-            // Format phone: remove country code
             let phone = parcel.RecipientPhone || "";
             if (phone.startsWith(COUNTRY_CODE)) phone = phone.replace(COUNTRY_CODE, "");
             else if (phone.startsWith("218")) phone = phone.substring(3);
@@ -431,12 +426,12 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
 
             setRecipientAddress(parcel.strRecipientAddress || "");
             setQuantity(parcel.Quantity.toString());
-
-            // --- FIX: Map directly to Product Price (dcEntityFees) ---
             setProductPrice(parcel.dcEntityFees.toString());
-
             setNotes(parcel.Remarks || "");
             setPaymentMethod(parcel.strPaymentBy || "المستلم");
+
+            // Populate Description
+            setProductDescription(parcel.StrParcelCategory || "");
 
             setLength(parcel.dcLength?.toString() || "");
             setWidth(parcel.dcWidth?.toString() || "");
@@ -463,11 +458,8 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
                 if (matchedDelivery) setSelectedDeliveryType(matchedDelivery);
             }
 
-            // 4. Shipping Price & Type Logic
-
-            // A. Calculate Volumetric Weight from API data
+            // 4. Shipping Price Calculation
             let calculatedVolumetric = 0;
-            // Check for Large Parcel (Type Code 3 or Text "طرد كبير")
             if (parcel.TypeName === "طرد كبير" || parcel.intParcelTypeCode === 3) {
                 const l = parseFloat(parcel.dcLength?.toString() || "0");
                 const w = parseFloat(parcel.dcWidth?.toString() || "0");
@@ -477,28 +469,19 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
                 }
             }
 
-            // B. Reverse-Calculate Base Shipping Price
-            // Formula: API_Total = Product + (BaseShipping + Volumetric)
-            // Therefore: BaseShipping = API_Total - Product - Volumetric
             const apiTotal = parcel.Total || 0;
             const apiProduct = parcel.dcEntityFees || 0;
 
             let localSurcharge = 0;
             if (parcel.strPaymentBy === "الدفع الإلكتروني") {
-                // If 2% was added, then Total = BaseTotal * 1.02
-                // So BaseTotal = Total / 1.02
-                // Surcharge = Total - BaseTotal
                 const baseTotal = apiTotal / 1.02;
                 localSurcharge = apiTotal - baseTotal;
             }
 
-            // Now subtract everything to get the raw base shipping (City Price)
-            // shipping = Total - Product - Volumetric - Surcharge
             const derivedBaseShipping = apiTotal - apiProduct - calculatedVolumetric - localSurcharge;
-
             setShippingPrice(derivedBaseShipping);
 
-            // C. Determine Shipping Type Selection (Visual Only)
+            // 5. Determine Shipping Type Selection
             let determinedType: "office" | "inside" | "outskirts" = "inside";
             const rawPriceName = parcel.strCityPriceName || "";
 
@@ -509,8 +492,6 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
             } else if (rawPriceName === "InsideCity") {
                 determinedType = "inside";
             } else if (matchedCity) {
-                // Heuristic: Compare derived price to city prices to guess the radio button
-                // We use a small margin (e.g. < 5) to account for potential delivery fees included in the total
                 if (Math.abs(derivedBaseShipping - matchedCity.DcOfficePrice) < 5) determinedType = "office";
                 else if (Math.abs(derivedBaseShipping - matchedCity.DcOutSkirtPrice) < 5) determinedType = "outskirts";
                 else determinedType = "inside";
@@ -529,20 +510,13 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
     const handleSelectShipping = (type: "office" | "inside" | "outskirts") => {
         setShippingType(type);
         if (!selectedCity) return;
-        // --- FIX: Update shipping price exactly like CreateParcelScreen ---
         if (type === "office") setShippingPrice(selectedCity.DcOfficePrice);
         if (type === "inside") setShippingPrice(selectedCity.DcInsideCityPrice);
         if (type === "outskirts") setShippingPrice(selectedCity.DcOutSkirtPrice);
     };
 
     const handleUpdate = async () => {
-
-        if (!recipientPhone.trim()) {
-            setAlertTitle("حقول مطلوبة");
-            setAlertMessage("يرجى إدخال رقم هاتف المستلم.");
-            setAlertVisible(true);
-        }
-
+        if (!recipientPhone.trim()) return onError("يرجى إدخال رقم هاتف المستلم.");
         if (!selectedParcelType) return onError("يرجى اختيار نوع الطرد.");
 
         if (selectedParcelType.Text === "طرد كبير") {
@@ -568,8 +542,6 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
         const strCityPriceNameMap = { office: "Office", inside: "InsideCity", outskirts: "OutSkirt" };
         const fullRecipientPhone = recipientPhone.trim() ? (COUNTRY_CODE + recipientPhone) : "";
         const prodPrice = parseFloat(productPrice) || 0;
-
-        // Use the displayedShippingPrice which already includes volumetric calculation
         const companyFees = displayedShippingPrice;
 
         const payload = {
@@ -579,24 +551,25 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
             strRecipientPhone: fullRecipientPhone,
             strRecipientAddress: recipientAddress,
             intParcelTypeCode: selectedParcelType.Value,
-            dcFee: totalAmount, // Total Amount including everything
+            dcFee: totalAmount,
             dcDriverFees: 0,
-            dcEntityFees: prodPrice, // Product Price
-            dcCompanyFees: companyFees, // Shipping Price (Base + Volumetric)
+            dcEntityFees: prodPrice,
+            dcCompanyFees: companyFees,
             strPaymentBy: paymentMethod,
             intToCityCode: selectedCity.intCityCode,
             intQty: parseInt(quantity),
             strRemarks: notes,
-            dcShippingCharge: shippingPrice, // Base shipping price before volumetric
+            dcShippingCharge: shippingPrice,
             strCityPriceName: strCityPriceNameMap[shippingType],
             strDeliveryType: selectedDeliveryType?.Value || "",
             dcLength: parseFloat(length) || 0,
             dcWidth: parseFloat(width) || 0,
             dcHeight: parseFloat(height) || 0,
+            StrParcelCategory: productDescription, // Added Payload Field
         };
 
         try {
-            const response = await axios.post('http://tanmia-group.com:90/courierApi/parcels/updateparcel', payload);
+            const response = await axios.post('https://tanmia-group.com:86/courierApi/parcels/updateparcel', payload);
             if (response.data && response.data.Success !== false) {
                 onUpdateSuccess(response.data.Message || "تم تحديث الطرد بنجاح");
             } else {
@@ -638,6 +611,16 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
                         />
 
                         <FormInput label="العنوان" icon={MapPin} value={recipientAddress} onChangeText={setRecipientAddress} required={false} />
+
+                        {/* Added Product Description Input */}
+                        <FormInput
+                            label="وصف المنتج"
+                            icon={AlignLeft}
+                            // placeholder="أدخل وصف المنتج (اختياري)"
+                            value={productDescription}
+                            onChangeText={setProductDescription}
+                            required={false}
+                        />
 
                         <FormPicker
                             label="المدينة"
@@ -710,7 +693,6 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
 
                         <FormInput label="ملاحظات" icon={FileText} value={notes} onChangeText={setNotes} />
 
-                        {/* --- DETAILS CARD: Identical to CreateParcelScreen --- */}
                         <View style={styles.detailsCard}>
                             <Text style={styles.cardTitle}>تفاصيل المبلغ</Text>
                             <View style={styles.priceRow}>
@@ -851,7 +833,7 @@ export default function PendingApprovalScreen() {
                     if (sortedStatusIds.length < 1) throw new Error("بيانات غير كافية لتحديد الحالة");
                     const statusIdForFilter = sortedStatusIds[0];
 
-                    const response = await axios.get(`http://tanmia-group.com:90/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
+                    const response = await axios.get(`https://tanmia-group.com:86/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
                     setEntities(response.data || []);
                 } catch (error) {
                     console.error("Failed to fetch filter entities:", error);
@@ -885,7 +867,7 @@ export default function PendingApprovalScreen() {
             const statusId = sortedStatusIds[0];
             const targetId = selectedEntity ? selectedEntity.intEntityCode : parsedUser.userId;
 
-            const response = await axios.get(`http://tanmia-group.com:90/courierApi/parcels/details/${targetId}/${statusId}`);
+            const response = await axios.get(`https://tanmia-group.com:86/courierApi/parcels/details/${targetId}/${statusId}`);
             setAllParcels(response.data?.Parcels || []);
         } catch (error) {
             console.error("Failed to load pending parcels:", error);
@@ -929,7 +911,7 @@ export default function PendingApprovalScreen() {
         setAlertCancelAction(undefined);
 
         try {
-            const response = await axios.post(`http://tanmia-group.com:90/courierApi/parcels/deleteparcel/${id}`);
+            const response = await axios.post(`https://tanmia-group.com:86/courierApi/parcels/deleteparcel/${id}`);
 
             if (response.data && response.data.parcelID) {
                 // 2. Animate the list update
@@ -1099,7 +1081,7 @@ export default function PendingApprovalScreen() {
                     </View>
                     {selectedParcel && (
                         <WebView
-                            source={{ uri: `http://tanmia-group.com:90/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
+                            source={{ uri: `https://tanmia-group.com:86/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
                             style={{ flex: 1 }}
                             startInLoadingState={true}
                         />

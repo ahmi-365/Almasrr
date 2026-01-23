@@ -91,7 +91,7 @@ const RegisterScreen = () => {
     const fetchCities = async () => {
       try {
         const response = await fetch(
-          'http://tanmia-group.com:90/courierApi/register/cities'
+          'https://tanmia-group.com:86/courierApi/register/cities'
         );
         const data = await response.json();
         const formattedCities = data.map((city: any) => ({
@@ -217,7 +217,7 @@ const RegisterScreen = () => {
         intCityCode: selectedCity.toString(),
       }).toString();
       const response = await fetch(
-        'http://tanmia-group.com:90/courierApi/register/sendotp',
+        'https://tanmia-group.com:86/courierApi/register/sendotp',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -286,7 +286,7 @@ const RegisterScreen = () => {
         intCityCode: selectedCity.toString(),
       }).toString();
       const response = await fetch(
-        'http://tanmia-group.com:90/courierApi/register/verifyotp',
+        'https://tanmia-group.com:86/courierApi/register/verifyotp',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

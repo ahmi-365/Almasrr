@@ -232,7 +232,7 @@ export default function CityRatesScreen() {
                 return;
             }
 
-            const response = await axios.get(`http://tanmia-group.com:90/courierApi/City/GetCityPrices/${userCityCode}`);
+            const response = await axios.get(`https://tanmia-group.com:86/courierApi/City/GetCityPrices/${userCityCode}`);
             const priceData: CityPrice[] = response.data || [];
 
             setAllPrices(priceData);

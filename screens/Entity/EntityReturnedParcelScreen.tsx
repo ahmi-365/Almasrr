@@ -7,15 +7,14 @@ import {
     TouchableOpacity,
     Modal,
     SafeAreaView,
-    TouchableWithoutFeedback,
     TextInput,
-    Platform,
     FlatList,
     RefreshControl,
     Image,
     ScrollView,
     Linking,
     Alert,
+    Platform,
     PermissionsAndroid,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
@@ -30,12 +29,10 @@ import {
     Calendar,
     User,
     ChevronDown,
-    Check,
     Store as StoreIcon,
     ChevronLeft,
     CreditCard,
     Download,
-    X,
 } from "lucide-react-native";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
@@ -44,9 +41,9 @@ import { useDashboard } from "../../Context/DashboardContext";
 import CustomAlert from "../../components/CustomAlert";
 import TopBar from "../../components/Entity/TopBarNew";
 import FileViewer from 'react-native-file-viewer';
+
 // PDF Download Libraries
 import RNFS from 'react-native-fs';
-import Share from 'react-native-share';
 import notifee, { EventType } from '@notifee/react-native';
 
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
@@ -241,9 +238,12 @@ export default function ReturnedParcelsScreen() {
     const [loading, setLoading] = useState(false);
     const [loadingInvoices, setLoadingInvoices] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
-    const [isDownloading, setIsDownloading] = useState(false);
+
+    // Track currently downloading invoice to show spinner on specific button
+    const [downloadingInvoiceNo, setDownloadingInvoiceNo] = useState<string | null>(null);
+
     const [allParcels, setAllParcels] = useState<Parcel[]>([]);
-    const { user, setUser } = useDashboard();
+    const { user } = useDashboard();
     const [isInvoiceModalVisible, setInvoiceModalVisible] = useState(false);
     const [invoiceData, setInvoiceData] = useState<Invoice[]>([]);
     const [entities, setEntities] = useState<EntityForFilter[]>([]);
@@ -263,7 +263,7 @@ export default function ReturnedParcelsScreen() {
     const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
     const [initialFetchDone, setInitialFetchDone] = useState(false);
 
-    const [invoiceSearchQuery, setInvoiceSearchQuery] = useState(""); // NEW: Search State
+    const [invoiceSearchQuery, setInvoiceSearchQuery] = useState("");
 
     const filteredInvoices = useMemo(() => {
         if (!invoiceSearchQuery) return invoiceData;
@@ -274,142 +274,144 @@ export default function ReturnedParcelsScreen() {
         );
     }, [invoiceData, invoiceSearchQuery]);
 
+    // -------------------------------------------------------------
+    // POLICY COMPLIANT PERMISSION CHECK
+    // -------------------------------------------------------------
     const requestStoragePermission = async () => {
-        if (Platform.OS === 'android' && Platform.Version < 33) {
+        // Android 10+ (API 29+) does NOT need permission for Downloads folder
+        if (Platform.OS === 'android' && Platform.Version >= 29) {
+            return true;
+        }
+
+        // Android 9 and below needs WRITE permission
+        if (Platform.OS === 'android' && Platform.Version < 29) {
             try {
                 const granted = await PermissionsAndroid.request(
-                    PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE
+                    PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
                 );
                 return granted === PermissionsAndroid.RESULTS.GRANTED;
             } catch (err) {
+                console.warn(err);
                 return false;
             }
         }
         return true;
     };
 
+    // -------------------------------------------------------------
+    // POLICY COMPLIANT DOWNLOAD & OPEN
+    // -------------------------------------------------------------
     const handleDownloadPdf = async (invoice: Invoice) => {
+        setDownloadingInvoiceNo(invoice.strInvoiceNo);
+
+        // 1. Check Permissions
         const hasPermission = await requestStoragePermission();
         if (!hasPermission) {
             Alert.alert('صلاحيات مفقودة', 'يرجى السماح للتطبيق بالوصول إلى التخزين لتنزيل الملف.');
+            setDownloadingInvoiceNo(null);
             return;
         }
-        setIsDownloading(true);
 
-        const notificationId = `download-${invoice.strInvoiceNo}`;
+        const notificationId = invoice.strInvoiceNo; // Use invoice no as ID
         const channelId = await notifee.createChannel({
             id: 'downloads',
             name: 'Downloads',
         });
 
-        // Initial Progress Notification
+        // 2. Start Notification
         await notifee.displayNotification({
             id: notificationId,
-            title: 'بدء تحميل الفاتورة',
-            body: `جاري تحميل الفاتورة رقم ${invoice.strInvoiceNo}`,
+            title: 'جاري التحميل',
+            body: `جاري تحميل الفاتورة ${invoice.strInvoiceNo}...`,
             android: {
                 channelId,
-                progress: { max: 100, current: 0 },
+                progress: { max: 10, current: 5, indeterminate: true },
             },
         });
 
         try {
-            const url = `http://tanmia-group.com:90/courierApi/Parcel/ReturnInvoicePdf/${invoice.strInvoiceNo}/${invoice.intEntityCode}`;
-            const fileName = `ReturnInvoice_${invoice.strInvoiceNo}_${Date.now()}.pdf`;
-            const tempDownloadPath = `${RNFS.TemporaryDirectoryPath}/${fileName}`;
+            const url = `https://tanmia-group.com:86/courierApi/Parcel/ReturnInvoicePdf/${invoice.strInvoiceNo}/${invoice.intEntityCode}`;
 
-            const downloadResult = RNFS.downloadFile({
+            // 3. Define Path: Write DIRECTLY to Downloads (Allowed on Android 10+)
+            const fileName = `EntityInvoice_${invoice.strInvoiceNo}.pdf`;
+            const downloadDest = `${RNFS.DownloadDirectoryPath}/${fileName}`;
+
+            // 4. Download File
+            const ret = RNFS.downloadFile({
                 fromUrl: url,
-                toFile: tempDownloadPath,
-                progress: (res) => {
-                    const progress = (res.bytesWritten / res.contentLength) * 100;
-                    notifee.displayNotification({
-                        id: notificationId,
-                        title: 'جاري تحميل الفاتورة',
-                        body: `${Math.round(progress)}% مكتمل`,
-                        android: {
-                            channelId,
-                            progress: { max: 100, current: Math.round(progress) },
-                        },
-                    });
+                toFile: downloadDest,
+            });
+
+            const job = await ret.promise;
+
+            if (job.statusCode !== 200) {
+                throw new Error("Server Error");
+            }
+
+            // 5. Success Notification
+            await notifee.displayNotification({
+                id: notificationId,
+                title: 'اكتمل التحميل',
+                body: 'تم حفظ الفاتورة في التنزيلات. انقر للفتح.',
+                data: { filePath: downloadDest }, // Store path for listener
+                android: {
+                    channelId,
+                    pressAction: { id: 'open-pdf' }, // Match listener ID
                 },
-            }).promise;
+            });
 
-            const result = await downloadResult;
-
-            if (result.statusCode !== 200) throw new Error(`Server error: ${result.statusCode}`);
-
-            if (Platform.OS === 'android') {
-                const almasarFolderPath = `${RNFS.DownloadDirectoryPath}/Almasar`;
-                await RNFS.mkdir(almasarFolderPath);
-                const finalPdfPath = `${almasarFolderPath}/${fileName}`;
-
-                await RNFS.moveFile(tempDownloadPath, finalPdfPath);
-                await RNFS.scanFile(finalPdfPath); // Make it visible in File Manager
-
-                // Final Success Notification with PRESS ACTION
-                await notifee.displayNotification({
-                    id: notificationId,
-                    title: 'اكتمل التحميل',
-                    body: 'تم حفظ الفاتورة بنجاح. انقر للفتح.',
-                    data: {
-                        filePath: finalPdfPath, // Pass path to the listener
-                    },
-                    android: {
-                        channelId,
-                        pressAction: {
-                            id: 'open-pdf', // Matches the listener ID
-                        },
-                    },
-                });
-
-                setAlertTitle("نجاح");
-                setAlertMessage("تم حفظ الملف بنجاح في مجلد التنزيلات/Almasar");
+            // 6. Attempt to Open Immediately
+            try {
+                await FileViewer.open(downloadDest, { showOpenWithDialog: true });
+            } catch (e) {
+                console.log("Viewer error (might need user interaction):", e);
+                // Fallback: Alert user it's in Downloads
+                setAlertTitle("تم التحميل");
+                setAlertMessage("تم حفظ الفاتورة في مجلد التنزيلات.");
                 setAlertSuccess(true);
                 setAlertVisible(true);
-
-            } else {
-                // iOS Logic
-                await Share.open({
-                    url: `file://${tempDownloadPath}`,
-                    type: 'application/pdf',
-                    title: 'فتح الفاتورة',
-                });
-                await notifee.cancelNotification(notificationId);
             }
+
         } catch (error) {
             console.error('Download error:', error);
             setAlertTitle("خطأ");
             setAlertMessage("حدث خطأ أثناء تحميل الملف.");
+            setAlertSuccess(false);
             setAlertVisible(true);
+
+            await notifee.displayNotification({
+                id: notificationId,
+                title: 'فشل التحميل',
+                body: 'حدث خطأ أثناء تحميل الفاتورة',
+                android: { channelId },
+            });
         } finally {
-            setIsDownloading(false);
+            setDownloadingInvoiceNo(null);
         }
     };
 
+    // -------------------------------------------------------------
+    // NOTIFICATION LISTENER (Opens PDF when notification clicked)
+    // -------------------------------------------------------------
     useEffect(() => {
         const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
-            // Check if the user pressed the notification or the 'open-pdf' action
             if (type === EventType.PRESS && detail.pressAction?.id === 'open-pdf') {
                 const filePath = detail.notification?.data?.filePath;
                 if (filePath && typeof filePath === 'string') {
-                    FileViewer.open(filePath)
-                        .then(() => console.log('File opened successfully'))
-                        .catch(error => {
-                            console.error('Error opening file:', error);
-                            Alert.alert('خطأ', 'لا يمكن فتح الملف. يرجى التأكد من وجود تطبيق لعرض ملفات PDF.');
-                        });
+                    FileViewer.open(filePath).catch(error => {
+                        console.error('Error opening file:', error);
+                        Alert.alert('خطأ', 'لا يمكن فتح الملف.');
+                    });
                 }
             }
         });
-
-        return () => unsubscribe(); // Cleanup on unmount
+        return () => unsubscribe();
     }, []);
 
     useEffect(() => {
         const fetchReturnStatuses = async () => {
             try {
-                const response = await axios.get(`http://tanmia-group.com:90/courierApi/parcels/GetSelectedStatuses`);
+                const response = await axios.get(`https://tanmia-group.com:86/courierApi/parcels/GetSelectedStatuses`);
                 setReturnStatuses(response.data?.Statuses || []);
             } catch (error) { console.error(error); }
         };
@@ -420,18 +422,20 @@ export default function ReturnedParcelsScreen() {
         if (!user?.userId) return;
         setLoadingInvoices(true);
         try {
-            const response = await axios.get(`http://tanmia-group.com:90/courierApi/parcels/GetAssignedInvoicesByParcel/${user.userId}`);
+            const response = await axios.get(`https://tanmia-group.com:86/courierApi/parcels/GetAssignedInvoicesByParcel/${user.userId}`);
             if (response.data && response.data.length > 0) {
                 setInvoiceData(response.data);
                 setInvoiceModalVisible(true);
             } else {
                 setAlertTitle("لا توجد فواتير");
                 setAlertMessage("لا توجد فواتير مرتبطة بهذا الحساب.");
+                setAlertSuccess(false); // Fix: Alert Logic
                 setAlertVisible(true);
             }
         } catch (error) {
             setAlertTitle("خطأ");
             setAlertMessage("فشل جلب البيانات.");
+            setAlertSuccess(false);
             setAlertVisible(true);
         } finally { setLoadingInvoices(false); }
     };
@@ -445,7 +449,7 @@ export default function ReturnedParcelsScreen() {
                     const dashboardData = JSON.parse(dashboardDataString!);
                     const countKeys = Object.keys(dashboardData).filter(key => key.startsWith('Count'));
                     const sortedStatusIds = countKeys.map(key => parseInt(key.slice(5), 10)).sort((a, b) => a - b);
-                    const response = await axios.get(`http://tanmia-group.com:90/courierApi/Entity/GetHistoryEntities/${user.userId}/${sortedStatusIds[4]}`);
+                    const response = await axios.get(`https://tanmia-group.com:86/courierApi/Entity/GetHistoryEntities/${user.userId}/${sortedStatusIds[4]}`);
                     setEntities(response.data || []);
                 } catch (error) { console.error(error); }
             };
@@ -463,7 +467,7 @@ export default function ReturnedParcelsScreen() {
             const sortedStatusIds = countKeys.map(key => parseInt(key.slice(5), 10)).sort((a, b) => a - b);
             const targetId = selectedEntity ? selectedEntity.intEntityCode : user?.userId;
 
-            const response = await axios.get(`http://tanmia-group.com:90/courierApi/parcels/details/${targetId}/${sortedStatusIds[4]}`);
+            const response = await axios.get(`https://tanmia-group.com:86/courierApi/parcels/details/${targetId}/${sortedStatusIds[4]}`);
             let parcels = response.data?.Parcels || [];
             if (selectedReturnStatus?.Value) {
                 parcels = parcels.filter(parcel => parcel.intStatusCode.toString() === selectedReturnStatus.Value);
@@ -472,6 +476,7 @@ export default function ReturnedParcelsScreen() {
         } catch (error) {
             setAlertTitle("خطأ");
             setAlertMessage("فشل تحميل البيانات.");
+            setAlertSuccess(false);
             setAlertVisible(true);
         } finally { setLoading(false); setIsRefreshing(false); }
     }, [user, selectedEntity, selectedReturnStatus]);
@@ -574,7 +579,7 @@ export default function ReturnedParcelsScreen() {
                     <View style={styles.invoiceModalContent}>
                         <Text style={styles.invoiceModalTitle}>الفواتير المرتجعة</Text>
 
-                        {/* NEW: Search Bar */}
+                        {/* Search Bar */}
                         <View style={styles.invoiceSearchContainer}>
                             <Search color="#9CA3AF" size={20} />
                             <TextInput
@@ -594,49 +599,35 @@ export default function ReturnedParcelsScreen() {
                         </View>
                         <View style={{ flex: 1 }}>
                             <ScrollView showsVerticalScrollIndicator={true}>
-                                {/* UPDATED: Use filteredInvoices instead of invoiceData */}
-                                {filteredInvoices.length > 0 ? filteredInvoices.map((invoice, index) => (
-                                    <View key={index} style={styles.tableRow}>
-                                        <Text style={[styles.tableCellText, { flex: 1.2 }]}>{invoice.strInvoiceNo}</Text>
-                                        <Text style={[styles.tableCellText, { flex: 1.5 }]}>{invoice.strEntityName}</Text>
-                                        <Text style={[styles.tableCellText, { flex: 1 }]}>{invoice.AssignedDate.split(' ')[0]}</Text>
-                                        <TouchableOpacity style={[styles.pdfButton, { flex: 0.5 }]} onPress={() => handleDownloadPdf(invoice)}><Download size={16} color="#3498DB" /></TouchableOpacity>
-                                    </View>
-                                )) : <Text style={styles.noInvoicesText}>لا توجد فواتير مطابقة</Text>}
+                                {filteredInvoices.length > 0 ? filteredInvoices.map((invoice, index) => {
+                                    const isThisDownloading = downloadingInvoiceNo === invoice.strInvoiceNo;
+                                    return (
+                                        <View key={index} style={styles.tableRow}>
+                                            <Text style={[styles.tableCellText, { flex: 1.2 }]}>{invoice.strInvoiceNo}</Text>
+                                            <Text style={[styles.tableCellText, { flex: 1.5 }]}>{invoice.strEntityName}</Text>
+                                            <Text style={[styles.tableCellText, { flex: 1 }]}>{invoice.AssignedDate.split(' ')[0]}</Text>
+                                            <TouchableOpacity
+                                                style={[styles.pdfButton, { flex: 0.5 }]}
+                                                onPress={() => handleDownloadPdf(invoice)}
+                                                disabled={!!downloadingInvoiceNo} // Disable all if one is downloading
+                                            >
+                                                {isThisDownloading ? (
+                                                    <ActivityIndicator size="small" color="#3498DB" />
+                                                ) : (
+                                                    <Download size={16} color="#3498DB" />
+                                                )}
+                                            </TouchableOpacity>
+                                        </View>
+                                    );
+                                }) : <Text style={styles.noInvoicesText}>لا توجد فواتير مطابقة</Text>}
                             </ScrollView>
                         </View>
                         <TouchableOpacity style={styles.closeInvoiceModalButton} onPress={() => { setInvoiceModalVisible(false); setInvoiceSearchQuery(""); }}><Text style={styles.closeModalButtonText}>إغلاق</Text></TouchableOpacity>
                     </View>
                 </View>
             </Modal>
-            {/* <Modal animationType="slide" transparent={true} visible={isInvoiceModalVisible}>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.invoiceModalContent}>
-                        <Text style={styles.invoiceModalTitle}>الفواتير المرتجعة</Text>
-                        <View style={styles.tableHeader}>
-                            <Text style={[styles.tableHeaderText, { flex: 1.2 }]}>رقم الفاتورة</Text>
-                            <Text style={[styles.tableHeaderText, { flex: 1.5 }]}>اسم المتجر</Text>
-                            <Text style={[styles.tableHeaderText, { flex: 1 }]}>التاريخ</Text>
-                            <Text style={[styles.tableHeaderText, { flex: 0.8 }]}>ملف</Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <ScrollView showsVerticalScrollIndicator={true}>
-                                {invoiceData.length > 0 ? invoiceData.map((invoice, index) => (
-                                    <View key={index} style={styles.tableRow}>
-                                        <Text style={[styles.tableCellText, { flex: 1.2 }]}>{invoice.strInvoiceNo}</Text>
-                                        <Text style={[styles.tableCellText, { flex: 1.5 }]}>{invoice.strEntityName}</Text>
-                                        <Text style={[styles.tableCellText, { flex: 1 }]}>{invoice.AssignedDate.split(' ')[0]}</Text>
-                                        <TouchableOpacity style={[styles.pdfButton, { flex: 0.5 }]} onPress={() => handleDownloadPdf(invoice)}><Download size={16} color="#3498DB" /></TouchableOpacity>
-                                    </View>
-                                )) : <Text style={styles.noInvoicesText}>لا توجد فواتير</Text>}
-                            </ScrollView>
-                        </View>
-                        <TouchableOpacity style={styles.closeInvoiceModalButton} onPress={() => setInvoiceModalVisible(false)}><Text style={styles.closeModalButtonText}>إغلاق</Text></TouchableOpacity>
-                    </View>
-                </View>
-            </Modal> */}
 
-            <Modal visible={webViewVisible} animationType="slide"><SafeAreaView style={{ flex: 1 }}><View style={styles.modalHeader}><TouchableOpacity onPress={() => setWebViewVisible(false)}><ChevronLeft size={24} color="#1F2937" /></TouchableOpacity><Text style={styles.modalHeaderTitle}>تتبع</Text><View style={{ width: 40 }} /></View>{selectedParcel && <WebView source={{ uri: `http://tanmia-group.com:90/admin/tracking/DirectReturnParcel?trackingNumber=${selectedParcel.ReferenceNo}` }} style={{ flex: 1 }} startInLoadingState={true} />}</SafeAreaView></Modal>
+            <Modal visible={webViewVisible} animationType="slide"><SafeAreaView style={{ flex: 1 }}><View style={styles.modalHeader}><TouchableOpacity onPress={() => setWebViewVisible(false)}><ChevronLeft size={24} color="#1F2937" /></TouchableOpacity><Text style={styles.modalHeaderTitle}>تتبع</Text><View style={{ width: 40 }} /></View>{selectedParcel && <WebView source={{ uri: `https://tanmia-group.com:86/admin/tracking/DirectReturnParcel?trackingNumber=${selectedParcel.ReferenceNo}` }} style={{ flex: 1 }} startInLoadingState={true} />}</SafeAreaView></Modal>
 
             <CustomAlert isVisible={isAlertVisible} title={alertTitle} message={alertMessage} confirmText="حسنًا" onConfirm={() => setAlertVisible(false)} success={alertSuccess} cancelText={undefined} onCancel={undefined} />
         </View>

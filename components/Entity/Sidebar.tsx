@@ -5,11 +5,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   StatusBar,
-  Platform,
   Animated,
   Dimensions,
   Image,
-  SafeAreaView,
   Easing,
   ImageSourcePropType,
 } from 'react-native';
@@ -36,8 +34,12 @@ const images = {
   returnedParcels: require('../../assets/icons/returned-parcels-icon.png'),
 };
 
-const TAB_SCREENS: (keyof RootStackParamList)[] = ['EntityDashboard', 'ReportsTab', 'StoresTab', 'AccountTab'];
-const DRIVER_TAB_SCREENS: (keyof RootStackParamList)[] = ['DriverDashboard', 'ParcelsTab', 'AccountTab', 'ReportsTab'];
+// ✅ FIXED: Relaxed types to string to accept Tabs not in RootStack
+const TAB_SCREENS: string[] = ['EntityDashboard', 'ReportsTab', 'StoresTab', 'AccountTab'];
+const DRIVER_TAB_SCREENS: string[] = ['DriverDashboard', 'ParcelsTab', 'AccountTab', 'ReportsTab'];
+
+// List of screens that exist inside "MainTabs"
+const NESTED_TABS = ['ReportsTab', 'StoresTab', 'AccountTab', 'ParcelsTab'];
 
 interface DialerSidebarProps {
   visible: boolean;
@@ -47,13 +49,13 @@ interface DialerSidebarProps {
 interface DialerMenuItem {
   image: ImageSourcePropType;
   title: string;
-  route?: keyof RootStackParamList;
+  // ✅ FIXED: Allow string to support nested Tab routes
+  route?: keyof RootStackParamList | string;
   action?: () => void;
 }
 
 export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  // --- UPDATED: Destructure dcBalance directly. It's the single source of truth. ---
   const { dcBalance, currentRoute, user } = useDashboard();
   const [isRendered, setIsRendered] = useState(false);
 
@@ -67,6 +69,7 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
       return { dashboardItem: null, orbitingItems: [] };
     }
     const isDriver = user.roleName === 'Driver';
+
     const allItems: DialerMenuItem[] = isDriver
       ? [
         { image: images.deliveredParcels, title: 'الطرود المسلمة', route: 'DeliverdParcel' },
@@ -81,10 +84,10 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
         { image: images.onTheWay, title: 'في الطريق', route: 'OnTheWayScreen' },
         { image: images.returned, title: 'الطرود المرتجعة', route: 'ReturnedParcelsScreen' },
         { image: images.deliveredParcels, title: 'التوصيل ناجح', route: 'SuccessfulDeliveryScreen' }
-
       ];
-    // const dashboardRoute: keyof RootStackParamList = isDriver ? 'DriverDashboard' : 'EntityDashboard';
-    const dashboardRoute: keyof RootStackParamList = isDriver ? 'ReportsTab' : 'ReportsTab';
+
+    // ✅ FIXED: Type explicitly set to string (or implied) to allow 'ReportsTab'
+    const dashboardRoute = 'ReportsTab';
 
     return {
       dashboardItem: { image: images.dashboard, title: 'تقرير المعاملات', route: dashboardRoute },
@@ -122,45 +125,29 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
   }, [visible, isRendered, itemAnims, mainButtonAnim, slideAnim, rotationAnim]);
 
   const handleItemPress = useCallback((item: DialerMenuItem) => {
-    // setTimeout(() => {
     if (!user || !item.route || item.route === currentRoute) return;
-    // const activeTabs = user.roleName === 'Driver' ? DRIVER_TAB_SCREENS : TAB_SCREENS;
-    // if (activeTabs.includes(item.route as any)) {
-    //   navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: item.route as any }] } }] });
-    // } else {
-    //   navigation.reset({ index: 1, routes: [{ name: 'MainTabs' }, { name: item.route }] });
-    // }
-    // if (activeTabs.includes(item.route as any)) {
-    //   navigation.navigate('MainTabs', { screen: item.route as any });
-    // } else {
-    navigation.navigate(item.route as any);
+
+    // ✅ FIXED: Handle Nested Tab Navigation
+    if (NESTED_TABS.includes(item.route as string)) {
+      // Navigate to the MainTabs stack, then to the specific tab screen
+      navigation.navigate('MainTabs', { screen: item.route } as any);
+    } else {
+      // Normal Stack Navigation
+      navigation.navigate(item.route as any);
+    }
+
     onClose();
-
-    // }
-
-    // }, 250);
-  }, [navigation, onClose]);
+  }, [navigation, onClose, currentRoute, user]);
 
   const handleProfilePress = () => {
-
-    // setTimeout(() => {
-    // navigation.reset({ index: 0, routes: [{ name: 'MainTabs', state: { routes: [{ name: 'AccountTab' }] } }] });
-    navigation.navigate('MainTabs', { screen: 'AccountTab' });
+    navigation.navigate('MainTabs', { screen: 'AccountTab' } as any);
     onClose();
-
-    // }, 250);
   };
 
   if (!isRendered || !user || !dashboardItem) return null;
 
-  // --- UPDATED: Create a dynamic label for the balance card ---
   const balanceLabel = user.roleName === 'Driver' ? 'الرصيد في المحفظة' : 'المبلغ المستحق';
-
-  const isDriver = user.roleName === 'Driver';
-  const activeTabs = isDriver ? DRIVER_TAB_SCREENS : TAB_SCREENS;
-  // const isDashboardActive = activeTabs.includes(currentRoute as any);
   const isDashboardActive = currentRoute === 'ReportsTab';
-
 
   const rotation = rotationAnim.interpolate({
     inputRange: [0, 1],
@@ -178,9 +165,7 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
           <Image source={require('../../assets/images/Almasr.png')} style={styles.appLogo} />
           <Text style={styles.userName}>{user.strEntityName || 'Welcome'}</Text>
           <View style={styles.balanceCard}>
-            {/* Use the dynamic balanceLabel */}
             <Text style={styles.balanceLabel}>{balanceLabel}</Text>
-            {/* Directly use the up-to-date dcBalance from the context */}
             <Text style={styles.balanceAmount}>{dcBalance ?? '0.00'} <Text style={styles.currency}>د.ل</Text></Text>
           </View>
           <TouchableOpacity style={styles.profileButton} onPress={handleProfilePress}><Text style={styles.profileButtonText}>الحساب الشخصي</Text></TouchableOpacity>
@@ -188,14 +173,15 @@ export default function Sidebar({ visible, onClose }: DialerSidebarProps) {
 
         <Animated.View style={[styles.dialerContainer, { transform: [{ rotate: rotation }] }]}>
           {orbitingItems.map((item, index) => {
-            const totalItems = orbitingItems.length;
-            const anglePerItem = 360 / totalItems;
-            const angle = -90 + (index * anglePerItem);
-            const radius = screenWidth * 0.33;
             const isActive = item.route === currentRoute;
             const itemAnimation = itemAnims[index];
 
             if (!itemAnimation) return null;
+
+            const totalItems = orbitingItems.length;
+            const anglePerItem = 360 / totalItems;
+            const angle = -90 + (index * anglePerItem);
+            const radius = screenWidth * 0.33;
 
             const transformX = itemAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, radius * Math.cos((angle * Math.PI) / 180)] });
             const transformY = itemAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, radius * Math.sin((angle * Math.PI) / 180)] });
@@ -226,7 +212,6 @@ const styles = StyleSheet.create({
   drawerContainer: { ...StyleSheet.absoluteFillObject, backgroundColor: '#E67E22', zIndex: 1000 },
   safeArea: {
     flex: 1,
-    // paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   topBar: { width: '100%', flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 5 },
   closeButton: { padding: 15 },

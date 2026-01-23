@@ -1,168 +1,231 @@
-import { createNativeStackNavigator, NativeStackNavigationOptions } from '@react-navigation/native-stack';
-import React from 'react';
-import { NavigatorScreenParams } from '@react-navigation/native';
-import MainTabNavigator, { TabParamList } from './MainTabNavigator';
+// navigation/AppNavigator.tsx
 
-import SplashScreen from '../screens/SplashScreen';
-import LoginScreen from '../screens/Auths/LoginScreen';
-import RegisterScreen from '../screens/Auths/RegisterScreen';
-import DeliveryTracking from '../screens/Entity/DeliveryTracking';
-import { useDashboard } from '../Context/DashboardContext';
-import Sidebar from '../components/Entity/Sidebar';
-import AddParcelScreen from '../screens/Entity/AddParcelScreen';
+import {
+  createNativeStackNavigator,
+  NativeStackNavigationOptions,
+} from "@react-navigation/native-stack";
+import React, { useCallback } from "react";
+import { NavigatorScreenParams, useFocusEffect } from "@react-navigation/native";
+import { View, BackHandler, Alert } from "react-native";
 
-import CityRatesScreen from '../screens/Entity/CityRatesScreen';
-import RegisterDetailsScreen from '../screens/Auths/RegisterDetailsScreen';
-import DriverDashboard from '../screens/Driver/DriverDashboard'; // Import DriverDashboard to ensure it's in the build
-import EntitiesBalanceScreen from '../screens/Entity/Balance';
-import AddParcelWhatsappScreen from '../screens/Entity/AddParcelWhatsapp';
-import DeliverdParcelScreen from '../screens/Driver/DeliveredParcelScreen';
-import ReturnedParcelScreen from '../screens/Driver/ReturnedParcelScreen';
-import SuccessfulDeliveryScreen from '../screens/Entity/SuccessDeliveredParcelScreen';
-import ReturnedParcelsScreen from '../screens/Entity/EntityReturnedParcelScreen';
-import PendingApprovalScreen from '../screens/Entity/PendingParcelScreen';
-import AtBranchScreen from '../screens/Entity/AtBranchScreen';
-import OnTheWayScreen from '../screens/Entity/OnTheWayScreen';
-import TrackShipment from '../screens/Entity/TrackShipments';
+import MainTabNavigator, { TabParamList } from "./MainTabNavigator";
+import { useDashboard } from "../Context/DashboardContext";
+import Sidebar from "../components/Entity/Sidebar";
 
-import ReportsDashboard from '../screens/Entity/ReportsDashboard';
-import ParcelDetailsScreen from '../components/ParcelDetailsScreen';
-import SearchScreen from '../components/SearchScreen';
-import EntityDashboard from '../screens/Entity/EntityDashboard';
-import ParcelsScreen from '../screens/Driver/ParcelsScreen';
-import AssignedParcelScreen from '../screens/Driver/AssignedParcelScreen';
-import NotificationsScreen from '../components/Entity/NotificationsScreen';
-import DriverInvoicesScreen from '../screens/Driver/driverinvoices';
+// Screens
+import SplashScreen from "../screens/SplashScreen";
+import LoginScreen from "../screens/Auths/LoginScreen";
+import RegisterScreen from "../screens/Auths/RegisterScreen";
+import RegisterDetailsScreen from "../screens/Auths/RegisterDetailsScreen";
 
-// --- THIS IS THE FIX ---
-// Add all possible screen names, including the new Driver tabs, to the master list.
+import DeliveryTracking from "../screens/Entity/DeliveryTracking";
+import AddParcelScreen from "../screens/Entity/AddParcelScreen";
+import AddParcelWhatsappScreen from "../screens/Entity/AddParcelWhatsapp";
+import CityRatesScreen from "../screens/Entity/CityRatesScreen";
+import EntitiesBalanceScreen from "../screens/Entity/Balance";
+import ReportsDashboard from "../screens/Entity/ReportsDashboard";
+import EntityDashboard from "../screens/Entity/EntityDashboard";
+
+import PendingApprovalScreen from "../screens/Entity/PendingParcelScreen";
+import AtBranchScreen from "../screens/Entity/AtBranchScreen";
+import OnTheWayScreen from "../screens/Entity/OnTheWayScreen";
+import TrackShipment from "../screens/Entity/TrackShipments";
+import SuccessfulDeliveryScreen from "../screens/Entity/SuccessDeliveredParcelScreen";
+import ReturnedParcelsScreen from "../screens/Entity/EntityReturnedParcelScreen";
+
+import DriverDashboard from "../screens/Driver/DriverDashboard";
+import ParcelsScreen from "../screens/Driver/ParcelsScreen";
+import AssignedParcelScreen from "../screens/Driver/AssignedParcelScreen";
+import DeliverdParcelScreen from "../screens/Driver/DeliveredParcelScreen";
+import ReturnedParcelScreen from "../screens/Driver/ReturnedParcelScreen";
+import DriverInvoicesScreen from "../screens/Driver/driverinvoices";
+
+import ParcelDetailsScreen from "../components/ParcelDetailsScreen";
+import NotificationsScreen from "../components/Entity/NotificationsScreen";
+import SearchScreen from "../components/SearchScreen";
+
+// ─────────────────────────────────────────────
+// TYPES
+// ─────────────────────────────────────────────
+
 export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
-  MainTabs: NavigatorScreenParams<TabParamList>;
   Register: undefined;
+  RegisterDetails: { mobileNumber: string; intCityCode: number | null };
+  MainTabs: NavigatorScreenParams<TabParamList>;
+  EntityDashboard: undefined;
+  EntityReports: { entityCode: number };
+  EntitiesBalanceScreen: undefined;
   DeliveryTracking: undefined;
   AddParcelForm: undefined;
-  CityRates: undefined;
   AddParcelWhatsapp: undefined;
-  RegisterDetails: { mobileNumber: string, intCityCode: number | null };
-
-  EntityDashboard: undefined;
-  ReportsTab: undefined;
-  StoresTab: undefined;
-  AccountTab: undefined;
-  EntitiesBalanceScreen: undefined;
+  CityRates: undefined;
+  PendingApprovalScreen: undefined;
+  AtBranchScreen: undefined;
+  OnTheWayScreen: undefined;
+  TrackShipment: undefined;
+  SuccessfulDeliveryScreen: undefined;
+  ReturnedParcelsScreen: undefined;
   DriverDashboard: undefined;
+  DriverParcelScreen: undefined;
   ParcelsTab: undefined;
-  DeliverdParcel: undefined
-  ReturnedParcel: undefined
-  ParcelsScreen: undefined
-  DriverParcelScreen: undefined
-  SuccessfulDeliveryScreen: undefined
-  ReturnedParcelsScreen: undefined
-  PendingApprovalScreen: undefined
-  AtBranchScreen: undefined
-  OnTheWayScreen: undefined
-  TrackShipment: undefined
-  ParcelDetailsScreen: undefined,
-  NotificationsScreen: undefined
-  EntityReports: { entityCode: number };
-  SearchScreen: { allParcels: any[] };
+  DeliverdParcel: undefined;
+  ReturnedParcel: undefined;
+  ParcelsScreen: undefined;
   DriverInvoices: undefined;
+  ParcelDetailsScreen: undefined;
+  NotificationsScreen: undefined;
+  SearchScreen: { allParcels: any[] };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const modalHeaderOptions: NativeStackNavigationOptions = {
-  headerShown: true,
-  headerStyle: { backgroundColor: '#FFF' },
-  headerTintColor: '#2C3E50',
-  headerTitleStyle: { fontWeight: 'bold' },
-  headerTitleAlign: 'center',
+// ─────────────────────────────────────────────
+// OPTIONS
+// ─────────────────────────────────────────────
+
+const defaultStackOptions: NativeStackNavigationOptions = {
+  headerShown: false,
+  animation: "slide_from_right", // Smoother for Android
+  gestureEnabled: true, // ✅ Required for Android Back Swipe
+  gestureDirection: "horizontal",
 };
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+
+/**
+ * Wraps a screen to intercept the Android Back Swipe/Button.
+ * Prevents the app from quitting immediately when swiping back on main screens.
+ */
+const BackHandledScreen = ({ Component, ...props }: any) => {
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        Alert.alert("خروج", "هل أنت متأكد أنك تريد الخروج من التطبيق؟", [
+          { text: "إلغاء", onPress: () => { }, style: "cancel" },
+          { text: "نعم", onPress: () => BackHandler.exitApp() },
+        ]);
+        return true; // Stop default behavior
+      };
+
+      // ✅ FIXED: Using remove() on the subscription instead of removeEventListener
+      const subscription = BackHandler.addEventListener("hardwareBackPress", onBackPress);
+
+      return () => subscription.remove();
+    }, [])
+  );
+
+  return <Component {...props} />;
+};
+
+// ─────────────────────────────────────────────
+// NAVIGATOR
+// ─────────────────────────────────────────────
 
 const AppContent = () => {
   const { isSidebarVisible, toggleSidebar } = useDashboard();
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <Stack.Navigator
-        id={undefined}
+        id={undefined} // ✅ Fixes TypeScript error
         initialRouteName="Splash"
-        screenOptions={{
-          headerShown: false,
-          animation: 'slide_from_right',
-        }}
+        screenOptions={defaultStackOptions}
       >
-        <Stack.Screen
-          name="ParcelDetailsScreen"
-          component={ParcelDetailsScreen}
-          options={{
-            headerShown: false,
-            presentation: 'card'
-          }}
-        />
-        <Stack.Screen
-          name="NotificationsScreen"
-          component={NotificationsScreen}
-          options={{ headerShown: false }}
-        />
+        {/* Core */}
         <Stack.Screen name="Splash" component={SplashScreen} />
+
+        {/* ✅ Protect Login from accidental exit */}
+        <Stack.Screen name="Login">
+          {(props) => <BackHandledScreen Component={LoginScreen} {...props} />}
+        </Stack.Screen>
+
         <Stack.Screen name="Register" component={RegisterScreen} />
-        <Stack.Screen
-          name="EntityReports"
-          component={ReportsDashboard}
-        //           options={{ headerShown: true, title: 'تقرير المتجر' }} 
-        />
-        <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="MainTabs" component={MainTabNavigator} />
-        <Stack.Screen name="DeliveryTracking" component={DeliveryTracking} />
-        <Stack.Screen name="EntitiesBalanceScreen" component={EntitiesBalanceScreen} />
-        <Stack.Screen name="CityRates" component={CityRatesScreen} />
         <Stack.Screen name="RegisterDetails" component={RegisterDetailsScreen} />
+
+        {/* ✅ Protect Main Tabs */}
+        <Stack.Screen name="MainTabs">
+          {(props) => <BackHandledScreen Component={MainTabNavigator} {...props} />}
+        </Stack.Screen>
+
+        {/* ✅ Protect Entity Dashboard */}
+        <Stack.Screen name="EntityDashboard">
+          {(props) => <BackHandledScreen Component={EntityDashboard} {...props} />}
+        </Stack.Screen>
+
+        <Stack.Screen name="EntityReports" component={ReportsDashboard} />
+        <Stack.Screen name="EntitiesBalanceScreen" component={EntitiesBalanceScreen} />
+        <Stack.Screen name="DeliveryTracking" component={DeliveryTracking} />
+        <Stack.Screen name="CityRates" component={CityRatesScreen} />
         <Stack.Screen name="AddParcelForm" component={AddParcelScreen} />
         <Stack.Screen name="AddParcelWhatsapp" component={AddParcelWhatsappScreen} />
-        <Stack.Screen name="DeliverdParcel" component={DeliverdParcelScreen} />
-        <Stack.Screen name="ReturnedParcel" component={ReturnedParcelScreen} />
-        <Stack.Screen name="ParcelsScreen" component={ReturnedParcelScreen} />
-        <Stack.Screen name="SuccessfulDeliveryScreen" component={SuccessfulDeliveryScreen} />
-        <Stack.Screen name="ReturnedParcelsScreen" component={ReturnedParcelsScreen} />
+
         <Stack.Screen name="PendingApprovalScreen" component={PendingApprovalScreen} />
         <Stack.Screen name="AtBranchScreen" component={AtBranchScreen} />
         <Stack.Screen name="OnTheWayScreen" component={OnTheWayScreen} />
         <Stack.Screen name="TrackShipment" component={TrackShipment} />
+        <Stack.Screen name="SuccessfulDeliveryScreen" component={SuccessfulDeliveryScreen} />
+        <Stack.Screen name="ReturnedParcelsScreen" component={ReturnedParcelsScreen} />
+
+        {/* ✅ Protect Driver Dashboard */}
+        <Stack.Screen name="DriverDashboard">
+          {(props) => <BackHandledScreen Component={DriverDashboard} {...props} />}
+        </Stack.Screen>
+
+        <Stack.Screen name="DriverParcelScreen" component={ParcelsScreen} />
+        <Stack.Screen name="ParcelsTab" component={AssignedParcelScreen} />
+        <Stack.Screen name="DeliverdParcel" component={DeliverdParcelScreen} />
+        <Stack.Screen name="ReturnedParcel" component={ReturnedParcelScreen} />
+        <Stack.Screen name="ParcelsScreen" component={ParcelsScreen} />
         <Stack.Screen name="DriverInvoices" component={DriverInvoicesScreen} />
 
+        {/* Details */}
+        <Stack.Screen
+          name="ParcelDetailsScreen"
+          component={ParcelDetailsScreen}
+          options={{
+            gestureEnabled: true,
+            presentation: "card",
+          }}
+        />
 
-        {/* 3. REGISTER THE SEARCH SCREEN AND SET ITS PRESENTATION TO MODAL */}
+        <Stack.Screen name="NotificationsScreen" component={NotificationsScreen} />
+
+        {/* Modal */}
         <Stack.Screen
           name="SearchScreen"
           component={SearchScreen}
           options={{
-            presentation: 'transparentModal', // Key for custom animations
+            presentation: "transparentModal",
+            animation: "fade",
             headerShown: false,
-            animation: 'fade', // The screen container will fade in gently
+            gestureEnabled: false,
           }}
         />
-
-        {/* We add DriverDashboard here as well to ensure it's a valid top-level route if needed */}
-        <Stack.Screen name="DriverParcelScreen" component={ParcelsScreen} />
-        <Stack.Screen name="DriverDashboard" component={DriverDashboard} />
-        <Stack.Screen name="EntityDashboard" component={EntityDashboard} />
-        <Stack.Screen name="ParcelsTab" component={AssignedParcelScreen} />
-
-
-
-
       </Stack.Navigator>
 
-      <Sidebar visible={isSidebarVisible} onClose={toggleSidebar} />
-    </>
+      {/* 
+        ✅ SIDEBAR GESTURE FIX:
+        When sidebar is hidden, pointerEvents='none' allows swipes 
+        to pass through to the navigator below.
+      */}
+      <View
+        style={{
+          position: 'absolute',
+          top: 0, bottom: 0, left: 0, right: 0,
+          zIndex: 1000,
+          pointerEvents: isSidebarVisible ? 'auto' : 'none'
+        }}
+      >
+        <Sidebar visible={isSidebarVisible} onClose={toggleSidebar} />
+      </View>
+    </View>
   );
 };
 
-const AppNavigator = () => {
+export default function AppNavigator() {
   return <AppContent />;
-};
-
-export default AppNavigator;
+}

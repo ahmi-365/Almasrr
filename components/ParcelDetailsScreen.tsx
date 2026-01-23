@@ -16,7 +16,9 @@ import {
   TextInput,
   Platform,
   KeyboardAvoidingView,
-  Linking, // Import KeyboardAvoidingView
+  Linking,
+  Image,
+  AppState,
 } from "react-native";
 import {
   ArrowLeft,
@@ -42,6 +44,10 @@ import {
   CreditCard,
   PiggyBank,
   Wallet,
+  QrCode,
+  Banknote,
+  Hash,
+  Check,
 } from "lucide-react-native";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import CustomAlert from "./CustomAlert";
@@ -51,7 +57,7 @@ import axios from "axios";
 
 const { width, height } = Dimensions.get("window");
 type ParcelDetailsRouteParams = {
-  parcel: any; // Ideally, replace 'any' with your actual Parcel type
+  parcel: any;
 };
 const COLORS = {
   primary: "#FF6B35",
@@ -142,15 +148,12 @@ const ParcelDetailsScreen = () => {
 
   const [user, setUser] = useState<any | null>(null);
   const [roleName, setRoleName] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true); // ✅ Added Loading State
 
-  const [isFetchingInvoices, setIsFetchingInvoices] = useState(false);
   const [alertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState("");
   const [alertMessage, setAlertMessage] = useState("");
   const [alertSuccess, setAlertSuccess] = useState(false);
-
-  const [isInvoiceModalVisible, setInvoiceModalVisible] = useState(false);
-  const [invoiceData, setInvoiceData] = useState([]);
 
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
@@ -165,11 +168,21 @@ const ParcelDetailsScreen = () => {
   const [notificationRemarks, setNotificationRemarks] = useState("");
   const [isSendingNotification, setIsSendingNotification] = useState(false);
 
+  // --- NEW STATES FOR DRIVER QR & MULTIPLE ---
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [selectedQRImage, setSelectedQRImage] = useState<string | null>(null);
+  const [showMultipleCompleteModal, setShowMultipleCompleteModal] = useState(false);
+  const [deliveryQty, setDeliveryQty] = useState("");
+  const [deliveryAmount, setDeliveryAmount] = useState("");
+
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  const appState = useRef(AppState.currentState);
+
   const [expandedSections, setExpandedSections] = useState({
     basic: true,
     location: true,
@@ -178,30 +191,35 @@ const ParcelDetailsScreen = () => {
     dates: true,
     remarks: true,
     driverRemarks: true,
-    // ADD THESE TWO LINES:
     driverContact: true,
     onlinePayment: true,
     storeContact: true,
   });
 
+  // ✅ Updated Initialization Logic: Get User -> Then Refresh Data
   useEffect(() => {
-    const fetchUserData = async () => {
+    const initializeScreen = async () => {
+      setIsLoading(true); // Start Loader
       try {
         const userDataString = await AsyncStorage.getItem('user');
         if (userDataString) {
           const userData = JSON.parse(userDataString);
           setUser(userData);
           setRoleName(userData.roleName);
+
+          // Fetch latest data immediately using the ID we just found
+          await refreshParcelData(userData.userId);
         }
       } catch (e) {
         console.error("Failed to fetch user data from storage", e);
+      } finally {
+        setIsLoading(false); // Stop Loader
       }
     };
 
-    fetchUserData();
-  }, []);
+    initializeScreen();
 
-  useEffect(() => {
+    // Start Animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -223,17 +241,15 @@ const ParcelDetailsScreen = () => {
     ]).start();
   }, []);
 
-  const refreshParcelData = async () => {
-    if (!user?.userId) {
-      console.error("User ID not found, cannot refresh parcel data.");
-      return;
-    }
+  // ✅ Updated Refresh Function: Accepts optional ID to handle first load scenarios
+  const refreshParcelData = async (userIdOverride?: any) => {
+    const targetUserId = userIdOverride || user?.userId;
 
-    console.log("Refreshing parcel data by fetching all driver parcels...");
+    if (!targetUserId) return;
+
     try {
-      // Assuming the user is a driver; adjust if logic needs to be different for entities.
       const response = await axios.get(
-        `http://tanmia-group.com:90/courierApi/parcels/DriverParcels/${user.userId}`
+        `https://tanmia-group.com:86/courierApi/parcels/DriverParcels/${targetUserId}`
       );
 
       if (response.data && response.data.Parcels && Array.isArray(response.data.Parcels)) {
@@ -242,18 +258,51 @@ const ParcelDetailsScreen = () => {
 
         if (updatedParcel) {
           setParcel(updatedParcel);
-          console.log("Parcel data refreshed successfully from the list.");
-        } else {
-          console.warn(`Parcel with code ${parcel.intParcelCode} not found in the refreshed list. This may be expected if its status changed.`);
+          console.log("Parcel Data Refreshed");
         }
-      } else {
-        console.error("Invalid data structure received from server while refreshing parcels.");
       }
     } catch (error) {
-      console.error("Failed to refresh parcel data by fetching all parcels:", error);
+      console.error("Failed to refresh parcel data:", error);
     }
   };
 
+  // ✅ APP STATE LISTENER: Refresh on Resume
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === "active"
+      ) {
+        console.log("App resumed. Refreshing data...");
+        refreshParcelData(); // Uses state 'user' which is set by now
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [user]);
+
+  // --- QR Logic ---
+  const handleOpenQR = (qrCode: string) => {
+    if (qrCode) {
+      setSelectedQRImage(qrCode);
+      setShowQRModal(true);
+    }
+  };
+
+  // --- Complete Logic (Wrapper to decide which modal) ---
+  const handleCompletePress = () => {
+    // Check if parcel is multiple (truthy check handles 'true' or true)
+    if (parcel.bolIsMultiple) {
+      setDeliveryQty("");
+      setDeliveryAmount("");
+      setShowMultipleCompleteModal(true);
+    } else {
+      setShowCompleteModal(true);
+    }
+  };
 
   const handleCompleteParcel = async () => {
     if (!parcel) return;
@@ -261,7 +310,7 @@ const ParcelDetailsScreen = () => {
     setIsProcessing(true);
     try {
       await axios.post(
-        `http://tanmia-group.com:90/courierApi/Parcel/Driver/UpdateStatus/${parcel.intParcelCode}/${parcel.intStatusCode}`
+        `https://tanmia-group.com:86/courierApi/Parcel/Driver/UpdateStatus/${parcel.intParcelCode}/${parcel.intStatusCode}`
       );
 
       setAlertTitle("نجاح");
@@ -280,13 +329,76 @@ const ParcelDetailsScreen = () => {
     }
   };
 
+  const handleCompleteParcelMultiple = async () => {
+    if (!parcel) return;
+
+    if (!deliveryQty || !deliveryAmount) {
+      setAlertTitle("حقول مطلوبة");
+      setAlertMessage("يرجى إدخال الكمية والمبلغ");
+      setAlertSuccess(false);
+      setAlertVisible(true);
+      return;
+    }
+
+    // --- VALIDATION: Check Qty Logic ---
+    const qty = parseFloat(deliveryQty);
+    const amount = parseFloat(deliveryAmount);
+
+    if (isNaN(qty) || qty < 0) {
+      setAlertTitle("خطأ في الإدخال");
+      setAlertMessage("لا يمكن أن تكون الكمية أقل من صفر");
+      setAlertSuccess(false);
+      setAlertVisible(true);
+      return;
+    }
+
+    if (qty > parcel.Quantity) {
+      setAlertTitle("خطأ في الإدخال");
+      setAlertMessage(`الكمية المدخلة (${qty}) أكبر من الكمية الأصلية (${parcel.Quantity})`);
+      setAlertSuccess(false);
+      setAlertVisible(true);
+      return;
+    }
+
+    if (isNaN(amount) || amount < 0) {
+      setAlertTitle("خطأ في الإدخال");
+      setAlertMessage("لا يمكن أن يكون المبلغ أقل من صفر");
+      setAlertSuccess(false);
+      setAlertVisible(true);
+      return;
+    }
+    // -----------------------------------
+
+    setIsProcessing(true);
+    try {
+      await axios.post(
+        `https://tanmia-group.com:86/courierApi/Parcel/Driver/UpdateStatusMultiple/${parcel.intParcelCode}/${deliveryQty}/${deliveryAmount}`
+      );
+
+      setAlertTitle("نجاح");
+      setAlertMessage("تم تأكيد التسليم الجزئي بنجاح");
+      setAlertSuccess(true);
+      setAlertVisible(true);
+      setShowMultipleCompleteModal(false);
+      await refreshParcelData();
+    } catch (error) {
+      console.error(error);
+      setAlertTitle("خطأ");
+      setAlertMessage("فشل في تحديث حالة الطرد");
+      setAlertSuccess(false);
+      setAlertVisible(true);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const handleReturnParcel = async () => {
     if (!parcel) return;
 
     setIsProcessing(true);
     try {
       await axios.post(
-        `http://tanmia-group.com:90/courierApi/Parcel/Driver/ReturnOnTheWay/${parcel.intParcelCode}`
+        `https://tanmia-group.com:86/courierApi/Parcel/Driver/ReturnOnTheWay/${parcel.intParcelCode}`
       );
 
       setAlertTitle("نجاح");
@@ -311,7 +423,7 @@ const ParcelDetailsScreen = () => {
     setIsProcessing(true);
     try {
       await axios.post(
-        `http://tanmia-group.com:90/courierApi/Parcel/Driver/AddRemarks`,
+        `https://tanmia-group.com:86/courierApi/Parcel/Driver/AddRemarks`,
         {
           parcelID: parcel.intParcelCode,
           strRemarks: remark.trim()
@@ -352,40 +464,6 @@ const ParcelDetailsScreen = () => {
     }
   };
 
-
-  // const handleFetchInvoices = async () => {
-  //   if (isFetchingInvoices) return;
-
-  //   setIsFetchingInvoices(true);
-  //   try {
-  //     const response = await fetch(
-  //       `http://tanmia-group.com:90/courierApi/parcels/GetAssignedInvoicesByParcel/${parcel.intParcelCode}`
-  //     );
-  //     if (!response.ok) {
-  //       throw new Error(`HTTP error! status: ${response.status}`);
-  //     }
-  //     const data = await response.json();
-
-  //     if (data && data.length > 0) {
-  //       setInvoiceData(data);
-  //       setInvoiceModalVisible(true);
-  //     } else {
-  //       setAlertTitle("لا توجد فواتير");
-  //       setAlertMessage("لا توجد فواتير مرتبطة بهذا الطرد.");
-  //       setAlertSuccess(true);
-  //       setAlertVisible(true);
-  //     }
-  //   } catch (error) {
-  //     console.error("Failed to fetch invoices:", error);
-  //     setAlertTitle("خطأ");
-  //     setAlertMessage("فشل في جلب الفواتير. يرجى المحاولة مرة أخرى.");
-  //     setAlertSuccess(false);
-  //     setAlertVisible(true);
-  //   } finally {
-  //     setIsFetchingInvoices(false);
-  //   }
-  // };
-
   const formatCurrency = (amount) => {
     return `${parseFloat(amount || 0).toFixed(2)} د.ل`;
   };
@@ -398,20 +476,7 @@ const ParcelDetailsScreen = () => {
     }
   };
 
-  // const formatInvoiceDate = (dateString) => {
-  //   try {
-  //     const date = new Date(dateString);
-  //     const day = String(date.getDate()).padStart(2, '0');
-  //     const month = String(date.getMonth() + 1).padStart(2, '0');
-  //     const year = date.getFullYear();
-  //     return `${day}-${month}-${year}`;
-  //   } catch {
-  //     return dateString.split(' ')[0] || dateString;
-  //   }
-  // };
-
-  const statusConfig =
-    STATUS_CONFIG[parcel.StatusName] || STATUS_CONFIG["غير مؤكد"];
+  const statusConfig = STATUS_CONFIG[parcel.StatusName] || STATUS_CONFIG["غير مؤكد"];
   const StatusIcon = statusConfig.icon;
 
   const handleNotifyPress = () => {
@@ -437,7 +502,7 @@ const ParcelDetailsScreen = () => {
       params.append('entityRemarks', notificationRemarks);
 
       const response = await axios.post(
-        'http://tanmia-group.com:90/courierApi/notifications/entity-to-driver',
+        'https://tanmia-group.com:86/courierApi/notifications/entity-to-driver',
         params,
         {
           headers: {
@@ -475,8 +540,7 @@ const ParcelDetailsScreen = () => {
     }));
   };
 
-  const AnimatedTouchableOpacity =
-    Animated.createAnimatedComponent(TouchableOpacity);
+  const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
   const renderSectionHeader = (title, sectionKey, hasContent = true) => {
     if (!hasContent) return null;
@@ -519,12 +583,43 @@ const ParcelDetailsScreen = () => {
     );
   };
 
-  const showNotifyButton =
-    (parcel.intStatusCode === 4 && roleName === "Entity") || parcel.StatusName === "في الطريق";
+  const showNotifyButton = (parcel.intStatusCode === 4 && roleName === "Entity") || parcel.StatusName === "في الطريق";
   const showConfirmButton = false;
-  const showDeliveredButtons = (parcel.intStatusCode === 10 && roleName === "Entity");
-  const showDriverActionButtons = parcel.intStatusCode === 4 && roleName === "Driver";
+  // const showDeliveredButtons = (parcel.intStatusCode === 10 && roleName === "Entity");
 
+  // DRIVER LOGIC VARIABLES
+  const isDriverInTransit = parcel.intStatusCode === 4 && roleName === "Driver";
+  const isPaid = parcel.strOnlinePaymentStatus === "Success";
+  const showQRButton = roleName === "Driver" && parcel.bolIsOnlinePayment && !isPaid && parcel.strOnlinePaymentQR;
+  const showCompleteButton = isDriverInTransit && !parcel.bolIsOnlinePayment; // Only show Complete button if NOT online payment
+
+  const getProgressPercent = () => {
+    if (roleName === "Entity") {
+      if (parcel.intStatusCode === 1) return "30%";
+      if (parcel.intStatusCode === 4) return "70%";
+      if (parcel.intStatusCode === 7) return "100%";
+
+      return "0%";
+    }
+
+    if (roleName === "Driver") {
+      if (parcel.intStatusCode === 4) return "30%";
+      if (parcel.intStatusCode === 7) return "100%";
+      return "0%";
+    }
+
+    return "0%";
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <StatusBar backgroundColor={COLORS.primary} barStyle="light-content" />
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>جارٍ تحميل البيانات...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -606,30 +701,7 @@ const ParcelDetailsScreen = () => {
             <View style={styles.statusTextContainer}>
               <View style={styles.inlineHeader}>
                 <Text style={styles.statusTitle}>حالة الطرد</Text>
-                {/* {showDeliveredButtons && (
-                  <View style={styles.inlineIcons}>
-                    <TouchableOpacity
-                      style={[
-                        styles.invoiceButton,
-                        isFetchingInvoices && styles.invoiceButtonDisabled,
-                      ]}
-                      onPressIn={handleFetchInvoices}
-                      activeOpacity={0.8}
-                      disabled={isFetchingInvoices}
-                    >
-                      <FileText size={16} color="#fff" />
-                      <Text style={styles.invoiceButtonText}>
-                        {isFetchingInvoices
-                          ? "جاري التحميل..."
-                          : "عرض الفواتير"}
-                      </Text>
-                    </TouchableOpacity>
 
-                    <View style={styles.greenTickContainer}>
-                      <CheckCircle size={22} color="#7bc89bff" />
-                    </View>
-                  </View>
-                )} */}
                 {(showNotifyButton || showConfirmButton) && (
                   <View>
                     {showNotifyButton && (
@@ -670,29 +742,23 @@ const ParcelDetailsScreen = () => {
           </View>
 
           <View style={styles.progressContainer}>
-            <View style={styles.progressBackground}>
-              <Animated.View
-                style={[
-                  styles.progressFill,
-                  {
-                    backgroundColor: statusConfig.color,
-                    width: fadeAnim.interpolate({
-                      inputRange: [0, 1],
-                      // Check if status is 1 or 14, set width to 100%, otherwise 75%
-                      outputRange: [
-                        "0%",
-                        (parcel.intStatusCode === 3 || parcel.intStatusCode === 7)
-                          ? "100%" :
-                          (parcel.intStatusCode === 0 || (parcel.intStatusCode === 4 && roleName === "Driver"))
-                            ? '25%' :
-                            (parcel.intStatusCode === 10 || parcel.intStatusCode === 14) ?
-                              "0%" : '75$',
-                      ],
-                    }),
-                  },
-                ]}
-              />
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBackground}>
+                <Animated.View
+                  style={[
+                    styles.progressFill,
+                    {
+                      backgroundColor: statusConfig.color,
+                      width: fadeAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ["0%", getProgressPercent()],
+                      }),
+                    },
+                  ]}
+                />
+              </View>
             </View>
+
             <View style={styles.progressLabels}>
               <Text style={styles.progressLabel}>تم الإنشاء</Text>
               <Text style={styles.progressLabel}>في الطريق</Text>
@@ -701,7 +767,23 @@ const ParcelDetailsScreen = () => {
           </View>
         </Animated.View>
 
-        {showDriverActionButtons && (
+        {/* --- DRIVER QR BUTTON (If applicable) --- */}
+        {showQRButton && (
+          <View style={styles.transactionFooter}>
+            {/* <View style={styles.qrSectionContainer}> */}
+            <TouchableOpacity
+              style={styles.qrButton}
+              onPress={() => handleOpenQR(parcel.strOnlinePaymentQR || "")}
+            >
+              <QrCode size={18} color="#FFF" />
+              <Text style={styles.qrButtonText}>عرض رمز QR</Text>
+            </TouchableOpacity>
+            {/* </View> */}
+          </View>
+        )}
+
+        {/* --- DRIVER ACTION BUTTONS --- */}
+        {isDriverInTransit && (
           <View style={styles.transactionFooter}>
             <TouchableOpacity
               style={styles.actionButtonReturn}
@@ -717,13 +799,16 @@ const ParcelDetailsScreen = () => {
               <MessageSquare color="#3498DB" size={16} />
               <Text style={styles.actionButtonTextRemarks}>ملاحظات</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.actionButtonComplete}
-              onPress={() => setShowCompleteModal(true)}
-            >
-              <CheckCircle2 color="#27AE60" size={16} />
-              <Text style={styles.actionButtonTextComplete}>اكتمل</Text>
-            </TouchableOpacity>
+
+            {showCompleteButton && (
+              <TouchableOpacity
+                style={styles.actionButtonComplete}
+                onPress={handleCompletePress} // UPDATED HERE
+              >
+                <CheckCircle2 color="#27AE60" size={16} />
+                <Text style={styles.actionButtonTextComplete}>اكتمل</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -787,39 +872,6 @@ const ParcelDetailsScreen = () => {
             </View>
           )}
         </Animated.View>
-
-        {/* <Animated.View
-          style={[
-            styles.section,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          {renderSectionHeader(
-            "معلومات المستلم",
-            "recipient",
-            parcel.RecipientName || parcel.RecipientPhone
-          )}
-          {expandedSections.recipient &&
-            (parcel.RecipientName || parcel.RecipientPhone) && (
-              <View style={styles.sectionContent}>
-                {renderDetailRow(
-                  <User size={20} color={COLORS.primary} />,
-                  "اسم المستلم:",
-                  parcel.RecipientName,
-                  parcel.RecipientName
-                )}
-                {renderDetailRow(
-                  <Phone size={20} color={COLORS.success} />,
-                  "هاتف المستلم:",
-                  parcel.RecipientPhone,
-                  parcel.RecipientPhone
-                )}
-              </View>
-            )}
-        </Animated.View> */}
 
         {/* --- Store Information for Driver Role --- */}
         {roleName === "Driver" && parcel.strEntityPhone ? (
@@ -966,79 +1018,7 @@ const ParcelDetailsScreen = () => {
         <View style={styles.bottomSpacer} />
       </Animated.ScrollView>
 
-      {/* Invoice Modal */}
-      {/* <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isInvoiceModalVisible}
-        onRequestClose={() => {
-          setInvoiceModalVisible(!isInvoiceModalVisible);
-        }}
-      >
-        <TouchableWithoutFeedback onPress={() => setInvoiceModalVisible(false)}>
-          <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback>
-              <View style={styles.modalContent}>
-                <Text style={styles.modalSubTitle}>الفواتير المرتبطة</Text>
-                <View style={styles.tableHeader}>
-                  <Text style={[styles.tableHeaderText, { flex: 0.5 }]}>#</Text>
-                  <Text style={[styles.tableHeaderText, { flex: 2 }]}>
-                    رقم الفاتورة
-                  </Text>
-                  <Text style={[styles.tableHeaderText, { flex: 2 }]}>
-                    اسم المتجر
-                  </Text>
-                  <Text
-                    style={[
-                      styles.tableHeaderText,
-                      { flex: 1.5, textAlign: "left" },
-                    ]}
-                  >
-                    التاريخ
-                  </Text>
-                </View>
-                <ScrollView>
-                  {invoiceData.length > 0 ? (
-                    invoiceData.map((invoice, index) => (
-                      <View key={index} style={styles.tableRow}>
-                        <Text style={[styles.tableCellText, { flex: 0.5 }]}>
-                          {index + 1}
-                        </Text>
-                        <Text style={[styles.tableCellText, { flex: 2 }]}>
-                          {invoice.InvoiceNumber}
-                        </Text>
-                        <Text style={[styles.tableCellText, { flex: 2 }]}>
-                          {invoice.strEntityName}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.tableCellText,
-                            { flex: 1.5, textAlign: "left" },
-                          ]}
-                        >
-                          {formatInvoiceDate(invoice.CreatedAt)}
-                        </Text>
-                      </View>
-                    ))
-                  ) : (
-                    <Text style={styles.noInvoicesText}>
-                      لا توجد فواتير متاحة.
-                    </Text>
-                  )}
-                </ScrollView>
-                <TouchableOpacity
-                  style={styles.closeModalButton}
-                  onPress={() => setInvoiceModalVisible(false)}
-                >
-                  <Text style={styles.closeModalButtonText}>إغلاق</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableWithoutFeedback>
-          </View>
-        </TouchableWithoutFeedback>
-      </Modal> */}
-
-      {/* Complete Confirmation Modal */}
+      {/* Complete Confirmation Modal (Standard) */}
       <Modal
         visible={showCompleteModal}
         transparent
@@ -1071,6 +1051,88 @@ const ParcelDetailsScreen = () => {
                 <Text style={styles.confirmButtonTextNo}>لا</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Multiple Complete Modal (New for Driver) */}
+      <Modal
+        visible={showMultipleCompleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !isProcessing && setShowMultipleCompleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.multipleModalContent}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowMultipleCompleteModal(false)}
+              disabled={isProcessing}
+            >
+              <X color="#fff" size={24} />
+            </TouchableOpacity>
+
+            <Text style={styles.multipleModalTitle}>إدخال تفاصيل التسليم</Text>
+
+            {/* Mini Parcel Details */}
+            <View style={styles.miniParcelDetails}>
+              <Text style={styles.miniParcelRef}>{parcel.ReferenceNo}</Text>
+              <Text style={styles.miniParcelCity}>{parcel.CityName}</Text>
+              <Text style={styles.miniParcelTotal}>الإجمالي: {parcel.Total.toFixed(2)} د.ل</Text>
+            </View>
+
+            <View style={styles.multipleInputsRow}>
+              {/* Amount Input */}
+              <View style={styles.multipleInputContainer}>
+                <View style={styles.multipleLabelContainer}>
+                  <Banknote size={16} color="#10B981" style={{ marginRight: 4 }} />
+                  <Text style={styles.multipleLabel}>المبلغ (Amount)</Text>
+                </View>
+                <TextInput
+                  style={[styles.multipleInput, isProcessing && styles.disabledInput]}
+                  placeholder="أدخل المبلغ"
+                  placeholderTextColor="#A1A1AA"
+                  value={deliveryAmount}
+                  onChangeText={setDeliveryAmount}
+                  keyboardType="numeric"
+                  editable={!isProcessing}
+                />
+              </View>
+
+              <View style={{ width: 12 }} />
+
+              {/* Quantity Input */}
+              <View style={styles.multipleInputContainer}>
+                <View style={styles.multipleLabelContainer}>
+                  <Hash size={16} color="#3B82F6" style={{ marginRight: 4 }} />
+                  <Text style={styles.multipleLabel}>الكمية (Qty)</Text>
+                </View>
+                <TextInput
+                  style={[styles.multipleInput, isProcessing && styles.disabledInput]}
+                  placeholder="كم قطعة؟"
+                  placeholderTextColor="#A1A1AA"
+                  value={deliveryQty}
+                  onChangeText={setDeliveryQty}
+                  keyboardType="numeric"
+                  editable={!isProcessing}
+                />
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.multipleSubmitButton, isProcessing && styles.disabledButton]}
+              onPress={handleCompleteParcelMultiple}
+              disabled={isProcessing}
+            >
+              {isProcessing ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text style={styles.multipleSubmitButtonText}>تأكيد التسليم مع الإدخالات</Text>
+                  <Check color="#fff" size={20} style={{ marginLeft: 8 }} />
+                </>
+              )}
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1192,7 +1254,37 @@ const ParcelDetailsScreen = () => {
         </View>
       </Modal>
 
-      {/* --- UPDATED Notification Remarks Modal --- */}
+      {/* QR Code Modal */}
+      <Modal
+        visible={showQRModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowQRModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.qrModalContent}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setShowQRModal(false)}
+            >
+              <X color="#fff" size={24} />
+            </TouchableOpacity>
+            <Text style={styles.qrModalTitle}>مسح رمز الاستجابة السريعة</Text>
+            <View style={styles.qrImageContainer}>
+              {selectedQRImage && (
+                <Image
+                  source={{ uri: selectedQRImage }}
+                  style={styles.qrImage}
+                  resizeMode="contain"
+                />
+              )}
+            </View>
+            <Text style={styles.qrModalSubtitle}>امسح الرمز للدفع</Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Notification Remarks Modal */}
       <Modal visible={isNotificationModalVisible} animationType="fade" transparent={true} onRequestClose={() => setNotificationModalVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.remarksModalOverlay}>
           <TouchableWithoutFeedback onPress={() => setNotificationModalVisible(false)}>
@@ -1238,6 +1330,19 @@ const ParcelDetailsScreen = () => {
 
 
 const styles = StyleSheet.create({
+  // ... existing styles
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.background,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: COLORS.text,
+    fontWeight: '600'
+  },
   inlineHeader: {
     flexDirection: "row-reverse",
     alignItems: "center",
@@ -1821,6 +1926,157 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: '#374151',
   },
+  // --- NEW STYLES FOR DRIVER MODALS ---
+  qrSectionContainer: {
+    marginTop: 8,
+    marginBottom: 16, // Added spacing
+    alignItems: 'center',
+  },
+  qrButton: {
+    backgroundColor: "#3498DB",
+    borderRadius: 8,
+    padding: 10,
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    width: '100%', // Reduced width for better look
+  },
+  qrButtonText: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  qrModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 24,
+    width: "100%",
+    maxWidth: 350,
+    alignItems: "center",
+    position: "relative",
+  },
+  qrModalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#1F2937",
+    marginBottom: 20,
+    marginTop: 10,
+  },
+  qrImageContainer: {
+    width: 250,
+    height: 250,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  qrImage: {
+    width: '100%',
+    height: '100%',
+  },
+  qrModalSubtitle: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+  },
+  multipleModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    position: "relative",
+  },
+  multipleModalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#1F2937",
+    textAlign: "center",
+    marginBottom: 24,
+    marginTop: 10,
+  },
+  multipleInputsRow: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    marginBottom: 24,
+  },
+  multipleInputContainer: {
+    flex: 1,
+  },
+  multipleLabelContainer: {
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  multipleLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#374151",
+  },
+  multipleInput: {
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: "#1F2937",
+    textAlign: "right",
+  },
+  multipleSubmitButton: {
+    backgroundColor: "#10B981",
+    borderRadius: 8,
+    paddingVertical: 16,
+    flexDirection: "row-reverse",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+  },
+  multipleSubmitButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  disabledInput: {
+    backgroundColor: "#E5E7EB",
+    color: "#9CA3AF"
+  },
+  disabledButton: {
+    opacity: 0.7
+  },
+  miniParcelDetails: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  miniParcelRef: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4
+  },
+  miniParcelCity: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 4
+  },
+  miniParcelTotal: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#10B981'
+  },
+  paymentStatusBadge: { alignSelf: "flex-end", flexDirection: "row-reverse", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, },
+  paidBadge: { backgroundColor: "#D1FAE5" },
+  unpaidBadge: { backgroundColor: "#FEE2E2" },
+  paidBadgeText: { color: "#065F46", fontSize: 12, fontWeight: "bold" },
+  unpaidBadgeText: { color: "#991B1B", fontSize: 12, fontWeight: "bold" },
 });
 
 

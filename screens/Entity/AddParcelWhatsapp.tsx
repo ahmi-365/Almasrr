@@ -140,7 +140,7 @@ export default function AddParcelWhatsappScreen() {
                 const userId = parsedUser?.userId;
                 if (!userId) throw new Error("User ID not found");
 
-                const storesResponse = await axios.get(`http://tanmia-group.com:90/courierApi/Entity/GetEntities/${userId}`);
+                const storesResponse = await axios.get(`https://tanmia-group.com:86/courierApi/Entity/GetEntities/${userId}`);
                 if (storesResponse.data) {
                     setStores(storesResponse.data);
                 }
@@ -256,7 +256,7 @@ export default function AddParcelWhatsappScreen() {
             const amount = productPrice;
             const startTime = selectedTimeSlot.split(' - ')[0];
 
-            const apiUrl = `http://tanmia-group.com:90/courierApi/parcels/RequestParcelWhatsapp/${entitycode}/${formattedDate}/${qty}/${amount}?strTimeSlot=${startTime}`;
+            const apiUrl = `https://tanmia-group.com:86/courierApi/parcels/RequestParcelWhatsapp/${entitycode}/${formattedDate}/${qty}/${amount}?strTimeSlot=${startTime}`;
 
             const response = await axios.post(apiUrl, {});
 

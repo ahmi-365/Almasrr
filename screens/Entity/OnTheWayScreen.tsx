@@ -200,7 +200,7 @@ const DeliveryCard = ({ item, onNotifyPress, onTrackPress }: { item: Parcel, onN
                 <View style={styles.sectionHeader}><View style={styles.dot} /><Text style={styles.sectionTitle}>التكلفة</Text></View>
                 <View style={styles.pricingContainer}>
                     <View style={styles.priceRow}>
-                        <Text style={styles.priceLabel}>قيمة الشحن</Text>
+                        <Text style={styles.priceLabel}>قيمة الطرد</Text>
                         <View style={styles.priceValueContainer}><Text style={styles.priceValue}>{item.dcFee.toFixed(2)} د.ل</Text></View>
                     </View>
                     <View style={styles.totalBox}>
@@ -255,7 +255,7 @@ export default function OnTheWayScreen() {
 
                     const statusIdForFilter = sortedStatusIds[2];
 
-                    const response = await axios.get(`http://tanmia-group.com:90/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
+                    const response = await axios.get(`https://tanmia-group.com:86/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
                     setEntities(response.data || []);
                 } catch (error) {
                     console.error("Failed to fetch filter entities:", error);
@@ -288,7 +288,7 @@ export default function OnTheWayScreen() {
             const statusId = sortedStatusIds[2];
             const targetId = selectedEntity ? selectedEntity.intEntityCode : parsedUser.userId;
 
-            const response = await axios.get(`http://tanmia-group.com:90/courierApi/parcels/details/${targetId}/${statusId}`);
+            const response = await axios.get(`https://tanmia-group.com:86/courierApi/parcels/details/${targetId}/${statusId}`);
             setAllParcels(response.data?.Parcels || []);
         } catch (error) {
             console.error("Failed to load on-the-way parcels:", error);
@@ -342,7 +342,7 @@ export default function OnTheWayScreen() {
             params.append('entityRemarks', entityRemarks);
 
             const response = await axios.post(
-                'http://tanmia-group.com:90/courierApi/notifications/entity-to-driver',
+                'https://tanmia-group.com:86/courierApi/notifications/entity-to-driver',
                 params,
                 { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
             );
@@ -476,7 +476,7 @@ export default function OnTheWayScreen() {
                     </View>
                     {selectedParcel && (
                         <WebView
-                            source={{ uri: `http://tanmia-group.com:90/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
+                            source={{ uri: `https://tanmia-group.com:86/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
                             style={{ flex: 1 }}
                             startInLoadingState={true}
                             renderLoading={() => (<ActivityIndicator color="#FF6B35" size="large" style={{ position: 'absolute', width: '100%', height: '100%' }} />)}

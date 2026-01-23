@@ -34,6 +34,7 @@ import {
   Store as StoreIcon,
   WalletMinimal,
   Download,
+  CreditCard, // Added for Payment Icon
 } from "lucide-react-native";
 import DateTimePicker, {
   DateTimePickerEvent,
@@ -125,30 +126,55 @@ const FilterSection = ({
   onShowDatePicker,
   handleSearch,
   loading,
+  paymentType,
+  setPaymentModalVisible,
 }) => (
   <View style={styles.modernFilterSection}>
     {user?.roleName === "Entity" && (
-      <TouchableOpacity
-        style={styles.modernDropdown}
-        onPress={() => setEntityModalVisible(true)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.modernDropdownContent}>
-          <View style={styles.modernDropdownIcon}>
-            <StoreIcon color="#FF6B35" size={20} />
+      <>
+        <TouchableOpacity
+          style={styles.modernDropdown}
+          onPress={() => setEntityModalVisible(true)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.modernDropdownContent}>
+            <View style={styles.modernDropdownIcon}>
+              <StoreIcon color="#FF6B35" size={20} />
+            </View>
+            <View style={styles.modernDropdownText}>
+              <Text style={styles.modernDropdownLabel}>المتجر المحدد</Text>
+              <Text style={styles.modernDropdownValue} numberOfLines={1}>
+                {selectedEntity
+                  ? `${selectedEntity.strEntityName}`
+                  : "اختر المتجر"}
+              </Text>
+            </View>
+            <ChevronDown color="#9CA3AF" size={20} />
           </View>
-          <View style={styles.modernDropdownText}>
-            <Text style={styles.modernDropdownLabel}>المتجر المحدد</Text>
-            <Text style={styles.modernDropdownValue} numberOfLines={1}>
-              {selectedEntity
-                ? `${selectedEntity.strEntityName}`
-                : "اختر المتجر"}
-            </Text>
+        </TouchableOpacity>
+
+        {/* Payment Type Dropdown - Only for Entity */}
+        <TouchableOpacity
+          style={styles.modernDropdown}
+          onPress={() => setPaymentModalVisible(true)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.modernDropdownContent}>
+            <View style={styles.modernDropdownIcon}>
+              <CreditCard color="#FF6B35" size={20} />
+            </View>
+            <View style={styles.modernDropdownText}>
+              <Text style={styles.modernDropdownLabel}>طريقة الدفع</Text>
+              <Text style={styles.modernDropdownValue} numberOfLines={1}>
+                {paymentType === "Cash" ? "نقدي" : "دفع إلكتروني"}
+              </Text>
+            </View>
+            <ChevronDown color="#9CA3AF" size={20} />
           </View>
-          <ChevronDown color="#9CA3AF" size={20} />
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      </>
     )}
+
     <View style={styles.modernDateRow}>
       <TouchableOpacity
         style={styles.modernDateField}
@@ -156,7 +182,6 @@ const FilterSection = ({
         activeOpacity={0.7}
       >
         <View style={styles.modernDateIcon}>
-          {/* UPDATED: Consistent icon color */}
           <Calendar color="#6B7280" size={18} />
         </View>
         <View style={styles.modernDateContent}>
@@ -172,7 +197,6 @@ const FilterSection = ({
         activeOpacity={0.7}
       >
         <View style={styles.modernDateIcon}>
-          {/* UPDATED: Consistent icon color */}
           <Calendar color="#6B7280" size={18} />
         </View>
         <View style={styles.modernDateContent}>
@@ -260,6 +284,7 @@ interface Transaction {
   RunningTotal: number;
   Remarks: string;
   CreatedAt: string;
+  strPaymentBy?: string; // Field to identify payment type
 }
 
 const formatDate = (date: Date): string => date.toISOString().split("T")[0];
@@ -279,10 +304,18 @@ export default function ReportsDashboard() {
   const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
   const [fromDate, setFromDate] = useState(new Date());
   const [toDate, setToDate] = useState(new Date());
+
+  // Modals
   const [entityModalVisible, setEntityModalVisible] = useState(false);
+  const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [datePickerVisible, setDatePickerVisible] = useState<"from" | "to" | null>(null);
   const [isDatePickerModalVisible, setDatePickerModalVisible] = useState(false);
+
+  // Filters
   const [searchQuery, setSearchQuery] = useState("");
+  const [paymentType, setPaymentType] = useState<"Cash" | "OnlinePayment">("Cash");
+
+  // Alerts & Misc
   const [isAlertVisible, setAlertVisible] = useState(false);
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
@@ -290,6 +323,11 @@ export default function ReportsDashboard() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [alertSuccess, setAlertSuccess] = useState(false);
   const { setCurrentRoute } = useDashboard();
+
+  const paymentOptions = [
+    { label: "نقدي", value: "Cash" },
+    { label: "دفع إلكتروني", value: "OnlinePayment" }
+  ];
 
   useFocusEffect(
     React.useCallback(() => {
@@ -333,21 +371,14 @@ export default function ReportsDashboard() {
   );
 
   const requestStoragePermission = async () => {
-    if (Platform.OS === 'android' && Platform.Version < 33) {
+    if (Platform.OS === 'android' && Platform.Version >= 29) return true;
+    if (Platform.OS === 'android' && Platform.Version < 29) {
       try {
         const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-          {
-            title: 'إذن الوصول إلى الملفات',
-            message: 'يحتاج التطبيق إلى الوصول إلى التخزين لتنزيل الملفات.',
-            buttonNeutral: 'اسألني لاحقًا',
-            buttonNegative: 'إلغاء',
-            buttonPositive: 'موافقة',
-          }
+          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
         );
         return granted === PermissionsAndroid.RESULTS.GRANTED;
       } catch (err) {
-        console.warn('Permission error:', err);
         return false;
       }
     }
@@ -355,35 +386,24 @@ export default function ReportsDashboard() {
   };
 
   const handleDownloadPdf = useCallback(async () => {
+    // Basic validation
+    if ((user?.roleName === 'Entity' && !selectedEntity) || transactions.length === 0) {
+      Alert.alert('خطأ', 'لا توجد بيانات لتصديرها.');
+      return;
+    }
     const hasPermission = await requestStoragePermission();
     if (!hasPermission) {
       Alert.alert('صلاحيات مفقودة', 'يرجى السماح للتطبيق بالوصول إلى التخزين لتنزيل الملف.');
       return;
     }
-
-    if ((user?.roleName === 'Entity' && !selectedEntity) || transactions.length === 0) {
-      Alert.alert('خطأ', 'لا توجد بيانات لتصديرها.');
-      return;
-    }
     setIsDownloading(true);
-
     const notificationId = 'pdf-download';
-    const channelId = await notifee.createChannel({
-      id: 'downloads',
-      name: 'Downloads',
-    });
-
+    const channelId = await notifee.createChannel({ id: 'downloads', name: 'Downloads' });
     await notifee.displayNotification({
       id: notificationId,
       title: 'بدء تحميل التقرير',
       body: 'جاري تحميل تقرير PDF الخاص بك.',
-      android: {
-        channelId,
-        progress: {
-          max: 100,
-          current: 0,
-        },
-      },
+      android: { channelId, progress: { max: 100, current: 0 } },
     });
 
     try {
@@ -393,77 +413,55 @@ export default function ReportsDashboard() {
       let fileName = '';
 
       if (user?.roleName === 'Entity') {
-        url = `http://tanmia-group.com:90/courierApi/Entity/GenerateTransactionReportPdf/${selectedEntity.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
-        fileName = `Report-${selectedEntity.strEntityCode}-${formattedFromDate}-${Date.now()}.pdf`;
+        // Updated API: Include paymentType in the URL for Entity reports
+        url = `https://tanmia-group.com:86/courierApi/Entity/GenerateTransactionReportPdf/${selectedEntity.intEntityCode}/${formattedFromDate}/${formattedToDate}/${paymentType}`;
+        fileName = `Report-${selectedEntity.strEntityCode}-${paymentType}-${formattedFromDate}-${Date.now()}.pdf`;
       } else if (user?.roleName === 'Driver') {
-        url = `http://tanmia-group.com:90/courierApi/Driver/GenerateTransactionReportPdf/${user.userId}/${formattedFromDate}/${formattedToDate}`;
+        url = `https://tanmia-group.com:86/courierApi/Driver/GenerateTransactionReportPdf/${user.userId}/${formattedFromDate}/${formattedToDate}`;
         fileName = `Report-Driver-${user.userId}-${formattedFromDate}-${Date.now()}.pdf`;
-      } else {
-        setIsDownloading(false);
-        return;
       }
 
-      const tempDownloadPath = `${RNFS.TemporaryDirectoryPath}/${fileName}`;
+      let finalPath;
+      if (Platform.OS === 'android') {
+        finalPath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
+      } else {
+        finalPath = `${RNFS.DocumentDirectoryPath}/${fileName}`;
+      }
 
       const downloadResult = RNFS.downloadFile({
         fromUrl: url,
-        toFile: tempDownloadPath,
+        toFile: finalPath,
         progress: (res) => {
           const progress = (res.bytesWritten / res.contentLength) * 100;
           notifee.displayNotification({
             id: notificationId,
             title: 'جاري تحميل التقرير',
             body: `${Math.round(progress)}% مكتمل`,
-            android: {
-              channelId,
-              progress: {
-                max: 100,
-                current: Math.round(progress),
-              },
-            },
+            android: { channelId, progress: { max: 100, current: Math.round(progress) } },
           });
         },
       }).promise;
 
       const result = await downloadResult;
-
-      if (result.statusCode !== 200) {
-        throw new Error(`Server responded with status code ${result.statusCode}`);
-      }
+      if (result.statusCode !== 200) throw new Error(`Server status ${result.statusCode}`);
 
       if (Platform.OS === 'android') {
-        const almasarFolderPath = `${RNFS.DownloadDirectoryPath}/Almasar`;
-        await RNFS.mkdir(almasarFolderPath);
-        const finalPdfPath = `${almasarFolderPath}/${fileName}`;
-        await RNFS.moveFile(tempDownloadPath, finalPdfPath);
-
-        await RNFS.scanFile(finalPdfPath);
-
+        await RNFS.scanFile(finalPath);
         await notifee.displayNotification({
           id: notificationId,
           title: 'اكتمل التحميل',
           body: 'تم حفظ التقرير بنجاح. انقر للفتح.',
-          data: {
-            filePath: finalPdfPath,
-          },
-          android: {
-            channelId,
-            pressAction: {
-              id: 'open-pdf',
-            },
-          },
+          data: { filePath: finalPath },
+          android: { channelId, pressAction: { id: 'open-pdf' } },
         });
-
+        try { await FileViewer.open(finalPath, { showOpenWithDialog: true }); } catch (e) { }
         setAlertTitle("نجاح");
-        setAlertMessage("تم حفظ الملف بنجاح في مجلد التنزيلات/Almasar");
+        setAlertMessage("تم حفظ الملف بنجاح في مجلد التنزيلات");
         setAlertSuccess(true);
         setAlertVisible(true);
-
-        console.log('File moved and scanned:', finalPdfPath);
-
       } else {
         await Share.open({
-          url: `file://${tempDownloadPath}`,
+          url: `file://${finalPath}`,
           type: 'application/pdf',
           failOnCancel: false,
           title: 'تنزيل التقرير',
@@ -471,7 +469,7 @@ export default function ReportsDashboard() {
         await notifee.cancelNotification(notificationId);
       }
     } catch (error) {
-      console.error('Error downloading or saving PDF:', error);
+      console.error('Error downloading:', error);
       await notifee.displayNotification({
         id: notificationId,
         title: 'فشل التحميل',
@@ -479,33 +477,22 @@ export default function ReportsDashboard() {
         android: { channelId },
       });
       setAlertTitle("خطأ");
-      setAlertMessage(error.message || "حدث خطأ أثناء تحميل أو حفظ ملف PDF.");
+      setAlertMessage("حدث خطأ أثناء تحميل الملف.");
       setAlertVisible(true);
     } finally {
       setIsDownloading(false);
     }
-  }, [user, selectedEntity, fromDate, toDate, transactions]);
+  }, [user, selectedEntity, fromDate, toDate, transactions, paymentType]);
 
   useEffect(() => {
     const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
       if (type === EventType.PRESS && detail.pressAction?.id === 'open-pdf') {
         const filePath = detail.notification?.data?.filePath;
         if (filePath && typeof filePath === 'string') {
-          FileViewer.open(filePath)
-            .then(() => {
-              console.log('File opened successfully');
-            })
-            .catch(error => {
-              console.error('Error opening file:', error);
-              Alert.alert(
-                'خطأ',
-                'لا يمكن فتح الملف. يرجى التأكد من وجود تطبيق قادر على عرض ملفات PDF.'
-              );
-            });
+          FileViewer.open(filePath).catch(() => { });
         }
       }
     });
-
     return unsubscribe;
   }, []);
 
@@ -526,9 +513,9 @@ export default function ReportsDashboard() {
       const formattedToDate = formatDate(toDate);
       let url = "";
       if (user.roleName === "Entity") {
-        url = `http://tanmia-group.com:90/courierApi/Entity/GetTransaction/${selectedEntity!.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
+        url = `https://tanmia-group.com:86/courierApi/Entity/GetTransaction/${selectedEntity!.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
       } else {
-        url = `http://tanmia-group.com:90/courierApi/Driver/GetTransaction/${user.userId}/${formattedFromDate}/${formattedToDate}`;
+        url = `https://tanmia-group.com:86/courierApi/Driver/GetTransaction/${user.userId}/${formattedFromDate}/${formattedToDate}`;
       }
       const response = await axios.get(url);
       setTransactions(response.data || []);
@@ -552,7 +539,7 @@ export default function ReportsDashboard() {
       await new Promise((res) => setTimeout(res, 1500));
       const formattedFromDate = formatDate(fromDate);
       const formattedToDate = formatDate(toDate);
-      const url = `http://tanmia-group.com:90/courierApi/Entity/GetTransaction/${entity.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
+      const url = `https://tanmia-group.com:86/courierApi/Entity/GetTransaction/${entity.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
       const response = await axios.get(url);
       setTransactions(response.data || []);
     } catch (error) {
@@ -580,20 +567,16 @@ export default function ReportsDashboard() {
 
   const onDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     const currentDate = selectedDate || (datePickerVisible === 'from' ? fromDate : toDate);
-
     if (Platform.OS === 'android') {
       setDatePickerVisible(null);
     }
-
     if (event.type === "set") {
-      if (datePickerVisible === "from") {
-        setFromDate(currentDate);
-      } else {
-        setToDate(currentDate);
-      }
+      if (datePickerVisible === "from") setFromDate(currentDate);
+      else setToDate(currentDate);
     }
   };
 
+  // Filter Entities for Modal
   const displayedEntities = useMemo(() => {
     if (!searchQuery) return entities;
     return entities.filter(
@@ -603,21 +586,32 @@ export default function ReportsDashboard() {
     );
   }, [searchQuery, entities]);
 
+  // Client-Side Filtering for Entity Transactions
+  const displayedTransactions = useMemo(() => {
+    if (user?.roleName === "Driver") return transactions;
+
+    return transactions.filter(item => {
+      // Filter based on the strPaymentBy field from API
+      return item.strPaymentBy === paymentType;
+    });
+  }, [transactions, user, paymentType]);
+
+  // Calculate Totals based on filtered transactions
   const totals = useMemo(() => {
-    if (transactions.length === 0)
+    if (displayedTransactions.length === 0)
       return { totalCredit: 0, totalDebit: 0, finalBalance: 0 };
-    const totalCredit = transactions.reduce(
+    const totalCredit = displayedTransactions.reduce(
       (sum, tx) => sum + tx.CreditAmount,
       0
     );
-    const totalDebit = transactions.reduce(
+    const totalDebit = displayedTransactions.reduce(
       (sum, tx) => sum + tx.DebitAmount,
       0
     );
     const finalBalance =
-      transactions[transactions.length - 1]?.RunningTotal ?? 0;
+      displayedTransactions[displayedTransactions.length - 1]?.RunningTotal ?? 0;
     return { totalCredit, totalDebit, finalBalance };
-  }, [transactions]);
+  }, [displayedTransactions]);
 
   if (initialLoad) {
     return (
@@ -635,7 +629,7 @@ export default function ReportsDashboard() {
       <MaterialTopBar title="تقرير المعاملات" />
 
       <FlatList
-        data={transactions}
+        data={displayedTransactions}
         keyExtractor={(item, index) => `${item.TransactionID}-${index}`}
         renderItem={({ item }) => <ModernTransactionItem item={item} />}
         contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 120 }}
@@ -658,8 +652,10 @@ export default function ReportsDashboard() {
               onShowDatePicker={showDatePicker}
               handleSearch={handleSearch}
               loading={loading && !refreshing}
+              paymentType={paymentType}
+              setPaymentModalVisible={setPaymentModalVisible}
             />
-            {transactions.length > 0 && !loading && (
+            {displayedTransactions.length > 0 && !loading && (
               <View style={styles.summarySection}>
                 <View style={styles.summaryHeader}>
                   <Text style={styles.sectionTitle}>ملخص المعاملات</Text>
@@ -702,9 +698,9 @@ export default function ReportsDashboard() {
                 </View>
               </View>
             )}
-            {transactions.length > 0 && !loading && (
+            {displayedTransactions.length > 0 && !loading && (
               <Text style={styles.transactionsListTitle}>
-                المعاملات ({transactions.length})
+                المعاملات ({displayedTransactions.length})
               </Text>
             )}
           </>
@@ -720,7 +716,7 @@ export default function ReportsDashboard() {
               />
               <Text style={styles.emptyText}>لا توجد معاملات لعرضها</Text>
               <Text style={styles.emptySubText}>
-                يرجى تحديد فلتر والضغط على بحث
+                {user?.roleName === "Entity" ? "يرجى تحديد الفلاتر والضغط على بحث" : "يرجى تحديد التاريخ والضغط على بحث"}
               </Text>
             </View>
           )
@@ -747,15 +743,13 @@ export default function ReportsDashboard() {
           <TouchableWithoutFeedback onPress={() => setDatePickerModalVisible(false)}>
             <View style={styles.iosModalOverlay}>
               <View style={styles.iosDatePickerContainer}>
-
                 <DateTimePicker
                   key={String(new Date())}
                   value={datePickerVisible === "from" ? fromDate : toDate}
                   mode="date"
                   display="inline"
                   onChange={onDateChange}
-                  maximumDate={new Date()} // This is correct
-                  minimumDate={undefined}
+                  maximumDate={new Date()}
                   textColor='#FF6B35'
                   accentColor='#FF6B35'
                   themeVariant="light"
@@ -767,6 +761,7 @@ export default function ReportsDashboard() {
         </Modal>
       )}
 
+      {/* Entity Selection Modal */}
       {user?.roleName === "Entity" && (
         <Modal
           visible={entityModalVisible}
@@ -774,19 +769,13 @@ export default function ReportsDashboard() {
           transparent={true}
           onRequestClose={() => setEntityModalVisible(false)}
         >
-          <TouchableWithoutFeedback
-            onPress={() => setEntityModalVisible(false)}
-          >
+          <TouchableWithoutFeedback onPress={() => setEntityModalVisible(false)}>
             <View style={styles.modalOverlay}>
               <TouchableWithoutFeedback>
                 <SafeAreaView style={styles.modernModalContent}>
                   <Text style={styles.modalTitle}>اختيار المتجر</Text>
                   <View style={styles.modernModalSearchContainer}>
-                    <Search
-                      color="#9CA3AF"
-                      size={20}
-                      style={styles.modalSearchIcon}
-                    />
+                    <Search color="#9CA3AF" size={20} style={styles.modalSearchIcon} />
                     <TextInput
                       style={styles.modernModalSearchInput}
                       placeholder="ابحث عن متجر..."
@@ -806,29 +795,16 @@ export default function ReportsDashboard() {
                           setEntityModalVisible(false);
                           setSearchQuery("");
                         }}
-                        activeOpacity={0.7}
                       >
                         <View style={styles.modalItemContent}>
-                          <Text
-                            style={[
-                              styles.modernModalItemText,
-                              selectedEntity?.intEntityCode ===
-                              item.intEntityCode && styles.modalItemSelected,
-                            ]}
-                          >
+                          <Text style={[styles.modernModalItemText, selectedEntity?.intEntityCode === item.intEntityCode && styles.modalItemSelected]}>
                             {item.strEntityName}
                           </Text>
-                          <Text style={styles.modalItemCode}>
-                            {item.strEntityCode}
-                          </Text>
+                          <Text style={styles.modalItemCode}>{item.strEntityCode}</Text>
                         </View>
-                        {selectedEntity?.intEntityCode ===
-                          item.intEntityCode && (
-                            <Check color="#FF6B35" size={20} />
-                          )}
+                        {selectedEntity?.intEntityCode === item.intEntityCode && <Check color="#FF6B35" size={20} />}
                       </TouchableOpacity>
                     )}
-                    showsVerticalScrollIndicator={false}
                   />
                 </SafeAreaView>
               </TouchableWithoutFeedback>
@@ -836,6 +812,47 @@ export default function ReportsDashboard() {
           </TouchableWithoutFeedback>
         </Modal>
       )}
+
+      {/* Payment Type Selection Modal */}
+      {user?.roleName === "Entity" && (
+        <Modal
+          visible={paymentModalVisible}
+          animationType="fade"
+          transparent={true}
+          onRequestClose={() => setPaymentModalVisible(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setPaymentModalVisible(false)}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback>
+                <SafeAreaView style={[styles.modernModalContent, { maxHeight: '40%' }]}>
+                  <Text style={styles.modalTitle}>طريقة الدفع</Text>
+                  <FlatList
+                    data={paymentOptions}
+                    keyExtractor={(item) => item.value}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={styles.modernModalItem}
+                        onPress={() => {
+                          setPaymentType(item.value as "Cash" | "OnlinePayment");
+                          setPaymentModalVisible(false);
+                        }}
+                      >
+                        <View style={styles.modalItemContent}>
+                          <Text style={[styles.modernModalItemText, paymentType === item.value && styles.modalItemSelected]}>
+                            {item.label}
+                          </Text>
+                        </View>
+                        {paymentType === item.value && <Check color="#FF6B35" size={20} />}
+                      </TouchableOpacity>
+                    )}
+                  />
+                </SafeAreaView>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+      )}
+
       <CustomAlert
         isVisible={isAlertVisible}
         title={alertTitle}
@@ -850,7 +867,6 @@ export default function ReportsDashboard() {
   );
 }
 
-// --- STYLESHEET WITH COLOR UPDATES ---
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8F9FA" },
   topBar: {
@@ -876,13 +892,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
-  },
-  filterSectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#1F2937",
-    marginBottom: 16,
-    textAlign: "right",
   },
   modernDropdown: { marginBottom: 16 },
   modernDropdownContent: {
@@ -1174,7 +1183,6 @@ const styles = StyleSheet.create({
   iosModalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    // backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   iosDatePickerContainer: {
     backgroundColor: '#FFFFFF',

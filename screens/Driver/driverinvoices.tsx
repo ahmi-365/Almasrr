@@ -17,11 +17,10 @@ import { useDashboard } from "../../Context/DashboardContext";
 import axios from "axios";
 import TopBar from "../../components/Entity/TopBarNew";
 import { Search, Download } from "lucide-react-native";
-import RNFS from 'react-native-fs';
-import Share from 'react-native-share';
 import notifee, { EventType } from '@notifee/react-native';
 import FileViewer from 'react-native-file-viewer';
 import CustomAlert from "../../components/CustomAlert";
+import RNFS from 'react-native-fs';
 
 interface Invoice {
     intDriverCode: number;
@@ -35,11 +34,8 @@ export default function DriverInvoicesScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
-
-    // CHANGED: Use string | null to track specific invoice being downloaded
     const [downloadingInvoiceNo, setDownloadingInvoiceNo] = useState<string | null>(null);
 
-    // Alert State
     const [isAlertVisible, setAlertVisible] = useState(false);
     const [alertTitle, setAlertTitle] = useState('');
     const [alertMessage, setAlertMessage] = useState('');
@@ -55,7 +51,7 @@ export default function DriverInvoicesScreen() {
 
         try {
             setLoading(true);
-            const url = `http://tanmia-group.com:90/courierApi/parcels/GetAssignedInvoicesByParcelForDriver/${user.userId}`;
+            const url = `https://tanmia-group.com:86/courierApi/parcels/GetAssignedInvoicesByParcelForDriver/${user.userId}`;
             const response = await axios.get(url);
 
             if (Array.isArray(response.data)) {
@@ -78,110 +74,83 @@ export default function DriverInvoicesScreen() {
 
     useEffect(() => { fetchInvoices(); }, [fetchInvoices]);
 
-    // Download Logic
-    const requestStoragePermission = async () => {
-        if (Platform.OS === 'android' && Platform.Version < 33) {
-            try {
-                const granted = await PermissionsAndroid.request(
-                    PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE
-                );
-                return granted === PermissionsAndroid.RESULTS.GRANTED;
-            } catch (err) {
-                return false;
-            }
-        }
-        return true;
-    };
-
     const handleDownloadPdf = async (invoice: Invoice) => {
-        const hasPermission = await requestStoragePermission();
-        if (!hasPermission) {
-            Alert.alert('صلاحيات مفقودة', 'يرجى السماح للتطبيق بالوصول إلى التخزين لتنزيل الملف.');
-            return;
-        }
-
-        // CHANGED: Set specific invoice ID
         setDownloadingInvoiceNo(invoice.strInvoiceNo);
 
-        const notificationId = `download-${invoice.strInvoiceNo}`;
-        const channelId = await notifee.createChannel({
-            id: 'downloads',
-            name: 'Downloads',
-        });
+        // 1. Check Permissions (Only requests on Android 9 or lower)
+        if (Platform.OS === 'android' && Platform.Version < 29) {
+            try {
+                const granted = await PermissionsAndroid.request(
+                    PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
+                );
+                if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+                    Alert.alert('صلاحيات مفقودة', 'يرجى السماح للتطبيق بالوصول إلى التخزين.');
+                    setDownloadingInvoiceNo(null);
+                    return;
+                }
+            } catch (err) {
+                console.warn(err);
+                setDownloadingInvoiceNo(null);
+                return;
+            }
+        }
 
+        // 2. Notification Setup
+        const channelId = await notifee.createChannel({ id: 'downloads', name: 'Downloads' });
         await notifee.displayNotification({
-            id: notificationId,
-            title: 'بدء تحميل الفاتورة',
-            body: `جاري تحميل الفاتورة رقم ${invoice.strInvoiceNo}`,
-            android: { channelId, progress: { max: 100, current: 0 } },
+            id: invoice.strInvoiceNo,
+            title: 'جاري التحميل',
+            body: `جاري تحميل الفاتورة ${invoice.strInvoiceNo}...`,
+            android: { channelId, progress: { max: 10, current: 5, indeterminate: true } },
         });
 
         try {
-            const url = `http://tanmia-group.com:90/courierApi/Parcel/ReturnInvoicePdfForDriver/${invoice.strInvoiceNo}/${invoice.intDriverCode}`;
+            const url = `https://tanmia-group.com:86/courierApi/Parcel/ReturnInvoicePdfForDriver/${invoice.strInvoiceNo}/${invoice.intDriverCode}`;
 
-            const fileName = `ReturnInvoice_${invoice.strInvoiceNo}_${Date.now()}.pdf`;
-            const tempDownloadPath = `${RNFS.TemporaryDirectoryPath}/${fileName}`;
+            // 3. Define Path (Directly to Downloads folder)
+            const fileName = `DriverInvoice_${invoice.strInvoiceNo}.pdf`;
+            const filePath = `${RNFS.DownloadDirectoryPath}/${fileName}`;
 
-            const downloadResult = RNFS.downloadFile({
+            // 4. Download File
+            const options = {
                 fromUrl: url,
-                toFile: tempDownloadPath,
-                progress: (res) => {
-                    const progress = (res.bytesWritten / res.contentLength) * 100;
-                    notifee.displayNotification({
-                        id: notificationId,
-                        title: 'جاري تحميل الفاتورة',
-                        body: `${Math.round(progress)}% مكتمل`,
-                        android: { channelId, progress: { max: 100, current: Math.round(progress) } },
-                    });
-                },
-            }).promise;
+                toFile: filePath,
+            };
 
-            const result = await downloadResult;
+            await RNFS.downloadFile(options).promise;
 
-            if (result.statusCode !== 200) throw new Error(`Server error: ${result.statusCode}`);
+            // 5. Success Notification
+            await notifee.displayNotification({
+                id: invoice.strInvoiceNo,
+                title: 'اكتمل التحميل',
+                body: 'تم حفظ الفاتورة في التنزيلات. انقر للفتح.',
+                data: { filePath: filePath },
+                android: { channelId, pressAction: { id: 'open-pdf' } },
+            });
 
-            if (Platform.OS === 'android') {
-                const almasarFolderPath = `${RNFS.DownloadDirectoryPath}/Almasar`;
-                await RNFS.mkdir(almasarFolderPath);
-                const finalPdfPath = `${almasarFolderPath}/${fileName}`;
-
-                await RNFS.moveFile(tempDownloadPath, finalPdfPath);
-                await RNFS.scanFile(finalPdfPath);
-
-                await notifee.displayNotification({
-                    id: notificationId,
-                    title: 'اكتمل التحميل',
-                    body: 'تم حفظ الفاتورة بنجاح. انقر للفتح.',
-                    data: { filePath: finalPdfPath },
-                    android: { channelId, pressAction: { id: 'open-pdf' } },
-                });
-
+            // 6. Attempt to Open
+            try {
+                await FileViewer.open(filePath, { showOpenWithDialog: true });
+            } catch (e) {
+                console.log("Error opening file viewer:", e);
+                // If viewer fails, just tell them it's in downloads
                 setAlertTitle("نجاح");
-                setAlertMessage("تم حفظ الملف بنجاح في مجلد التنزيلات/Almasar");
+                setAlertMessage(`تم حفظ الفاتورة في مجلد التنزيلات`);
                 setAlertSuccess(true);
                 setAlertVisible(true);
-
-            } else {
-                await Share.open({
-                    url: `file://${tempDownloadPath}`,
-                    type: 'application/pdf',
-                    title: 'فتح الفاتورة',
-                });
-                await notifee.cancelNotification(notificationId);
+                return;
             }
         } catch (error) {
             console.error('Download error:', error);
             setAlertTitle("خطأ");
-            setAlertMessage("حدث خطأ أثناء تحميل الملف.");
+            setAlertMessage("فشل التحميل. تأكد من الإنترنت.");
             setAlertSuccess(false);
             setAlertVisible(true);
         } finally {
-            // CHANGED: Reset downloading state
             setDownloadingInvoiceNo(null);
         }
     };
 
-    // Notification Listener
     useEffect(() => {
         const unsubscribe = notifee.onForegroundEvent(({ type, detail }) => {
             if (type === EventType.PRESS && detail.pressAction?.id === 'open-pdf') {
@@ -216,7 +185,6 @@ export default function DriverInvoicesScreen() {
     );
 
     const renderItem = ({ item }: { item: Invoice }) => {
-        // CHANGED: Check if this specific item is downloading
         const isItemDownloading = downloadingInvoiceNo === item.strInvoiceNo;
 
         return (
@@ -229,7 +197,7 @@ export default function DriverInvoicesScreen() {
                 <TouchableOpacity
                     style={[styles.pdfButton, { flex: 0.5 }]}
                     onPress={() => handleDownloadPdf(item)}
-                    disabled={!!downloadingInvoiceNo} // Disable all buttons if *any* download is in progress to prevent conflicts
+                    disabled={!!downloadingInvoiceNo}
                 >
                     {isItemDownloading ? (
                         <ActivityIndicator size="small" color="#3498DB" />
@@ -244,9 +212,7 @@ export default function DriverInvoicesScreen() {
     return (
         <View style={styles.container}>
             <TopBar title="فواتير السائق" />
-
             <View style={styles.contentContainer}>
-                {/* Search Bar */}
                 <View style={styles.searchContainer}>
                     <Search color="#9CA3AF" size={20} />
                     <TextInput
@@ -258,10 +224,8 @@ export default function DriverInvoicesScreen() {
                     />
                 </View>
 
-                {/* Table Header */}
                 {renderHeader()}
 
-                {/* Content */}
                 {loading ? (
                     <ActivityIndicator size="large" color="#FF6B35" style={{ marginTop: 50 }} />
                 ) : (
@@ -289,10 +253,7 @@ export default function DriverInvoicesScreen() {
                 message={alertMessage}
                 confirmText="حسنًا"
                 onConfirm={() => setAlertVisible(false)}
-                success={alertSuccess}
-                cancelText={undefined}
-                onCancel={undefined}
-            />
+                success={alertSuccess} cancelText={undefined} onCancel={undefined} />
         </View>
     );
 }

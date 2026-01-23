@@ -155,11 +155,11 @@ const StoreModal = ({ mode, store, visible, onClose, onSave, user }) => {
       const response =
         mode === "edit" && store
           ? await axios.post(
-            "http://tanmia-group.com:90/courierApi/Entity/UpdateEntity",
+            "https://tanmia-group.com:86/courierApi/Entity/UpdateEntity",
             { ...payload, intEntityCode: store.intEntityCode }
           )
           : await axios.post(
-            "http://tanmia-group.com:90/courierApi/Entity/AddEntity",
+            "https://tanmia-group.com:86/courierApi/Entity/AddEntity",
             payload
           );
 
@@ -397,7 +397,7 @@ export default function StoresScreen() {
         setUser(parsedUser);
       }
       const response = await axios.get(
-        `http://tanmia-group.com:90/courierApi/Entity/GetEntities/${parsedUser.userId}`
+        `https://tanmia-group.com:86/courierApi/Entity/GetEntities/${parsedUser.userId}`
       );
       setAllStores(response.data || []);
       await AsyncStorage.setItem(
@@ -436,7 +436,7 @@ export default function StoresScreen() {
     setAlertVisible(false);
     try {
       const response = await axios.post(
-        `http://tanmia-group.com:90/courierApi/Entity/DeleteEntity/${storeToDelete.id}`
+        `https://tanmia-group.com:86/courierApi/Entity/DeleteEntity/${storeToDelete.id}`
       );
       if (response.data && response.data.Success) {
         setAllStores((prev) =>

@@ -28,7 +28,7 @@ const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const { width } = Dimensions.get('window');
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'MainTabs'>;
 
-const BASE_URL = 'http://tanmia-group.com:90/courierApi';
+const BASE_URL = 'https://tanmia-group.com:86/courierApi';
 
 const Colors = {
   primary: '#FF6B35',

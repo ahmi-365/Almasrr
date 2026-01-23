@@ -32,6 +32,7 @@ import {
   Search,
   Check,
   Tag,
+  AlignLeft // Added for description icon
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
@@ -265,6 +266,7 @@ export default function CreateParcelScreen() {
   const [quantity, setQuantity] = useState("1");
   const [productPrice, setProductPrice] = useState("");
   const [notes, setNotes] = useState("");
+  const [productDescription, setProductDescription] = useState(""); // New State
   const [length, setLength] = useState("");
   const [width, setWidth] = useState("");
   const [height, setHeight] = useState("");
@@ -343,18 +345,18 @@ export default function CreateParcelScreen() {
 
         await Promise.all([
           axios.get(
-            "http://tanmia-group.com:90/courierApi/parcels/GetParcelTypes"
+            "https://tanmia-group.com:86/courierApi/parcels/GetParcelTypes"
           ),
           axios.get(
-            `http://tanmia-group.com:90/courierApi/Entity/GetEntities/${userId}`
+            `https://tanmia-group.com:86/courierApi/Entity/GetEntities/${userId}`
           ),
           userCityCode
             ? axios.get(
-              `http://tanmia-group.com:90/courierApi/City/GetCityPrices/${userCityCode}`
+              `https://tanmia-group.com:86/courierApi/City/GetCityPrices/${userCityCode}`
             )
             : Promise.resolve({ data: [] }),
           axios.get(
-            "http://tanmia-group.com:90/courierApi/parcels/GetDeliveryTypes"
+            "https://tanmia-group.com:86/courierApi/parcels/GetDeliveryTypes"
           ),
         ]).then(([parcelTypesResponse, storesResponse, cityPricesResponse, deliveryTypesResponse]) => {
           if (parcelTypesResponse.data?.ParcelTypes)
@@ -425,11 +427,6 @@ export default function CreateParcelScreen() {
     [productTotal, displayedShippingPrice, discountAmount, electronicPaymentSurcharge]
   );
 
-  // const totalAmount = useMemo(
-  //   () => productTotal + displayedShippingPrice - discountAmount,
-  //   [productTotal, displayedShippingPrice, discountAmount]
-  // );
-
   const displayedStores = useMemo(
     () =>
       stores.filter((e) =>
@@ -485,7 +482,7 @@ export default function CreateParcelScreen() {
 
     setIsApplyingPromo(true);
     try {
-      const response = await axios.post('http://tanmia-group.com:90/courierApi/promotion/validate', {
+      const response = await axios.post('https://tanmia-group.com:86/courierApi/promotion/validate', {
         promocode: promoCode,
         intCityCode: selectedCityData.intCityCode,
         intParentCityCode: userCityCode,
@@ -528,6 +525,7 @@ export default function CreateParcelScreen() {
     setQuantity("1");
     setProductPrice("");
     setNotes("");
+    setProductDescription(""); // Reset Description
     setLength("");
     setWidth("");
     setHeight("");
@@ -650,10 +648,11 @@ export default function CreateParcelScreen() {
         : "",
       strDeliveryType: selectedDeliveryType?.Value || "",
       intPromotionId: isPromoApplied ? discountInfo.promotion_id : null,
+      StrParcelCategory: productDescription, // Added Product Description
     };
 
     try {
-      const response = await axios.post('http://tanmia-group.com:90/courierApi/parcels/saveparcel', payload);
+      const response = await axios.post('https://tanmia-group.com:86/courierApi/parcels/saveparcel', payload);
 
       // Check if API call was successful AND if the Logic Success is true
       // We check response.data.Success !== false to handle your specific JSON structure
@@ -787,6 +786,17 @@ export default function CreateParcelScreen() {
                 />
               </View>
             )}
+
+            {/* Added Product Description Input */}
+            <FormInput
+              label="وصف المنتج"
+              icon={AlignLeft}
+              placeholder="أدخل وصف المنتج (اختياري)"
+              value={productDescription}
+              onChangeText={setProductDescription}
+              editable={!isSaving}
+              required={false}
+            />
 
             <FormPicker
               label="المدينة"
