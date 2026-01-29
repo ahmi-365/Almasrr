@@ -330,7 +330,7 @@ export default function ReturnedParcelsScreen() {
         });
 
         try {
-            const url = `https://tanmia-group.com:86/courierApi/Parcel/ReturnInvoicePdf/${invoice.strInvoiceNo}/${invoice.intEntityCode}`;
+            const url = `http://tanmia-group.com:90/courierApi/Parcel/ReturnInvoicePdf/${invoice.strInvoiceNo}/${invoice.intEntityCode}`;
 
             // 3. Define Path: Write DIRECTLY to Downloads (Allowed on Android 10+)
             const fileName = `EntityInvoice_${invoice.strInvoiceNo}.pdf`;
@@ -411,7 +411,7 @@ export default function ReturnedParcelsScreen() {
     useEffect(() => {
         const fetchReturnStatuses = async () => {
             try {
-                const response = await axios.get(`https://tanmia-group.com:86/courierApi/parcels/GetSelectedStatuses`);
+                const response = await axios.get(`http://tanmia-group.com:90/courierApi/parcels/GetSelectedStatuses`);
                 setReturnStatuses(response.data?.Statuses || []);
             } catch (error) { console.error(error); }
         };
@@ -422,7 +422,7 @@ export default function ReturnedParcelsScreen() {
         if (!user?.userId) return;
         setLoadingInvoices(true);
         try {
-            const response = await axios.get(`https://tanmia-group.com:86/courierApi/parcels/GetAssignedInvoicesByParcel/${user.userId}`);
+            const response = await axios.get(`http://tanmia-group.com:90/courierApi/parcels/GetAssignedInvoicesByParcel/${user.userId}`);
             if (response.data && response.data.length > 0) {
                 setInvoiceData(response.data);
                 setInvoiceModalVisible(true);
@@ -449,7 +449,7 @@ export default function ReturnedParcelsScreen() {
                     const dashboardData = JSON.parse(dashboardDataString!);
                     const countKeys = Object.keys(dashboardData).filter(key => key.startsWith('Count'));
                     const sortedStatusIds = countKeys.map(key => parseInt(key.slice(5), 10)).sort((a, b) => a - b);
-                    const response = await axios.get(`https://tanmia-group.com:86/courierApi/Entity/GetHistoryEntities/${user.userId}/${sortedStatusIds[4]}`);
+                    const response = await axios.get(`http://tanmia-group.com:90/courierApi/Entity/GetHistoryEntities/${user.userId}/${sortedStatusIds[4]}`);
                     setEntities(response.data || []);
                 } catch (error) { console.error(error); }
             };
@@ -467,7 +467,7 @@ export default function ReturnedParcelsScreen() {
             const sortedStatusIds = countKeys.map(key => parseInt(key.slice(5), 10)).sort((a, b) => a - b);
             const targetId = selectedEntity ? selectedEntity.intEntityCode : user?.userId;
 
-            const response = await axios.get(`https://tanmia-group.com:86/courierApi/parcels/details/${targetId}/${sortedStatusIds[4]}`);
+            const response = await axios.get(`http://tanmia-group.com:90/courierApi/parcels/details/${targetId}/${sortedStatusIds[4]}`);
             let parcels = response.data?.Parcels || [];
             if (selectedReturnStatus?.Value) {
                 parcels = parcels.filter(parcel => parcel.intStatusCode.toString() === selectedReturnStatus.Value);
@@ -627,7 +627,7 @@ export default function ReturnedParcelsScreen() {
                 </View>
             </Modal>
 
-            <Modal visible={webViewVisible} animationType="slide"><SafeAreaView style={{ flex: 1 }}><View style={styles.modalHeader}><TouchableOpacity onPress={() => setWebViewVisible(false)}><ChevronLeft size={24} color="#1F2937" /></TouchableOpacity><Text style={styles.modalHeaderTitle}>تتبع</Text><View style={{ width: 40 }} /></View>{selectedParcel && <WebView source={{ uri: `https://tanmia-group.com:86/admin/tracking/DirectReturnParcel?trackingNumber=${selectedParcel.ReferenceNo}` }} style={{ flex: 1 }} startInLoadingState={true} />}</SafeAreaView></Modal>
+            <Modal visible={webViewVisible} animationType="slide"><SafeAreaView style={{ flex: 1 }}><View style={styles.modalHeader}><TouchableOpacity onPress={() => setWebViewVisible(false)}><ChevronLeft size={24} color="#1F2937" /></TouchableOpacity><Text style={styles.modalHeaderTitle}>تتبع</Text><View style={{ width: 40 }} /></View>{selectedParcel && <WebView source={{ uri: `http://tanmia-group.com:90/admin/tracking/DirectReturnParcel?trackingNumber=${selectedParcel.ReferenceNo}` }} style={{ flex: 1 }} startInLoadingState={true} />}</SafeAreaView></Modal>
 
             <CustomAlert isVisible={isAlertVisible} title={alertTitle} message={alertMessage} confirmText="حسنًا" onConfirm={() => setAlertVisible(false)} success={alertSuccess} cancelText={undefined} onCancel={undefined} />
         </View>

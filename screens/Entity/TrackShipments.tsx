@@ -232,7 +232,7 @@ export default function TrackShipment() {
                     if (sortedStatusIds.length < 3) throw new Error("بيانات غير كافية لتحديد الحالة");
 
                     const statusIdForFilter = sortedStatusIds[2];
-                    const response = await axios.get(`https://tanmia-group.com:86/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
+                    const response = await axios.get(`http://tanmia-group.com:90/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
                     setEntities(response.data || []);
                 } catch (error) {
                     console.error("Failed to fetch filter entities:", error);
@@ -261,7 +261,7 @@ export default function TrackShipment() {
             const statusId = sortedStatusIds[2];
             const targetId = selectedEntity ? selectedEntity.intEntityCode : parsedUser.userId;
 
-            const response = await axios.get(`https://tanmia-group.com:86/courierApi/parcels/GetParcelDetailsWithDriverRemars/${targetId}/${statusId}`);
+            const response = await axios.get(`http://tanmia-group.com:90/courierApi/parcels/GetParcelDetailsWithDriverRemars/${targetId}/${statusId}`);
             setAllParcels(response.data?.Parcels || []);
         } catch (error) {
             setAlertTitle("خطأ");
@@ -311,7 +311,7 @@ export default function TrackShipment() {
             params.append('entityRemarks', entityRemarks);
 
             const response = await axios.post(
-                'https://tanmia-group.com:86/courierApi/notifications/entity-to-driver',
+                'http://tanmia-group.com:90/courierApi/notifications/entity-to-driver',
                 params,
                 { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
             );
@@ -438,7 +438,7 @@ export default function TrackShipment() {
                     </View>
                     {selectedParcel && (
                         <WebView
-                            source={{ uri: `https://tanmia-group.com:86/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
+                            source={{ uri: `http://tanmia-group.com:90/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
                             style={{ flex: 1 }}
                             startInLoadingState={true}
                         />

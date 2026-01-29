@@ -17,6 +17,7 @@ import {
     Linking,
     Clipboard,
     LayoutAnimation,
+    UIManager,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -41,7 +42,7 @@ import {
     Box,
     Copy,
     X,
-    AlignLeft, // Added Icon
+    AlignLeft,
 } from "lucide-react-native";
 import { createShimmerPlaceholder } from "react-native-shimmer-placeholder";
 import { LinearGradient } from "expo-linear-gradient";
@@ -53,7 +54,14 @@ import TopBar from "../../components/Entity/TopBarNew";
 const ShimmerPlaceHolder = createShimmerPlaceholder(LinearGradient);
 const COUNTRY_CODE = "+218";
 
-// --- HELPER FUNCTIONS ---
+// --- Enable LayoutAnimation on Android ---
+if (Platform.OS === 'android') {
+    if (UIManager.setLayoutAnimationEnabledExperimental) {
+        UIManager.setLayoutAnimationEnabledExperimental(true);
+    }
+}
+
+// ... [Helper Functions & Interfaces remain same] ...
 const hexToRgba = (hex: string, opacity: number) => {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
@@ -78,7 +86,6 @@ const openDialer = (phone: string) => {
     if (phone) Linking.openURL(`tel:${phone}`);
 };
 
-// --- INTERFACES ---
 interface EntityForFilter {
     intEntityCode: number;
     strEntityName: string;
@@ -100,6 +107,7 @@ interface Parcel {
     Total: number;
     strDriverRemarks: string;
     intSenderEntityCode: number;
+    strSenderEntityName?: string; // Added optional prop for display
     dcFee: number;
     dcEntityFees: number;
     dcCompanyFees: number;
@@ -115,7 +123,7 @@ interface Parcel {
     bolIsOnlinePayment?: boolean;
     strOnlinePaymentStatus?: string;
     strOnlinePaymentURL?: string;
-    StrParcelCategory?: string; // Added Product Description
+    StrParcelCategory?: string;
 }
 
 interface CityPrice {
@@ -127,8 +135,14 @@ interface CityPrice {
 }
 interface ParcelType { Text: string; Value: string; }
 interface DeliveryType { Text: string; Value: string; }
+interface DeliveryStats {
+    success: boolean;
+    total: number;
+    delivered: number;
+    percent: number;
+}
 
-// --- PARCEL CARD COMPONENT ---
+// ... [ParcelCard Component remains same] ...
 const ParcelCard = ({
     item,
     onIconPress,
@@ -182,7 +196,6 @@ const ParcelCard = ({
                     </TouchableOpacity>
                 </View>
 
-                {/* Show Product Description if available */}
                 {item.StrParcelCategory ? (
                     <View style={styles.premiumSection}>
                         <Text style={styles.premiumSectionTitle}>تفاصيل المنتج</Text>
@@ -193,7 +206,6 @@ const ParcelCard = ({
                     </View>
                 ) : null}
 
-                {/* Online Payment Logic */}
                 {item.bolIsOnlinePayment && (
                     <View style={styles.premiumSection}>
                         <Text style={styles.premiumSectionTitle}>الدفع الإلكتروني</Text>
@@ -247,7 +259,6 @@ const ParcelCard = ({
                     <Text style={[styles.premiumTotalValue, { color: '#3498DB' }]}>{item.Total.toFixed(2)} د.ل</Text>
                 </View>
 
-                {/* Hide Edit/Delete if status is Success */}
                 {!isPaid && (
                     <View style={styles.actionButtonsContainer}>
                         <TouchableOpacity style={styles.editButton} onPress={() => onEdit(item)}>
@@ -266,9 +277,8 @@ const ParcelCard = ({
     );
 };
 
-// ... (FormInput, FormPicker, PriceOptionCard, DimensionInput)
-
-const FormInput = ({ label, icon: Icon, value, onChangeText, keyboardType = "default", editable = true, rightComponent = null, required = false }) => (
+// ... [Input Components remain same] ...
+const FormInput = ({ label, icon: Icon, value, onChangeText, keyboardType = "default", editable = true, rightComponent = null, required = false, onBlur = undefined }) => (
     <View style={styles.inputContainer}>
         <Text style={styles.label}>
             {label}
@@ -283,6 +293,7 @@ const FormInput = ({ label, icon: Icon, value, onChangeText, keyboardType = "def
                 editable={editable}
                 placeholderTextColor="#A1A1AA"
                 keyboardType={keyboardType as any}
+                onBlur={onBlur} // Passed down
             />
             {Icon && <Icon color="#A1A1AA" size={20} style={styles.leftIcon} />}
         </View>
@@ -340,13 +351,13 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
     // Form Fields
     const [recipientName, setRecipientName] = useState("");
     const [recipientPhone, setRecipientPhone] = useState("");
+    const [recipientStats, setRecipientStats] = useState<DeliveryStats | null>(null); // New Stats State
+
     const [recipientAddress, setRecipientAddress] = useState("");
     const [quantity, setQuantity] = useState("1");
     const [productPrice, setProductPrice] = useState("");
     const [notes, setNotes] = useState("");
     const [paymentMethod, setPaymentMethod] = useState("المستلم");
-
-    // Added Description State
     const [productDescription, setProductDescription] = useState("");
 
     // Dimensions
@@ -373,6 +384,37 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
         }
     }, [visible, parcel]);
 
+    // --- API Logic: Fetch Stats ---
+    const fetchDeliveryStats = async () => {
+        // We use parcel.intSenderEntityCode because in Edit mode, the store is fixed
+        if (!parcel?.intSenderEntityCode || !recipientPhone || recipientPhone.length < 7) {
+            return;
+        }
+
+        try {
+            const phoneClean = recipientPhone.replace(/\D/g, '').replace(/^0+/, '');
+            const countryCodeClean = COUNTRY_CODE.replace('+', '');
+            const fullPhone = `${countryCodeClean}${phoneClean}`;
+            const entityId = parcel.intSenderEntityCode;
+
+            const response = await axios.post(
+                `http://tanmia-group.com:90/api/stats/recipient-delivery/${entityId}/${fullPhone}`,
+                {}
+            );
+
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
+            if (response.data?.success) {
+                setRecipientStats(response.data);
+            } else {
+                setRecipientStats(null);
+            }
+        } catch (error) {
+            console.log("Error fetching stats:", error);
+            setRecipientStats(null);
+        }
+    };
+
     const displayedShippingPrice = useMemo(() => {
         let finalPrice = shippingPrice;
         if (selectedParcelType?.Text === "طرد كبير") {
@@ -388,6 +430,9 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
         if (paymentMethod === "الدفع الإلكتروني") {
             const baseTotal = (parseFloat(productPrice) || 0) + displayedShippingPrice;
             return baseTotal * 0.02; // 2% surcharge
+        } else if (paymentMethod === "الدفع بالبطاقة") {
+            const baseTotal = (parseFloat(productPrice) || 0) + displayedShippingPrice;
+            return baseTotal * 0.015; // 1.5% surcharge
         }
         return 0;
     }, [paymentMethod, productPrice, displayedShippingPrice]);
@@ -398,14 +443,15 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
 
     const loadDropdownsAndPopulate = async () => {
         setIsLoading(true);
+        setRecipientStats(null); // Reset stats on load
         try {
             const userDataString = await AsyncStorage.getItem("user");
             const parsedUser = JSON.parse(userDataString || "{}");
 
             const [typesRes, citiesRes, deliveryRes] = await Promise.all([
-                axios.get("https://tanmia-group.com:86/courierApi/parcels/GetParcelTypes"),
-                axios.get(`https://tanmia-group.com:86/courierApi/City/GetCityPrices/${parsedUser?.intCityCode || 0}`),
-                axios.get("https://tanmia-group.com:86/courierApi/parcels/GetDeliveryTypes")
+                axios.get("http://tanmia-group.com:90/courierApi/parcels/GetParcelTypes"),
+                axios.get(`http://tanmia-group.com:90/courierApi/City/GetCityPrices/${parsedUser?.intCityCode || 0}`),
+                axios.get("http://tanmia-group.com:90/courierApi/parcels/GetDeliveryTypes")
             ]);
 
             const types = typesRes.data?.ParcelTypes || [];
@@ -424,13 +470,26 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
             else if (phone.startsWith("218")) phone = phone.substring(3);
             setRecipientPhone(phone);
 
+            // Trigger Stats Fetch right after setting phone (if available)
+            // We use a small timeout to let state update, or call it directly with the value
+            if (phone) {
+                // Manually trigger stats for the initial phone
+                const phoneClean = phone.replace(/\D/g, '').replace(/^0+/, '');
+                const countryCodeClean = COUNTRY_CODE.replace('+', '');
+                const fullPhone = `${countryCodeClean}${phoneClean}`;
+                axios.post(
+                    `http://tanmia-group.com:90/api/stats/recipient-delivery/${parcel.intSenderEntityCode}/${fullPhone}`,
+                    {}
+                ).then(res => {
+                    if (res.data?.success) setRecipientStats(res.data);
+                }).catch(err => console.log("Init stats err", err));
+            }
+
             setRecipientAddress(parcel.strRecipientAddress || "");
             setQuantity(parcel.Quantity.toString());
             setProductPrice(parcel.dcEntityFees.toString());
             setNotes(parcel.Remarks || "");
             setPaymentMethod(parcel.strPaymentBy || "المستلم");
-
-            // Populate Description
             setProductDescription(parcel.StrParcelCategory || "");
 
             setLength(parcel.dcLength?.toString() || "");
@@ -475,6 +534,9 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
             let localSurcharge = 0;
             if (parcel.strPaymentBy === "الدفع الإلكتروني") {
                 const baseTotal = apiTotal / 1.02;
+                localSurcharge = apiTotal - baseTotal;
+            } else if (parcel.strPaymentBy === "الدفع بالبطاقة") {
+                const baseTotal = apiTotal / 1.015;
                 localSurcharge = apiTotal - baseTotal;
             }
 
@@ -565,11 +627,11 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
             dcLength: parseFloat(length) || 0,
             dcWidth: parseFloat(width) || 0,
             dcHeight: parseFloat(height) || 0,
-            StrParcelCategory: productDescription, // Added Payload Field
+            StrParcelCategory: productDescription,
         };
 
         try {
-            const response = await axios.post('https://tanmia-group.com:86/courierApi/parcels/updateparcel', payload);
+            const response = await axios.post('http://tanmia-group.com:90/courierApi/parcels/updateparcel', payload);
             if (response.data && response.data.Success !== false) {
                 onUpdateSuccess(response.data.Message || "تم تحديث الطرد بنجاح");
             } else {
@@ -598,6 +660,18 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
                     <ActivityIndicator size="large" color="#FF6B35" style={{ marginTop: 50 }} />
                 ) : (
                     <ScrollView contentContainerStyle={{ padding: 20 }}>
+
+                        {/* Display Selected Store at Top */}
+                        {/* <View style={styles.inputContainer}>
+                            <Text style={styles.label}>المتجر</Text>
+                            <View style={[styles.inputWrapper, { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB' }]}>
+                                <Text style={[styles.input, { color: '#6B7280' }]}>
+                                    {parcel?.strSenderEntityName || "Store ID: " + parcel?.intSenderEntityCode}
+                                </Text>
+                                <StoreIcon color="#9CA3AF" size={20} style={styles.leftIcon} />
+                            </View>
+                        </View> */}
+
                         <FormInput label="اسم المستلم" icon={User} value={recipientName} onChangeText={setRecipientName} />
 
                         <FormInput
@@ -608,15 +682,35 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
                             keyboardType="phone-pad"
                             required
                             rightComponent={<Text style={styles.countryCodeText}>{COUNTRY_CODE}</Text>}
+                            onBlur={fetchDeliveryStats} // Trigger stats on blur
                         />
+
+                        {/* Delivery Stats Component */}
+                        {recipientStats && (
+                            <View style={styles.statsContainer}>
+                                <View style={styles.statsRow}>
+                                    <View style={styles.statsTextWrapper}>
+                                        <Text style={styles.statsTitle}>نسبة التسليم لهذا الرقم</Text>
+                                        <Text style={styles.statsSubtitle}>حسب سجل الشحنات السابقة</Text>
+                                    </View>
+                                    <View style={styles.percentBadge}>
+                                        <Text style={styles.percentText}>{recipientStats.percent}%</Text>
+                                    </View>
+                                </View>
+
+                                <View style={styles.progressBarBg}>
+                                    <View style={[styles.progressBarFill, { width: `${recipientStats.percent}%` }]} />
+                                </View>
+
+                                <Text style={styles.statsFooter}>كلما زادت النسبة، زادت موثوقية التسليم لهذا الرقم.</Text>
+                            </View>
+                        )}
 
                         <FormInput label="العنوان" icon={MapPin} value={recipientAddress} onChangeText={setRecipientAddress} required={false} />
 
-                        {/* Added Product Description Input */}
                         <FormInput
                             label="وصف المنتج"
                             icon={AlignLeft}
-                            // placeholder="أدخل وصف المنتج (اختياري)"
                             value={productDescription}
                             onChangeText={setProductDescription}
                             required={false}
@@ -716,7 +810,7 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
                     </ScrollView>
                 )}
 
-                {/* City Modal */}
+                {/* ... [Modals: City, Type, Payment, Delivery remain same] ... */}
                 <Modal visible={showCityModal} transparent animationType="fade" onRequestClose={() => setShowCityModal(false)}>
                     <View style={styles.modalOverlay}>
                         <View style={styles.modernModalContent}>
@@ -734,7 +828,6 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
                     </View>
                 </Modal>
 
-                {/* Type Modal */}
                 <Modal visible={showTypeModal} transparent animationType="fade" onRequestClose={() => setShowTypeModal(false)}>
                     <View style={styles.modalOverlay}>
                         <View style={styles.modernModalContent}>
@@ -752,11 +845,10 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
                     </View>
                 </Modal>
 
-                {/* Payment Modal */}
                 <Modal visible={showPaymentModal} transparent animationType="fade" onRequestClose={() => setShowPaymentModal(false)}>
                     <View style={styles.modalOverlay}>
                         <View style={styles.modernModalContent}>
-                            {["المرسل", "المستلم", "الدفع الإلكتروني"].map(item => (
+                            {["المرسل", "المستلم", "الدفع الإلكتروني", "الدفع بالبطاقة"].map(item => (
                                 <TouchableOpacity key={item} style={styles.modernModalItem} onPress={() => { setPaymentMethod(item); setShowPaymentModal(false); }}>
                                     <Text style={styles.modernModalItemText}>{item}</Text>
                                     {paymentMethod === item && <Check color="#FF6B35" size={20} />}
@@ -766,7 +858,6 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
                     </View>
                 </Modal>
 
-                {/* Delivery Type Modal */}
                 <Modal visible={showDeliveryModal} transparent animationType="fade" onRequestClose={() => setShowDeliveryModal(false)}>
                     <View style={styles.modalOverlay}>
                         <View style={styles.modernModalContent}>
@@ -788,7 +879,7 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
     );
 }
 
-// --- MAIN SCREEN ---
+// ... [Main Screen and Styles remain same] ...
 export default function PendingApprovalScreen() {
     const [loading, setLoading] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -833,7 +924,7 @@ export default function PendingApprovalScreen() {
                     if (sortedStatusIds.length < 1) throw new Error("بيانات غير كافية لتحديد الحالة");
                     const statusIdForFilter = sortedStatusIds[0];
 
-                    const response = await axios.get(`https://tanmia-group.com:86/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
+                    const response = await axios.get(`http://tanmia-group.com:90/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
                     setEntities(response.data || []);
                 } catch (error) {
                     console.error("Failed to fetch filter entities:", error);
@@ -867,7 +958,7 @@ export default function PendingApprovalScreen() {
             const statusId = sortedStatusIds[0];
             const targetId = selectedEntity ? selectedEntity.intEntityCode : parsedUser.userId;
 
-            const response = await axios.get(`https://tanmia-group.com:86/courierApi/parcels/details/${targetId}/${statusId}`);
+            const response = await axios.get(`http://tanmia-group.com:90/courierApi/parcels/details/${targetId}/${statusId}`);
             setAllParcels(response.data?.Parcels || []);
         } catch (error) {
             console.error("Failed to load pending parcels:", error);
@@ -911,7 +1002,7 @@ export default function PendingApprovalScreen() {
         setAlertCancelAction(undefined);
 
         try {
-            const response = await axios.post(`https://tanmia-group.com:86/courierApi/parcels/deleteparcel/${id}`);
+            const response = await axios.post(`http://tanmia-group.com:90/courierApi/parcels/deleteparcel/${id}`);
 
             if (response.data && response.data.parcelID) {
                 // 2. Animate the list update
@@ -1081,7 +1172,7 @@ export default function PendingApprovalScreen() {
                     </View>
                     {selectedParcel && (
                         <WebView
-                            source={{ uri: `https://tanmia-group.com:86/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
+                            source={{ uri: `http://tanmia-group.com:90/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
                             style={{ flex: 1 }}
                             startInLoadingState={true}
                         />
@@ -1236,4 +1327,68 @@ const styles = StyleSheet.create({
     unpaidBadge: { backgroundColor: "#FEE2E2" },
     paidBadgeText: { color: "#065F46", fontSize: 12, fontWeight: "bold" },
     unpaidBadgeText: { color: "#991B1B", fontSize: 12, fontWeight: "bold" },
+
+    // --- New Stats Styles (Copied from previous task) ---
+    statsContainer: {
+        backgroundColor: "#E0F2FE", // Light blue bg
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: "#BAE6FD",
+    },
+    statsRow: {
+        flexDirection: "row-reverse",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 12,
+    },
+    statsTextWrapper: {
+        flex: 1,
+    },
+    statsTitle: {
+        fontSize: 16,
+        fontWeight: "bold",
+        color: "#0369A1", // Dark blue
+        textAlign: "right",
+        marginBottom: 4,
+    },
+    statsSubtitle: {
+        fontSize: 13,
+        color: "#0284C7",
+        textAlign: "right",
+    },
+    percentBadge: {
+        backgroundColor: "#FFFFFF",
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        justifyContent: "center",
+        alignItems: "center",
+        minWidth: 70,
+    },
+    percentText: {
+        color: "#059669", // Green
+        fontWeight: "bold",
+        fontSize: 18,
+    },
+    progressBarBg: {
+        height: 8,
+        backgroundColor: "#DBEAFE",
+        borderRadius: 4,
+        width: "100%",
+        overflow: "hidden",
+        flexDirection: "row-reverse",
+        marginBottom: 8,
+    },
+    progressBarFill: {
+        height: "100%",
+        backgroundColor: "#0EA5E9", // Blue fill
+        borderRadius: 4,
+    },
+    statsFooter: {
+        fontSize: 12,
+        color: "#52525B",
+        textAlign: "right",
+    },
 });

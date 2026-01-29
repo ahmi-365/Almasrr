@@ -36,12 +36,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const isDriver = userRole === 'Driver';
 
     const fetchUrl = isDriver
-      ? `https://tanmia-group.com:86/courierApi/Driver/notifications/${branchCode}/${entityCode}`
-      : `https://tanmia-group.com:86/courierApi/Entity/notifications/${branchCode}/${entityCode}`;
+      ? `http://tanmia-group.com:90/courierApi/Driver/notifications/${branchCode}/${entityCode}`
+      : `http://tanmia-group.com:90/courierApi/Entity/notifications/${branchCode}/${entityCode}`;
 
     const markAsReadUrl = isDriver
-      ? `https://tanmia-group.com:86/courierApi/notifications/driver/mark-all-read/${branchCode}/${entityCode}`
-      : `https://tanmia-group.com:86/courierApi/notifications/entity/mark-all-read/${branchCode}/${entityCode}`;
+      ? `http://tanmia-group.com:90/courierApi/notifications/driver/mark-all-read/${branchCode}/${entityCode}`
+      : `http://tanmia-group.com:90/courierApi/notifications/entity/mark-all-read/${branchCode}/${entityCode}`;
 
     return { fetchUrl, markAsReadUrl, userRole };
   };

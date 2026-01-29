@@ -226,7 +226,7 @@ export default function SuccessfulDeliveryScreen() {
                     const sortedStatusIds = countKeys.map(key => parseInt(key.slice(5), 10)).filter(num => !isNaN(num)).sort((a, b) => a - b);
                     if (sortedStatusIds.length < 4) throw new Error("بيانات غير كافية لتحديد الحالة");
                     const statusIdForFilter = sortedStatusIds[3];
-                    const response = await axios.get(`https://tanmia-group.com:86/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
+                    const response = await axios.get(`http://tanmia-group.com:90/courierApi/Entity/GetHistoryEntities/${user.userId}/${statusIdForFilter}`);
                     setEntities(response.data || []);
                 } catch (error) {
                     console.error("Failed to fetch filter entities:", error);
@@ -254,7 +254,7 @@ export default function SuccessfulDeliveryScreen() {
             const sortedStatusIds = countKeys.map(key => parseInt(key.slice(5), 10)).sort((a, b) => a - b);
             const statusId = sortedStatusIds[3];
             const targetId = selectedEntity ? selectedEntity.intEntityCode : parsedUser.userId;
-            const response = await axios.get(`https://tanmia-group.com:86/courierApi/parcels/details/${targetId}/${statusId}`);
+            const response = await axios.get(`http://tanmia-group.com:90/courierApi/parcels/details/${targetId}/${statusId}`);
             setAllParcels(response.data?.Parcels || []);
         } catch (error) {
             setAlertTitle("خطأ");
@@ -382,7 +382,7 @@ export default function SuccessfulDeliveryScreen() {
                     </View>
                     {selectedParcel && (
                         <WebView
-                            source={{ uri: `https://tanmia-group.com:86/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
+                            source={{ uri: `http://tanmia-group.com:90/admin/tracking/Index?trackingNumber=${selectedParcel.ReferenceNo}` }}
                             style={{ flex: 1 }}
                             startInLoadingState={true}
                         />

@@ -249,7 +249,7 @@ const ParcelDetailsScreen = () => {
 
     try {
       const response = await axios.get(
-        `https://tanmia-group.com:86/courierApi/parcels/DriverParcels/${targetUserId}`
+        `http://tanmia-group.com:90/courierApi/parcels/DriverParcels/${targetUserId}`
       );
 
       if (response.data && response.data.Parcels && Array.isArray(response.data.Parcels)) {
@@ -310,7 +310,7 @@ const ParcelDetailsScreen = () => {
     setIsProcessing(true);
     try {
       await axios.post(
-        `https://tanmia-group.com:86/courierApi/Parcel/Driver/UpdateStatus/${parcel.intParcelCode}/${parcel.intStatusCode}`
+        `http://tanmia-group.com:90/courierApi/Parcel/Driver/UpdateStatus/${parcel.intParcelCode}/${parcel.intStatusCode}`
       );
 
       setAlertTitle("نجاح");
@@ -372,7 +372,7 @@ const ParcelDetailsScreen = () => {
     setIsProcessing(true);
     try {
       await axios.post(
-        `https://tanmia-group.com:86/courierApi/Parcel/Driver/UpdateStatusMultiple/${parcel.intParcelCode}/${deliveryQty}/${deliveryAmount}`
+        `http://tanmia-group.com:90/courierApi/Parcel/Driver/UpdateStatusMultiple/${parcel.intParcelCode}/${deliveryQty}/${deliveryAmount}`
       );
 
       setAlertTitle("نجاح");
@@ -398,7 +398,7 @@ const ParcelDetailsScreen = () => {
     setIsProcessing(true);
     try {
       await axios.post(
-        `https://tanmia-group.com:86/courierApi/Parcel/Driver/ReturnOnTheWay/${parcel.intParcelCode}`
+        `http://tanmia-group.com:90/courierApi/Parcel/Driver/ReturnOnTheWay/${parcel.intParcelCode}`
       );
 
       setAlertTitle("نجاح");
@@ -423,7 +423,7 @@ const ParcelDetailsScreen = () => {
     setIsProcessing(true);
     try {
       await axios.post(
-        `https://tanmia-group.com:86/courierApi/Parcel/Driver/AddRemarks`,
+        `http://tanmia-group.com:90/courierApi/Parcel/Driver/AddRemarks`,
         {
           parcelID: parcel.intParcelCode,
           strRemarks: remark.trim()
@@ -502,7 +502,7 @@ const ParcelDetailsScreen = () => {
       params.append('entityRemarks', notificationRemarks);
 
       const response = await axios.post(
-        'https://tanmia-group.com:86/courierApi/notifications/entity-to-driver',
+        'http://tanmia-group.com:90/courierApi/notifications/entity-to-driver',
         params,
         {
           headers: {
@@ -826,7 +826,7 @@ const ParcelDetailsScreen = () => {
           {expandedSections.basic && (
             <View style={styles.sectionContent}>
               {/* {renderDetailRow(null, "رقم الطرد:", `#${parcel.intParcelCode}`)} */}
-              {renderDetailRow(null, "رقم الباركود:", parcel.ReferenceNo)}
+              {renderDetailRow(null, "رقم الطرد:", parcel.ReferenceNo)}
               {renderDetailRow(null, "نوع الطرد:", parcel.TypeName)}
               {renderDetailRow(
                 null,

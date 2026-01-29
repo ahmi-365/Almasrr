@@ -414,10 +414,10 @@ export default function ReportsDashboard() {
 
       if (user?.roleName === 'Entity') {
         // Updated API: Include paymentType in the URL for Entity reports
-        url = `https://tanmia-group.com:86/courierApi/Entity/GenerateTransactionReportPdf/${selectedEntity.intEntityCode}/${formattedFromDate}/${formattedToDate}/${paymentType}`;
+        url = `http://tanmia-group.com:90/courierApi/Entity/GenerateTransactionReportPdf/${selectedEntity.intEntityCode}/${formattedFromDate}/${formattedToDate}/${paymentType}`;
         fileName = `Report-${selectedEntity.strEntityCode}-${paymentType}-${formattedFromDate}-${Date.now()}.pdf`;
       } else if (user?.roleName === 'Driver') {
-        url = `https://tanmia-group.com:86/courierApi/Driver/GenerateTransactionReportPdf/${user.userId}/${formattedFromDate}/${formattedToDate}`;
+        url = `http://tanmia-group.com:90/courierApi/Driver/GenerateTransactionReportPdf/${user.userId}/${formattedFromDate}/${formattedToDate}`;
         fileName = `Report-Driver-${user.userId}-${formattedFromDate}-${Date.now()}.pdf`;
       }
 
@@ -513,9 +513,9 @@ export default function ReportsDashboard() {
       const formattedToDate = formatDate(toDate);
       let url = "";
       if (user.roleName === "Entity") {
-        url = `https://tanmia-group.com:86/courierApi/Entity/GetTransaction/${selectedEntity!.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
+        url = `http://tanmia-group.com:90/courierApi/Entity/GetTransaction/${selectedEntity!.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
       } else {
-        url = `https://tanmia-group.com:86/courierApi/Driver/GetTransaction/${user.userId}/${formattedFromDate}/${formattedToDate}`;
+        url = `http://tanmia-group.com:90/courierApi/Driver/GetTransaction/${user.userId}/${formattedFromDate}/${formattedToDate}`;
       }
       const response = await axios.get(url);
       setTransactions(response.data || []);
@@ -539,7 +539,7 @@ export default function ReportsDashboard() {
       await new Promise((res) => setTimeout(res, 1500));
       const formattedFromDate = formatDate(fromDate);
       const formattedToDate = formatDate(toDate);
-      const url = `https://tanmia-group.com:86/courierApi/Entity/GetTransaction/${entity.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
+      const url = `http://tanmia-group.com:90/courierApi/Entity/GetTransaction/${entity.intEntityCode}/${formattedFromDate}/${formattedToDate}`;
       const response = await axios.get(url);
       setTransactions(response.data || []);
     } catch (error) {

@@ -32,7 +32,7 @@ import {
   Search,
   Check,
   Tag,
-  AlignLeft // Added for description icon
+  AlignLeft,
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
@@ -44,7 +44,14 @@ import { LinearGradient } from "expo-linear-gradient";
 
 const ShimmerPlaceholder = createShimmerPlaceholder(LinearGradient);
 
-// ... [Keep interfaces and static constants SAME as before] ...
+// --- Enable LayoutAnimation on Android ---
+if (Platform.OS === 'android') {
+  if (UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
+}
+
+// ... [Interfaces] ...
 interface Entity {
   intEntityCode: number;
   strEntityName: string;
@@ -73,12 +80,18 @@ interface DiscountInfo {
   discount_value: number;
   promotion_id: number;
 }
+interface DeliveryStats {
+  success: boolean;
+  total: number;
+  delivered: number;
+  percent: number;
+}
 
-const PAYMENT_METHODS = ["المرسل", "المستلم", "الدفع الإلكتروني"];
+// --- UPDATED PAYMENT METHODS ---
+const PAYMENT_METHODS = ["المرسل", "المستلم", "الدفع الإلكتروني", "الدفع بالبطاقة"];
 const COUNTRY_CODE = "+218";
 
-// ... [Keep Reusable UI Components (FormInput, FormPicker, etc) SAME as before] ...
-
+// --- FormInput ---
 const FormInput = ({
   label,
   icon: Icon,
@@ -89,6 +102,7 @@ const FormInput = ({
   editable = true,
   required = false,
   rightComponent = null,
+  onBlur = undefined,
 }) => (
   <View style={styles.inputContainer}>
     <Text style={styles.label}>
@@ -105,13 +119,14 @@ const FormInput = ({
         onChangeText={onChangeText}
         keyboardType={keyboardType as KeyboardTypeOptions}
         editable={editable}
+        onBlur={onBlur}
       />
       {Icon && <Icon color="#A1A1AA" size={20} style={styles.leftIcon} />}
     </View>
   </View>
 );
 
-// ... [Keep FormPicker, DimensionInput, PriceOptionCard, SelectionModal, FormSkeleton SAME as before] ...
+// ... [Other Components] ...
 const FormPicker = ({
   label,
   icon: Icon,
@@ -235,6 +250,7 @@ const SelectionModal = ({
     </TouchableWithoutFeedback>
   </Modal>
 );
+
 const shimmerColors = ["#FDF1EC", "#FEF8F5", "#FDF1EC"];
 const FormSkeleton = () => (
   <View>
@@ -262,11 +278,13 @@ export default function CreateParcelScreen() {
   // --- Form State ---
   const [recipientName, setRecipientName] = useState("");
   const [recipientPhone, setRecipientPhone] = useState("");
+  const [recipientStats, setRecipientStats] = useState<DeliveryStats | null>(null);
+
   const [recipientAddress, setRecipientAddress] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [productPrice, setProductPrice] = useState("");
   const [notes, setNotes] = useState("");
-  const [productDescription, setProductDescription] = useState(""); // New State
+  const [productDescription, setProductDescription] = useState("");
   const [length, setLength] = useState("");
   const [width, setWidth] = useState("");
   const [height, setHeight] = useState("");
@@ -333,6 +351,48 @@ export default function CreateParcelScreen() {
     setAlertConfig((prev) => ({ ...prev, isVisible: false }));
   };
 
+  // --- API LOGIC: Fetch Stats (POST) ---
+  const fetchDeliveryStats = async () => {
+    // Both Store and Phone must be present
+    if (!selectedStore?.intEntityCode || !recipientPhone || recipientPhone.length < 7) {
+      return;
+    }
+
+    try {
+      // 1. Remove non-digits
+      // 2. Remove leading '0' (if user types 091... it becomes 91...)
+      // 3. Prepend 218 (country code without +)
+      const phoneClean = recipientPhone.replace(/\D/g, '').replace(/^0+/, '');
+      const countryCodeClean = COUNTRY_CODE.replace('+', '');
+      const fullPhone = `${countryCodeClean}${phoneClean}`;
+
+      const entityId = selectedStore.intEntityCode;
+
+      const response = await axios.post(
+        `http://tanmia-group.com:90/api/stats/recipient-delivery/${entityId}/${fullPhone}`,
+        {} // Sending empty body
+      );
+
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
+      if (response.data?.success) {
+        setRecipientStats(response.data);
+      } else {
+        setRecipientStats(null);
+      }
+    } catch (error) {
+      console.log("Error fetching stats:", error);
+      setRecipientStats(null);
+    }
+  };
+
+  // --- TRIGGER: When Store changes, retry fetch if phone is present ---
+  useEffect(() => {
+    if (recipientPhone) {
+      fetchDeliveryStats();
+    }
+  }, [selectedStore]);
+
   useEffect(() => {
     const loadInitialData = async () => {
       try {
@@ -345,18 +405,18 @@ export default function CreateParcelScreen() {
 
         await Promise.all([
           axios.get(
-            "https://tanmia-group.com:86/courierApi/parcels/GetParcelTypes"
+            "http://tanmia-group.com:90/courierApi/parcels/GetParcelTypes"
           ),
           axios.get(
-            `https://tanmia-group.com:86/courierApi/Entity/GetEntities/${userId}`
+            `http://tanmia-group.com:90/courierApi/Entity/GetEntities/${userId}`
           ),
           userCityCode
             ? axios.get(
-              `https://tanmia-group.com:86/courierApi/City/GetCityPrices/${userCityCode}`
+              `http://tanmia-group.com:90/courierApi/City/GetCityPrices/${userCityCode}`
             )
             : Promise.resolve({ data: [] }),
           axios.get(
-            "https://tanmia-group.com:86/courierApi/parcels/GetDeliveryTypes"
+            "http://tanmia-group.com:90/courierApi/parcels/GetDeliveryTypes"
           ),
         ]).then(([parcelTypesResponse, storesResponse, cityPricesResponse, deliveryTypesResponse]) => {
           if (parcelTypesResponse.data?.ParcelTypes)
@@ -413,12 +473,18 @@ export default function CreateParcelScreen() {
     }
   }, [isPromoApplied, discountInfo, shippingPrice]);
 
+  // --- UPDATED SURCHARGE LOGIC ---
   const electronicPaymentSurcharge = useMemo(() => {
+    const baseTotal = productTotal + displayedShippingPrice - discountAmount;
+
     if (paymentMethod === "الدفع الإلكتروني") {
-      // Calculate base total before surcharge
-      const baseTotal = productTotal + displayedShippingPrice - discountAmount;
-      return baseTotal * 0.02; // 2% surcharge
+      return baseTotal * 0.02; // 2%
     }
+
+    if (paymentMethod === "الدفع بالبطاقة") {
+      return baseTotal * 0.015; // 1.5%
+    }
+
     return 0;
   }, [paymentMethod, productTotal, displayedShippingPrice, discountAmount]);
 
@@ -482,7 +548,7 @@ export default function CreateParcelScreen() {
 
     setIsApplyingPromo(true);
     try {
-      const response = await axios.post('https://tanmia-group.com:86/courierApi/promotion/validate', {
+      const response = await axios.post('http://tanmia-group.com:90/courierApi/promotion/validate', {
         promocode: promoCode,
         intCityCode: selectedCityData.intCityCode,
         intParentCityCode: userCityCode,
@@ -525,7 +591,7 @@ export default function CreateParcelScreen() {
     setQuantity("1");
     setProductPrice("");
     setNotes("");
-    setProductDescription(""); // Reset Description
+    setProductDescription("");
     setLength("");
     setWidth("");
     setHeight("");
@@ -538,10 +604,10 @@ export default function CreateParcelScreen() {
     setShippingPrice(0);
     setStoreSearchQuery("");
     setCitySearchQuery("");
-    // --- Reset Promo Code State ---
     setPromoCode("");
     setDiscountInfo(null);
     setIsPromoApplied(false);
+    setRecipientStats(null); // Reset Stats
 
     const fastDelivery = deliveryTypes.find(dt => dt.Value === "سريع");
     if (fastDelivery) {
@@ -550,7 +616,6 @@ export default function CreateParcelScreen() {
   };
 
   const handleSave = async () => {
-    // --- UPDATED VALIDATION: Removed Name and Phone checks ---
     if (
       !recipientPhone.trim()
     )
@@ -587,7 +652,6 @@ export default function CreateParcelScreen() {
         message: "يرجى اختيار سعر الشحن.",
       });
 
-    // --- UPDATED VALIDATION: Allow Product Price to be 0 ---
     if ((parseFloat(productPrice) < 0) || !(parseInt(quantity, 10) >= 0)) {
       return showAlert({
         title: "قيم غير صالحة",
@@ -619,14 +683,11 @@ export default function CreateParcelScreen() {
       outskirts: "OutSkirt",
     };
 
-    // --- UPDATED LOGIC: Only append country code if phone is not empty ---
     const fullRecipientPhone = recipientPhone.trim() ? (COUNTRY_CODE + recipientPhone) : "";
-
-    // --- UPDATED LOGIC: Use selected store EntityCode, fallback to userId ---
     const senderEntityCode = selectedStore?.intEntityCode ?? userId;
 
     const payload = {
-      intSenderEntityCode: senderEntityCode, // Use variable from above
+      intSenderEntityCode: senderEntityCode,
       strRecipientName: recipientName,
       strRecipientPhone: fullRecipientPhone,
       strRecipientAddress: recipientAddress,
@@ -648,35 +709,27 @@ export default function CreateParcelScreen() {
         : "",
       strDeliveryType: selectedDeliveryType?.Value || "",
       intPromotionId: isPromoApplied ? discountInfo.promotion_id : null,
-      StrParcelCategory: productDescription, // Added Product Description
+      StrParcelCategory: productDescription,
     };
 
     try {
-      const response = await axios.post('https://tanmia-group.com:86/courierApi/parcels/saveparcel', payload);
+      const response = await axios.post('http://tanmia-group.com:90/courierApi/parcels/saveparcel', payload);
 
-      // Check if API call was successful AND if the Logic Success is true
-      // We check response.data.Success !== false to handle your specific JSON structure
       if (response.status === 200 && response.data?.Success !== false) {
         showAlert({
           title: 'نجاح',
-          // Handle Capital 'M' Message or lowercase 'm' message
           message: response.data?.Message || response.data?.message || 'تم حفظ الطرد بنجاح!',
           confirmText: 'إضافة طرد جديد',
           onConfirm: resetForm,
           success: true,
         });
       } else {
-        // If status is 200 but Success is false, throw error with the API message
         const failMessage = response.data?.Message || response.data?.message || 'فشل حفظ الطرد';
         throw new Error(failMessage);
       }
     } catch (error) {
       console.error("Save parcel error:", error.response?.data || error.message);
-
-      // --- FIX: Handle Capital 'M' Message here ---
       const apiData = error.response?.data;
-
-      // We check apiData.Message (Capital) first, then apiData.message (lowercase)
       const apiErrorMessage =
         apiData?.Message ||
         apiData?.message ||
@@ -712,35 +765,6 @@ export default function CreateParcelScreen() {
           <FormSkeleton />
         ) : (
           <>
-            <FormInput
-              label="اسم المستلم"
-              icon={User}
-              placeholder="أدخل اسم المستلم"
-              value={recipientName}
-              onChangeText={setRecipientName}
-              editable={!isSaving}
-              required={false} // <-- Changed to false
-            />
-            <FormInput
-              label="هاتف المستلم"
-              icon={Phone}
-              placeholder="أدخل رقم الهاتف"
-              value={recipientPhone}
-              onChangeText={setRecipientPhone}
-              keyboardType="phone-pad"
-              editable={!isSaving}
-              required // <-- Changed to false
-              rightComponent={<Text style={styles.countryCodeText}>{COUNTRY_CODE}</Text>}
-            />
-            <FormInput
-              label="عنوان المستلم"
-              icon={MapPin}
-              placeholder="أدخل العنوان بالتفصيل"
-              value={recipientAddress}
-              onChangeText={setRecipientAddress}
-              editable={!isSaving}
-              required={false}
-            />
             <FormPicker
               label="المتجر"
               icon={Store}
@@ -750,7 +774,62 @@ export default function CreateParcelScreen() {
               disabled={isSaving}
               required
             />
-            {/* ... Rest of the JSX remains the same ... */}
+
+            <FormInput
+              label="اسم المستلم"
+              icon={User}
+              placeholder="أدخل اسم المستلم"
+              value={recipientName}
+              onChangeText={setRecipientName}
+              editable={!isSaving}
+              required={false}
+            />
+
+            {/* TRIGGER: onBlur attached to Phone Input */}
+            <FormInput
+              label="هاتف المستلم"
+              icon={Phone}
+              placeholder="أدخل رقم الهاتف"
+              value={recipientPhone}
+              onChangeText={setRecipientPhone}
+              keyboardType="phone-pad"
+              editable={!isSaving}
+              required
+              rightComponent={<Text style={styles.countryCodeText}>{COUNTRY_CODE}</Text>}
+              onBlur={fetchDeliveryStats} // <--- API Call on focus out
+            />
+
+            {/* Delivery Stats Component */}
+            {recipientStats && (
+              <View style={styles.statsContainer}>
+                <View style={styles.statsRow}>
+                  <View style={styles.statsTextWrapper}>
+                    <Text style={styles.statsTitle}>نسبة التسليم لهذا الرقم</Text>
+                    <Text style={styles.statsSubtitle}>حسب سجل الشحنات السابقة</Text>
+                  </View>
+                  <View style={styles.percentBadge}>
+                    <Text style={styles.percentText}>{recipientStats.percent}%</Text>
+                  </View>
+                </View>
+
+                <View style={styles.progressBarBg}>
+                  <View style={[styles.progressBarFill, { width: `${recipientStats.percent}%` }]} />
+                </View>
+
+                <Text style={styles.statsFooter}>كلما زادت النسبة، زادت موثوقية التسليم لهذا الرقم.</Text>
+              </View>
+            )}
+
+            <FormInput
+              label="عنوان المستلم"
+              icon={MapPin}
+              placeholder="أدخل العنوان بالتفصيل"
+              value={recipientAddress}
+              onChangeText={setRecipientAddress}
+              editable={!isSaving}
+              required={false}
+            />
+
             <FormPicker
               label="نوع الطرد"
               icon={Package}
@@ -787,7 +866,6 @@ export default function CreateParcelScreen() {
               </View>
             )}
 
-            {/* Added Product Description Input */}
             <FormInput
               label="وصف المنتج"
               icon={AlignLeft}
@@ -849,7 +927,7 @@ export default function CreateParcelScreen() {
                   onChangeText={setProductPrice}
                   keyboardType="numeric"
                   editable={!isSaving}
-                  required // Keep required visual indicator, but allow 0 in logic
+                  required
                 />
               </View>
               <View style={{ width: 16 }} />
@@ -995,7 +1073,6 @@ export default function CreateParcelScreen() {
         onCancel={undefined}
       />
 
-      {/* ... [Keep Modals SAME as before] ... */}
       <Modal
         visible={isStoreModalVisible}
         animationType="fade"
@@ -1143,7 +1220,7 @@ export default function CreateParcelScreen() {
   );
 }
 
-// ... [Keep Stylesheet SAME as before] ...
+// ... [Styles] ...
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F8F9FA" },
   scrollContainer: {
@@ -1394,6 +1471,69 @@ const styles = StyleSheet.create({
   },
   removePromoButtonText: {
     color: '#FFFFFF',
+  },
+  // --- New Stats Styles ---
+  statsContainer: {
+    backgroundColor: "#E0F2FE", // Light blue bg
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#BAE6FD",
+  },
+  statsRow: {
+    flexDirection: "row-reverse",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  statsTextWrapper: {
+    flex: 1,
+  },
+  statsTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#0369A1", // Dark blue
+    textAlign: "right",
+    marginBottom: 4,
+  },
+  statsSubtitle: {
+    fontSize: 13,
+    color: "#0284C7",
+    textAlign: "right",
+  },
+  percentBadge: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    minWidth: 70,
+  },
+  percentText: {
+    color: "#059669", // Green
+    fontWeight: "bold",
+    fontSize: 18,
+  },
+  progressBarBg: {
+    height: 8,
+    backgroundColor: "#DBEAFE",
+    borderRadius: 4,
+    width: "100%",
+    overflow: "hidden",
+    flexDirection: "row-reverse",
+    marginBottom: 8,
+  },
+  progressBarFill: {
+    height: "100%",
+    backgroundColor: "#0EA5E9", // Blue fill
+    borderRadius: 4,
+  },
+  statsFooter: {
+    fontSize: 12,
+    color: "#52525B",
+    textAlign: "right",
   },
 });
 

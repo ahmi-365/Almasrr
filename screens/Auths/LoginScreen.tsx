@@ -291,9 +291,9 @@ const LoginScreen = () => {
 
       let endpoint = '';
       if (roleName === 'Entity') {
-        endpoint = 'https://tanmia-group.com:86/courierApi/entity/updateToken';
+        endpoint = 'http://tanmia-group.com:90/courierApi/entity/updateToken';
       } else if (roleName === 'Driver') {
-        endpoint = 'https://tanmia-group.com:86/courierApi/driver/updateToken';
+        endpoint = 'http://tanmia-group.com:90/courierApi/driver/updateToken';
       } else {
         console.log(`Unknown role: ${roleName}. Skipping FCM token update.`);
         return;
@@ -342,7 +342,7 @@ const LoginScreen = () => {
     ]).start();
 
     try {
-      const response = await fetch('https://tanmia-group.com:86/courierApi/login', {
+      const response = await fetch('http://tanmia-group.com:90/courierApi/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

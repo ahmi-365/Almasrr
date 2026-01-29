@@ -51,7 +51,7 @@ export default function DriverInvoicesScreen() {
 
         try {
             setLoading(true);
-            const url = `https://tanmia-group.com:86/courierApi/parcels/GetAssignedInvoicesByParcelForDriver/${user.userId}`;
+            const url = `http://tanmia-group.com:90/courierApi/parcels/GetAssignedInvoicesByParcelForDriver/${user.userId}`;
             const response = await axios.get(url);
 
             if (Array.isArray(response.data)) {
@@ -105,7 +105,7 @@ export default function DriverInvoicesScreen() {
         });
 
         try {
-            const url = `https://tanmia-group.com:86/courierApi/Parcel/ReturnInvoicePdfForDriver/${invoice.strInvoiceNo}/${invoice.intDriverCode}`;
+            const url = `http://tanmia-group.com:90/courierApi/Parcel/ReturnInvoicePdfForDriver/${invoice.strInvoiceNo}/${invoice.intDriverCode}`;
 
             // 3. Define Path (Directly to Downloads folder)
             const fileName = `DriverInvoice_${invoice.strInvoiceNo}.pdf`;

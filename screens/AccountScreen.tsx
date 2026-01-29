@@ -237,7 +237,7 @@ export default function AccountScreen({ navigation }) {
         NewPassword: newPassword,
       };
 
-      const response = await fetch('https://tanmia-group.com:86/courierApi/changePassword', {
+      const response = await fetch('http://tanmia-group.com:90/courierApi/changePassword', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -349,7 +349,7 @@ export default function AssignedParcelScreen() {
             setStatusId(currentStatusId);
 
             const response = await axios.get(
-                `https://tanmia-group.com:86/courierApi/Driverparcels/details/${parsedUser.userId}/${currentStatusId}`
+                `http://tanmia-group.com:90/courierApi/Driverparcels/details/${parsedUser.userId}/${currentStatusId}`
             );
 
             if (response.data && response.data.Parcels) {
@@ -388,7 +388,7 @@ export default function AssignedParcelScreen() {
         setIsProcessing(true);
         try {
             await axios.post(
-                `https://tanmia-group.com:86/courierApi/Parcel/Driver/UpdateStatus/${selectedParcel.intParcelCode}/${statusId}`
+                `http://tanmia-group.com:90/courierApi/Parcel/Driver/UpdateStatus/${selectedParcel.intParcelCode}/${statusId}`
             );
 
             // Update List Immediately
@@ -455,7 +455,7 @@ export default function AssignedParcelScreen() {
         setIsProcessing(true);
         try {
             await axios.post(
-                `https://tanmia-group.com:86/courierApi/Parcel/Driver/UpdateStatusMultiple/${selectedParcel.intParcelCode}/${deliveryQty}/${deliveryAmount}`
+                `http://tanmia-group.com:90/courierApi/Parcel/Driver/UpdateStatusMultiple/${selectedParcel.intParcelCode}/${deliveryQty}/${deliveryAmount}`
             );
 
             // Update List Immediately
@@ -486,7 +486,7 @@ export default function AssignedParcelScreen() {
         setIsProcessing(true);
         try {
             await axios.post(
-                `https://tanmia-group.com:86/courierApi/Parcel/Driver/ReturnOnTheWay/${selectedParcel.intParcelCode}`
+                `http://tanmia-group.com:90/courierApi/Parcel/Driver/ReturnOnTheWay/${selectedParcel.intParcelCode}`
             );
 
             setAllParcels((prev) => prev.filter(p => p.intParcelCode !== selectedParcel.intParcelCode));
@@ -514,7 +514,7 @@ export default function AssignedParcelScreen() {
         setIsProcessing(true);
         try {
             await axios.post(
-                `https://tanmia-group.com:86/courierApi/Parcel/Driver/AddRemarks`,
+                `http://tanmia-group.com:90/courierApi/Parcel/Driver/AddRemarks`,
                 {
                     parcelID: selectedParcel.intParcelCode,
                     strRemarks: trimmedRemark

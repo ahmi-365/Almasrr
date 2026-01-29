@@ -387,7 +387,7 @@ export default function EntityDashboard() {
       const branchCode = userData.intFromBranchCode || userData.branchCode || userData.BranchCode;
       if (branchCode) {
         try {
-          const response = await axios.get(`https://tanmia-group.com:86/courierapi/promoimages/${branchCode}`);
+          const response = await axios.get(`http://tanmia-group.com:90/courierapi/promoimages/${branchCode}`);
           setImageBanners(response.data);
         } catch (error) {
           console.error("Failed to fetch promo images:", error);
@@ -441,7 +441,7 @@ export default function EntityDashboard() {
 
     try {
       const entityCode = user.userId;
-      const url = `https://tanmia-group.com:86/courierApi/parcels/EntityParcels/${entityCode}`;
+      const url = `http://tanmia-group.com:90/courierApi/parcels/EntityParcels/${entityCode}`;
 
       const response = await axios.get(url);
 
@@ -468,11 +468,11 @@ export default function EntityDashboard() {
 
     try {
       const dashboardResponse = await axios.get(
-        `https://tanmia-group.com:86/courierApi/entityparcels/DashboardData/${userId}`
+        `http://tanmia-group.com:90/courierApi/entityparcels/DashboardData/${userId}`
       );
 
       const entitiesResponse = await axios.get(
-        `https://tanmia-group.com:86/courierApi/Entity/GetEntities/${userId}`
+        `http://tanmia-group.com:90/courierApi/Entity/GetEntities/${userId}`
       );
 
       if (dashboardResponse.data) {

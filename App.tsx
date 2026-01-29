@@ -64,8 +64,8 @@ export default function App() {
         const currentVersion = DeviceInfo.getBuildNumber();
         const apiUrl =
           Platform.OS === "ios"
-            ? "https://tanmia-group.com:86/api/checkUpdate/AL_MASAR_IOS"
-            : "https://tanmia-group.com:86/api/checkUpdate/AL_MASAR_ANDROID";
+            ? "http://tanmia-group.com:90/api/checkUpdate/AL_MASAR_IOS"
+            : "http://tanmia-group.com:90/api/checkUpdate/AL_MASAR_ANDROID";
 
         const response = await fetch(apiUrl);
         const data = await response.json();
