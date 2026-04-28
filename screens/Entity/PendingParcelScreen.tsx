@@ -358,6 +358,10 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
     const [productPrice, setProductPrice] = useState("");
     const [notes, setNotes] = useState("");
     const [paymentMethod, setPaymentMethod] = useState("المستلم");
+    // Most labels are sent to/received from the API verbatim;
+    // "الدفع بالحوالة" maps to/from "bank".
+    const paymentLabelToApi = (label: string) => (label === "الدفع بالحوالة" ? "bank" : label);
+    const apiToPaymentLabel = (value: string) => (value === "bank" ? "الدفع بالحوالة" : value);
     const [productDescription, setProductDescription] = useState("");
 
     // Dimensions
@@ -489,7 +493,7 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
             setQuantity(parcel.Quantity.toString());
             setProductPrice(parcel.dcEntityFees.toString());
             setNotes(parcel.Remarks || "");
-            setPaymentMethod(parcel.strPaymentBy || "المستلم");
+            setPaymentMethod(apiToPaymentLabel(parcel.strPaymentBy) || "المستلم");
             setProductDescription(parcel.StrParcelCategory || "");
 
             setLength(parcel.dcLength?.toString() || "");
@@ -617,7 +621,7 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
             dcDriverFees: 0,
             dcEntityFees: prodPrice,
             dcCompanyFees: companyFees,
-            strPaymentBy: paymentMethod,
+            strPaymentBy: paymentLabelToApi(paymentMethod),
             intToCityCode: selectedCity.intCityCode,
             intQty: parseInt(quantity),
             strRemarks: notes,
@@ -848,7 +852,7 @@ const EditParcelModal = ({ visible, onClose, parcel, onUpdateSuccess, onError })
                 <Modal visible={showPaymentModal} transparent animationType="fade" onRequestClose={() => setShowPaymentModal(false)}>
                     <View style={styles.modalOverlay}>
                         <View style={styles.modernModalContent}>
-                            {["المرسل", "المستلم", "الدفع الإلكتروني", "الدفع بالبطاقة"].map(item => (
+                            {["المرسل", "المستلم", "الدفع الإلكتروني", "الدفع بالبطاقة", "الدفع بالحوالة"].map(item => (
                                 <TouchableOpacity key={item} style={styles.modernModalItem} onPress={() => { setPaymentMethod(item); setShowPaymentModal(false); }}>
                                     <Text style={styles.modernModalItemText}>{item}</Text>
                                     {paymentMethod === item && <Check color="#FF6B35" size={20} />}

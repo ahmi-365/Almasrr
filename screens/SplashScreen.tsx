@@ -115,8 +115,18 @@ export default function SplashScreen() {
           if (!userData) {
             return navigation.replace('Login');
           }
-          const parsed = JSON.parse(userData);
-          if (parsed?.success === true && parsed?.roleName) {
+          let parsed: any;
+          try {
+            parsed = JSON.parse(userData);
+          } catch {
+            // Corrupt JSON in storage — clear it so we don't keep trying.
+            await AsyncStorage.removeItem('user');
+            return navigation.replace('Login');
+          }
+          // A valid session is one that can drive the app: it needs a role
+          // (Entity/Driver) and a userId. The previous `success === true`
+          // check was brittle and rejected otherwise-valid sessions.
+          if (parsed?.roleName && parsed?.userId) {
             navigation.replace('MainTabs');
           } else {
             navigation.replace('Login');

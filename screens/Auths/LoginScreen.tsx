@@ -21,8 +21,10 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import messaging from '@react-native-firebase/messaging';
 import CustomAlert from '../../components/CustomAlert';
 import { useDashboard } from '../../Context/DashboardContext';
+import { syncFcmTokenToServer } from '../utils/fcmToken';
 
 type RootStackParamList = {
   Login: undefined;
@@ -280,42 +282,20 @@ const LoginScreen = () => {
 
   }, []);
 
-  // --- NEW: Function to update FCM token on the server ---
+  // Always fetch the freshest token from FCM at login, persist it, push it to
+  // the server, and mark it as synced so App.tsx won't re-send it on next launch.
   const updateFCMToken = async (userId: number, roleName: string) => {
     try {
-      const fcmToken = await AsyncStorage.getItem('fcmToken');
-      if (!fcmToken) {
-        console.log('No FCM token found, skipping update.');
+      const token = await messaging().getToken();
+      if (!token) {
+        console.log('No FCM token available, skipping update.');
         return;
       }
+      await AsyncStorage.setItem('fcmToken', token);
 
-      let endpoint = '';
-      if (roleName === 'Entity') {
-        endpoint = 'http://tanmia-group.com:90/courierApi/entity/updateToken';
-      } else if (roleName === 'Driver') {
-        endpoint = 'http://tanmia-group.com:90/courierApi/driver/updateToken';
-      } else {
-        console.log(`Unknown role: ${roleName}. Skipping FCM token update.`);
-        return;
-      }
-
-      const body = {
-        Id: userId,
-        IosToken: Platform.OS === 'ios' ? fcmToken : null,
-        AndroidToken: Platform.OS === 'android' ? fcmToken : null,
-      };
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      if (response.ok) {
-        console.log(`FCM token updated successfully for ${roleName} ${userId}.`);
-      } else {
-        const errorData = await response.json();
-        console.error('Failed to update FCM token:', response.status, errorData);
+      const ok = await syncFcmTokenToServer(userId, roleName, token);
+      if (ok) {
+        await AsyncStorage.setItem('fcmTokenSynced', token);
       }
     } catch (error) {
       console.error('An error occurred while updating FCM token:', error);
@@ -357,11 +337,23 @@ const LoginScreen = () => {
       const responseData = await response.json();
 
       if (response.ok && responseData.success) {
-        updateFCMToken(responseData.userId, responseData.roleName);
-        setDashboardData(null);
-        setUser(responseData);
-        setDcBalance(String(responseData?.DCBalance?.toFixed(2) ?? '0.00'));
+        // Persist the session FIRST. Anything that throws after this point
+        // (state setters, FCM sync, etc.) must not prevent the session from
+        // being saved — otherwise the user lands on Login on next launch.
         await AsyncStorage.setItem('user', JSON.stringify(responseData));
+
+        try {
+          setDashboardData(null);
+          setUser(responseData);
+          const balanceNum = Number(responseData?.DCBalance);
+          setDcBalance(Number.isFinite(balanceNum) ? balanceNum.toFixed(2) : '0.00');
+        } catch (stateErr) {
+          console.error('Post-login state hydration failed:', stateErr);
+        }
+
+        // Fire-and-forget: token sync retries on next launch via App.tsx.
+        updateFCMToken(responseData.userId, responseData.roleName);
+
         navigation.replace('MainTabs');
       } else {
         setAlertTitle('خطأ في تسجيل الدخول');

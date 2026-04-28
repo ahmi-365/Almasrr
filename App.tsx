@@ -24,6 +24,7 @@ import CustomAlert from "./components/CustomAlert";
 import { navigationRef, navigate } from "./navigation/NavigationService";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NotificationProvider } from "./Context/NotificationContext";
+import { refreshAndSyncFcmToken } from "./screens/utils/fcmToken";
 
 enableScreens(true);
 
@@ -105,11 +106,11 @@ export default function App() {
         );
       }
 
-      let token = await AsyncStorage.getItem("fcmToken");
-      if (!token) {
-        token = await messaging().getToken();
-        await AsyncStorage.setItem("fcmToken", token);
-      }
+      // Always fetch the latest token, persist it, and sync to the server if
+      // it changed or was never confirmed synced. Fixes the silent-rotation
+      // bug where users stopped receiving notifications after FCM rotated
+      // their token.
+      await refreshAndSyncFcmToken();
 
       messaging().onMessage((msg) => {
         notifee.displayNotification({
@@ -131,6 +132,22 @@ export default function App() {
     };
 
     initializeApp();
+
+    // FCM may rotate the token at any time (app reinstall, restored backup,
+    // long inactivity). Persist + push to the server whenever that happens.
+    const unsubscribeTokenRefresh = messaging().onTokenRefresh(async (newToken) => {
+      try {
+        await AsyncStorage.setItem("fcmToken", newToken);
+        await AsyncStorage.removeItem("fcmTokenSynced");
+        await refreshAndSyncFcmToken();
+      } catch (err) {
+        console.error("Failed to handle FCM token refresh:", err);
+      }
+    });
+
+    return () => {
+      unsubscribeTokenRefresh();
+    };
   }, []);
 
   return (

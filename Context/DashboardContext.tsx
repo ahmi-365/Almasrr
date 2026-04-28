@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // --- ADDED USER TYPE ---
 interface User {
@@ -36,6 +37,25 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // -------------
 
   const toggleSidebar = () => setSidebarVisible(prev => !prev);
+
+  // Rehydrate user (and DCBalance) from AsyncStorage on cold start so context
+  // consumers don't see `null` until the user logs in again.
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem('user');
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.roleName && parsed.userId) {
+          setUser(parsed);
+          const balanceNum = Number(parsed?.DCBalance);
+          if (Number.isFinite(balanceNum)) setDcBalance(balanceNum.toFixed(2));
+        }
+      } catch (err) {
+        console.error('Failed to rehydrate user from storage:', err);
+      }
+    })();
+  }, []);
 
   return (
     <DashboardContext.Provider

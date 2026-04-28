@@ -88,7 +88,9 @@ interface DeliveryStats {
 }
 
 // --- UPDATED PAYMENT METHODS ---
-const PAYMENT_METHODS = ["المرسل", "المستلم", "الدفع الإلكتروني", "الدفع بالبطاقة"];
+const PAYMENT_METHODS = ["المرسل", "المستلم", "الدفع الإلكتروني", "الدفع بالبطاقة", "الدفع بالحوالة"];
+// Most labels are sent to the API verbatim; "الدفع بالحوالة" maps to "bank".
+const paymentLabelToApi = (label: string) => (label === "الدفع بالحوالة" ? "bank" : label);
 const COUNTRY_CODE = "+218";
 
 // --- FormInput ---
@@ -225,24 +227,30 @@ const SelectionModal = ({
             <FlatList
               data={options}
               keyExtractor={(item) => item.Value || item}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.modernModalItem}
-                  onPress={() => onSelect(item)}
-                >
-                  <Text
-                    style={[
-                      styles.modernModalItemText,
-                      (selectedValue?.Value === item.Value || selectedValue === item) && styles.modalItemSelected,
-                    ]}
+              renderItem={({ item }) => {
+                // Plain-string options (e.g. payment methods) don't have .Value;
+                // comparing undefined === undefined was making every row look selected.
+                const isObjectOption = typeof item === 'object' && item !== null;
+                const isSelected = isObjectOption
+                  ? selectedValue?.Value !== undefined && selectedValue.Value === item.Value
+                  : selectedValue === item;
+                return (
+                  <TouchableOpacity
+                    style={styles.modernModalItem}
+                    onPress={() => onSelect(item)}
                   >
-                    {item.Text || item}
-                  </Text>
-                  {(selectedValue?.Value === item.Value || selectedValue === item) && (
-                    <Check color="#FF6B35" size={20} />
-                  )}
-                </TouchableOpacity>
-              )}
+                    <Text
+                      style={[
+                        styles.modernModalItemText,
+                        isSelected && styles.modalItemSelected,
+                      ]}
+                    >
+                      {item.Text || item}
+                    </Text>
+                    {isSelected && <Check color="#FF6B35" size={20} />}
+                  </TouchableOpacity>
+                );
+              }}
             />
           </SafeAreaView>
         </TouchableWithoutFeedback>
@@ -696,7 +704,7 @@ export default function CreateParcelScreen() {
       dcDriverFees: 0,
       dcEntityFees: productTotal,
       dcCompanyFees: displayedShippingPrice,
-      strPaymentBy: paymentMethod,
+      strPaymentBy: paymentLabelToApi(paymentMethod),
       intToCityCode: selectedCityData.intCityCode ?? userCityCode,
       intQty: parseInt(quantity, 10),
       strRemarks: notes,

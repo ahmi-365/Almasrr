@@ -49,6 +49,10 @@ const AnimatedTabItem = ({ isFocused, label, icon, onPress }) => {
 
 const CustomTabBar = ({ state, descriptors, navigation }) => {
     const insets = useSafeAreaInsets();
+    // iOS already bakes home-indicator clearance into TAB_BAR_HEIGHT (100).
+    // Android with edge-to-edge needs the system nav bar inset added here so
+    // the tab icons don't sit behind the 3-button navigation.
+    const bottomPad = Platform.OS === 'android' ? insets.bottom : 0;
     const hasAddTab = state.routes.some(route => route.name === 'AddTab');
     const [isMenuOpen, setMenuOpen] = useState(false);
     const animation = useRef(new Animated.Value(0)).current;
@@ -114,10 +118,10 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
     const createNotchedPath = () => {
         const centerWidth = width / 2;
         const notchRadius = 35;
-        return `M 0 0 L ${centerWidth - notchRadius - 15} 0 Q ${centerWidth - notchRadius - 5} 0 ${centerWidth - notchRadius} 5 C ${centerWidth - notchRadius + 15} 30 ${centerWidth + notchRadius - 15} 30 ${centerWidth + notchRadius} 5 Q ${centerWidth + notchRadius + 5} 0 ${centerWidth + notchRadius + 15} 0 L ${width} 0 L ${width} ${TAB_BAR_HEIGHT + insets.bottom} L 0 ${TAB_BAR_HEIGHT + insets.bottom} Z`;
+        return `M 0 0 L ${centerWidth - notchRadius - 15} 0 Q ${centerWidth - notchRadius - 5} 0 ${centerWidth - notchRadius} 5 C ${centerWidth - notchRadius + 15} 30 ${centerWidth + notchRadius - 15} 30 ${centerWidth + notchRadius} 5 Q ${centerWidth + notchRadius + 5} 0 ${centerWidth + notchRadius + 15} 0 L ${width} 0 L ${width} ${TAB_BAR_HEIGHT + bottomPad} L 0 ${TAB_BAR_HEIGHT + bottomPad} Z`;
     };
 
-    const createFlatPath = () => `M 0 0 L ${width} 0 L ${width} ${TAB_BAR_HEIGHT + insets.bottom} L 0 ${TAB_BAR_HEIGHT + insets.bottom} Z`;
+    const createFlatPath = () => `M 0 0 L ${width} 0 L ${width} ${TAB_BAR_HEIGHT + bottomPad} L 0 ${TAB_BAR_HEIGHT + bottomPad} Z`;
 
     const handleBubblePress = (screen) => {
         toggleMenu();
@@ -125,9 +129,15 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
     };
 
     return (
-        <View style={styles.tabBarContainer}>
+        <View style={[styles.tabBarContainer, { height: TAB_BAR_HEIGHT + bottomPad }]}>
             {hasAddTab && (
-                <View style={styles.bubblesWrapper} pointerEvents="box-none">
+                <View
+                    style={[
+                        styles.bubblesWrapper,
+                        { bottom: (Platform.OS === 'ios' ? 170 : 150) + bottomPad },
+                    ]}
+                    pointerEvents="box-none"
+                >
                     {/* --- 1. WRAP TEXT LABELS IN A VIEW FOR BADGE STYLING --- */}
                     <Animated.View style={[styles.bubble, bubble1Style]}>
                         <View style={styles.bubbleContentContainer}>
@@ -156,11 +166,11 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
                     </Animated.View>
                 </View>
             )}
-            <Svg width={width} height={TAB_BAR_HEIGHT + insets.bottom} style={{ position: 'absolute' }}>
+            <Svg width={width} height={TAB_BAR_HEIGHT + bottomPad} style={{ position: 'absolute' }}>
                 <Path d={hasAddTab ? createNotchedPath() : createFlatPath()} fill="#FFFFFF" stroke="#E5E5E5" strokeWidth={1} />
             </Svg>
 
-            <View style={styles.iconsContainer}>
+            <View style={[styles.iconsContainer, { paddingBottom: bottomPad }]}>
                 {state.routes.map((route, index) => {
                     const { options } = descriptors[route.key];
                     const isFocused = state.index === index;

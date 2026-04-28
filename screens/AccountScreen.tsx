@@ -15,6 +15,8 @@ import {
   Platform, // Import Platform
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import messaging from '@react-native-firebase/messaging';
 import {
   User as UserIcon,
   Phone,
@@ -178,8 +180,35 @@ export default function AccountScreen({ navigation }) {
   const confirmLogout = async () => {
     setAlertVisible(false);
     try {
+      const userDataString = await AsyncStorage.getItem('user');
+      const fcmToken = await AsyncStorage.getItem('fcmToken');
+
+      if (userDataString && fcmToken) {
+        const userData = JSON.parse(userDataString);
+        const isDriver = userData.roleName === 'Driver';
+        const logoutUrl = isDriver
+          ? 'http://tanmia-group.com:90/courierApi/driver/logout'
+          : 'http://tanmia-group.com:90/courierApi/entity/logout';
+
+        try {
+          await axios.post(logoutUrl, {
+            id: userData.userId,
+            platform: Platform.OS,
+            token: fcmToken,
+          });
+        } catch (apiError) {
+          console.error('Logout API error:', apiError);
+        }
+      }
+
+      try {
+        await messaging().deleteToken();
+      } catch (tokenError) {
+        console.error('Failed to delete FCM token:', tokenError);
+      }
+
       await AsyncStorage.clear();
-      await AsyncStorage.multiRemove(['user', 'token', 'isLoggedIn']);
+      await AsyncStorage.multiRemove(['user', 'token', 'isLoggedIn', 'fcmToken']);
       navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
     } catch (error) {
       console.error('Logout error:', error);
