@@ -787,7 +787,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 15,
     paddingTop: HEADER_EXPANDED_HEIGHT,
-    paddingBottom: 80,
+    paddingBottom: 120,
   },
   imageSliderContainer: {
     height: 150,
@@ -823,7 +823,7 @@ const styles = StyleSheet.create({
   },
   promoSliderTitle: {
     color: "#FFF",
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "bold",
     marginBottom: 2,
     textAlign: "right",
